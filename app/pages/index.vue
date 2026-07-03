@@ -49,112 +49,219 @@
 </template>
 
 <style scoped>
-
 /* ==========================================================================
-   FIXED WINDOW APPLICATION INTERFACE OVERRIDE
+   STABLE CHAT INTERFACE WITH PIXELATED AUTO-SCROLL ANCHOR
    ========================================================================== */
 
-/* Force the root window frame to match the screen exactly with zero scroll */
+/* Freeze root app window canvas */
 html, body, #__nuxt {
   margin: 0 !important;
   padding: 0 !important;
   height: 100vh !important;
   width: 100vw !important;
-  overflow: hidden !important; /* Disables total window page-level scrolling */
+  overflow: hidden !important;
+  background-color: #0b0c10;
+  font-family: monospace;
 }
 
-/* Set up the main app canvas layout */
 .app-container {
   display: flex !important;
   flex-direction: column !important;
   height: 100vh !important;
   width: 100vw !important;
   overflow: hidden !important;
-  position: relative !important;
 }
 
-/* THE SCREEN LOCK: Keeps messages confined to this panel only */
+.app-header {
+  height: 50px;
+  background-color: #1f232a;
+  border-bottom: 2px solid #2f343f;
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  color: #00ff66;
+  font-weight: bold;
+}
+
+/* Relative positioning wrapper to isolate the floating button */
+.chat-viewport-wrapper {
+  flex: 1 1 0% !important;
+  position: relative !important;
+  min-height: 0 !important; /* Fixes layout calculations inside flexboxes */
+  display: flex;
+  flex-direction: column;
+}
+
+/* The actual chat container - ONLY this section handles scrolling */
 .chat-display-area {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 1rem !important;
-  
-  /* Flex-grow allows this section to dynamic-fill the middle space */
-  flex: 1 1 0% !important; 
-  
-  /* Forces scrolling *only* inside this content window block */
-  overflow-y: auto !important; 
+  flex: 1 1 0% !important;
+  overflow-y: auto !important;
   overflow-x: hidden !important;
   padding: 1.5rem !important;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background-color: #0f1115;
 }
 
-/* Input Bar Tray remains locked at the base of the viewport window */
+.message-bubble {
+  background-color: #1a1d24;
+  border: 1px solid #2c313d;
+  color: #e2e8f0;
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  max-width: 80%;
+  align-self: flex-start;
+  word-break: break-word;
+}
+
+/* Input Tray fixed permanently to the bottom */
 .input-dock-container {
-  flex-shrink: 0 !important; /* Block from being compressed when content grows */
-  position: relative !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
-  padding: 1rem 1.5rem !important;
+  background-color: #1f232a;
+  border-top: 2px solid #2f343f;
+  padding: 1rem;
 }
 
+.input-row-wrapper {
+  display: flex;
+  gap: 0.5rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.matrix-input {
+  flex: 1;
+  background-color: #0f1115;
+  border: 1px solid #2f343f;
+  color: #fff;
+  padding: 0.75rem;
+  font-family: monospace;
+}
+
+.matrix-btn {
+  background-color: #00ff66;
+  color: #000;
+  border: none;
+  font-weight: bold;
+  padding: 0 1.5rem;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   RETRO PIXELATED DOWN ARROW BUTTON
+   ========================================================================== */
+.pixel-scroll-btn {
+  position: absolute;
+  bottom: 20px;
+  right: 30px;
+  width: 44px;
+  height: 44px;
+  background-color: #1f232a;
+  border: 3px solid #ffffff;
+  border-radius: 0px; /* Kept completely square for blocky retro feel */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 4px 4px 0px #000000;
+  z-index: 99;
+}
+
+.pixel-scroll-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px #000000;
+}
+
+/* Custom pure CSS pixel-art down arrow construct */
+.pixel-arrow {
+  display: block;
+  position: relative;
+  width: 6px;
+  height: 6px;
+  background: #ffffff;
+}
+
+/* Creates pixel-stepped chevron wings */
+.pixel-arrow::before,
+.pixel-arrow::after {
+  content: '';
+  position: absolute;
+  background: #ffffff;
+}
+
+.pixel-arrow::before {
+  width: 18px;
+  height: 6px;
+  top: -6px;
+  left: -6px;
+  box-shadow: -6px -6px 0 #ffffff;
+}
+
+.pixel-arrow::after {
+  width: 6px;
+  height: 6px;
+  top: -12px;
+  left: 0px;
+}
 </style>
 
 <script setup>
-import { ref, reactive, nextTick, onMounted } from 'vue';
-const userPrompt = ref('');
-const isGenerating = ref(false);
-const chatContainer = ref(null);
-const chatSessions = ref([]);
-const currentChatId = ref('');
-const activeMetadata = reactive({ engine: 'BANANA Active', source: 'Linguistic Layer', confidence: 'Ready' });
+import { ref, nextTick, onMounted, onUnmounted } from 'vue'
+
+// Replace this with your actual messages data array
+const messages = ref([
+  { text: "System initialized. Welcome to BANANA Core." }
+])
+const newMessageText = ref("")
+
+const chatContainerRef = ref(null)
+const showScrollButton = ref(false)
+
+// Function to handle automatic viewport snapping
+function scrollToBottom() {
+  nextTick(() => {
+    if (chatContainerRef.value) {
+      chatContainerRef.value.scrollTop = chatContainerRef.value.scrollHeight
+    }
+  })
+}
+
+// Track container scrolling to show/hide the arrow button
+function handleScroll() {
+  if (!chatContainerRef.value) return
+  const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.value
+  
+  // If the user scrolls up more than 200px from the bottom, reveal the button
+  const distanceFromBottom = scrollHeight - scrollTop - clientHeight
+  showScrollButton.value = distanceFromBottom > 200
+}
+
+// Simulated send message function for verification
+function handleSendMessage() {
+  if (!newMessageText.value.trim()) return
+  
+  // Push user message
+  messages.value.push({ text: newMessageText.value })
+  newMessageText.value = ""
+  scrollToBottom()
+  
+  // Simulate incoming server response matrix
+  setTimeout(() => {
+    messages.value.push({ text: "Processing node sequence response..." })
+    scrollToBottom()
+  }, 750)
+}
 
 onMounted(() => {
-  const saved = localStorage.getItem('banana_sessions');
-  if (saved) {
-    chatSessions.value = JSON.parse(saved);
-    if (chatSessions.value.length > 0) currentChatId.value = chatSessions.value[0].id;
-  } else { createNewChat(); }
-  updateHeaderMetadata();
-});
-const createNewChat = () => {
-  const id = 'chat_' + Date.now();
-  chatSessions.value.unshift({ id, title: 'New Terminal Node', messages: [], metadata: { engine: 'BANANA Core', source: 'Linguistic Layer', confidence: '100%' } });
-  currentChatId.value = id;
-  localStorage.setItem('banana_sessions', JSON.stringify(chatSessions.value));
-};
-const switchChat = (id) => { currentChatId.value = id; updateHeaderMetadata(); scrollToBottom(); };
-const deleteChat = (id) => {
-  chatSessions.value = chatSessions.value.filter(c => c.id !== id);
-  if (chatSessions.value.length === 0) createNewChat();
-  else currentChatId.value = chatSessions.value[0].id;
-  localStorage.setItem('banana_sessions', JSON.stringify(chatSessions.value));
-  updateHeaderMetadata();
-};
-const getCurrentMessages = () => {
-  const active = chatSessions.value.find(c => c.id === currentChatId.value);
-  return active ? active.messages : [];
-};
-const updateHeaderMetadata = () => {
-  const active = chatSessions.value.find(c => c.id === currentChatId.value);
-  if (active) { activeMetadata.engine = active.metadata.engine; activeMetadata.source = active.metadata.source; activeMetadata.confidence = active.metadata.confidence; }
-};
-const scrollToBottom = async () => { await nextTick(); if (chatContainer.value) chatContainer.value.scrollTop = chatContainer.value.scrollHeight; };
-const runQuery = async () => {
-  if (!userPrompt.value.trim() || isGenerating.value) return;
-  const text = userPrompt.value.trim();
-  userPrompt.value = '';
-  isGenerating.value = true;
-  const active = chatSessions.value.find(c => c.id === currentChatId.value);
-  if (!active) return;
-  active.messages.push({ role: 'user', text });
-  if (active.title === 'New Terminal Node') active.title = text.substring(0, 20);
-  await scrollToBottom();
-  try {
-    const response = await fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: text }) });
-    const data = await response.json();
-    active.metadata = { engine: data.engine, source: data.source, confidence: data.confidence };
-    active.messages.push({ role: 'assistant', text: data.result });
-    updateHeaderMetadata();
-  } catch (err) { active.messages.push({ role: 'assistant', text: 'Pipeline communication error.' }); } finally { isGenerating.value = false; localStorage.setItem('banana_sessions', JSON.stringify(chatSessions.value)); await scrollToBottom(); }
-};
+  if (chatContainerRef.value) {
+    chatContainerRef.value.addEventListener('scroll', handleScroll)
+  }
+  scrollToBottom()
+})
+
+onUnmounted(() => {
+  if (chatContainerRef.value) {
+    chatContainerRef.value.removeEventListener('scroll', handleScroll)
+  }
+})
 </script>
