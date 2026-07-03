@@ -48,6 +48,101 @@
   </div>
 </template>
 
+<style scoped>
+
+/* ==========================================================================
+   BANANA ENGINE GLOBAL UX OVERRIDE
+   ========================================================================== */
+
+/* 1. Lock the root viewport viewport to prevent global page bouncing */
+html, body, #__nuxt {
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  overflow: hidden !important;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #0d0e12 !important;
+}
+
+/* 2. Main App Framework: Force absolute layout structure */
+.app-container, .main-dashboard-layout {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+/* 3. Lock the Top Navigation / Header in place */
+.app-header, header {
+  flex-shrink: 0 !important;
+  height: 60px !important;
+  padding: 0 1.5rem !important;
+  display: flex !important;
+  align-items: center !important;
+  background-color: #13151a !important;
+  border-bottom: 1px solid #222530 !important;
+  z-index: 10 !important;
+}
+
+/* 4. THE ULTIMATE FIX: Forces the Chat Display Area to stay put and scroll inside itself */
+.chat-display-area, .message-container-pane {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 2rem 1.5rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1.25rem !important;
+  background-color: #0d0e12 !important;
+  
+  /* Smooth scrolling inside the box */
+  scroll-behavior: smooth !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* Custom scrollbar styling so the locked zone looks premium */
+.chat-display-area::-webkit-scrollbar {
+  width: 6px !important;
+}
+.chat-display-area::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+.chat-display-area::-webkit-scrollbar-thumb {
+  background: #2c2f3c !important;
+  border-radius: 10px !important;
+}
+.chat-display-area::-webkit-scrollbar-thumb:hover {
+  background: #3f4459 !important;
+}
+
+/* 5. Input Dock: Permanently pinned to the exact bottom of the application window */
+.input-dock-container, footer {
+  flex-shrink: 0 !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  padding: 1.25rem 1.5rem !important;
+  background-color: #13151a !important;
+  border-top: 1px solid #222530 !important;
+  box-sizing: border-box !important;
+  z-index: 10 !important;
+}
+
+/* Clean UI utility classes to wrap the input row neatly */
+.input-row-wrapper {
+  max-width: 800px !important;
+  margin: 0 auto !important;
+  display: flex !important;
+  gap: 0.75rem !important;
+  align-items: center !important;
+}
+
+</style>
+
 <script setup>
 import { ref, reactive, nextTick, onMounted } from 'vue';
 const userPrompt = ref('');
