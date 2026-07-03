@@ -82,6 +82,11 @@ const currentChatId = ref('default-session')
 const chatContainer = ref(null) // Directly hooks up with ref="chatContainer" template element
 const showScrollButton = ref(false)
 
+// Memory Logs to track previous ideas and correct sloppy spelling tokens
+const sessionMainIdeas = ref({
+  'default-session': 'System configuration initialization.'
+})
+
 // Starter Session Data Structures
 const chatSessions = ref([
   { id: 'default-session', title: 'Matrix Core Base Initialization' }
@@ -105,19 +110,52 @@ function createNewChat() {
     title: 'Session Query ' + (chatSessions.value.length + 1) 
   })
   chatMessagesMap.value[newId] = []
+  sessionMainIdeas.value[newId] = "Fresh canvas started."
   currentChatId.value = newId
   scrollToBottom()
 }
 
+// Session Swapper
 function switchChat(id) {
   currentChatId.value = id
   scrollToBottom()
 }
 
+// Session Removal Node
 function deleteChat(id) {
   chatSessions.value = chatSessions.value.filter(c => c.id !== id)
   if (currentChatId.value === id) {
     currentChatId.value = chatSessions.value[0]?.id || ''
+  }
+}
+
+// 🧠 Hugging Face Pre-Processor Simulation Layer (Handles typos and extracts main concept insights)
+function preProcessPrompt(promptText, historicalContext) {
+  let cleanedText = promptText.trim()
+  
+  // A. Quick Typo Dictionary Fixer for messy inputs
+  const typoMap = {
+    "whts": "what's", "wat": "what", "u": "you", "r": "are", "hiii": "hello",
+    "bana": "banana", "enjin": "engine", "who r u": "who are you", "ur": "your",
+    "hellow": "hello", "naem": "name", "whois": "who is"
+  }
+  
+  let words = cleanedText.toLowerCase().split(/\s+/)
+  words = words.map(word => typoMap[word] || word)
+  
+  // B. Main Idea Extraction Synthesis 
+  let mainIdea = "Inquiring details"
+  if (words.includes("hello") || words.includes("hi") || words.includes("hey")) {
+    mainIdea = "User greeting check"
+  } else if (words.includes("name") || words.includes("who")) {
+    mainIdea = "Identity verification request"
+  } else if (historicalContext) {
+    mainIdea = `Iterating relative parameters on top of: "${historicalContext.substring(0, 25)}..."`
+  }
+  
+  return {
+    processedText: cleanedText,
+    detectedMainIdea: mainIdea
   }
 }
 
@@ -128,21 +166,60 @@ function runQuery() {
   const currentMessages = chatMessagesMap.value[currentChatId.value]
   if (!currentMessages) return
 
-  // 1. Push user prompt entry
-  currentMessages.push({ role: 'user', text: userPrompt.value })
+  const rawInput = userPrompt.value
+  
+  // 1. Process prompt using our tracking layer 
+  const previousIdea = sessionMainIdeas.value[currentChatId.value] || ""
+  const analysis = preProcessPrompt(rawInput, previousIdea)
+  
+  // Save the fresh main idea to session memory storage
+  sessionMainIdeas.value[currentChatId.value] = analysis.detectedMainIdea
+
+  // 2. Push user prompt entry
+  currentMessages.push({ role: 'user', text: rawInput })
   userPrompt.value = ""
   isGenerating.value = true
   scrollToBottom() // Instantly auto-scroll down on message send
   
-  // 2. Simulate AI engine responses sequence
+  // 3. Simulate AI engine responses sequence with intelligence filters
   setTimeout(() => {
+    const lowercaseClean = rawInput.toLowerCase().trim()
+    let responseText = ""
+
+    // AI Identity & Persona Logic Routers
+    if (
+      lowercaseClean.includes("who are you") || 
+      lowercaseClean.includes("what is your name") || 
+      lowercaseClean.includes("whats your name") ||
+      lowercaseClean.includes("who r u")
+    ) {
+      responseText = "I am Banana, a dev model built by SynQuara Digital. Think of me as your AI collaborator and digital assistant. I'm here to help you brainstorm ideas, write stories, learn new things, or just chat about whatever is on your mind. How can I help you today?"
+    } else if (
+      lowercaseClean.includes("hello") || 
+      lowercaseClean.includes("hi") || 
+      lowercaseClean.includes("hey")
+    ) {
+      responseText = "Hello! I am Banana. How can I assist your matrix development goals today?"
+    } else {
+      // General fallbacks displaying context awareness metrics
+      responseText = `Query processed. Hugging Face memory sub-layer recorded core intention: "${analysis.detectedMainIdea}". Everything looks solid on our end.`
+    }
+
     currentMessages.push({ 
       role: 'assistant', 
-      text: "Sequence evaluation query processed. Node matrices successfully synced." 
+      text: responseText 
     })
+    
+    // Dynamically adjust metadata info for total look-and-feel authenticity
+    activeMetadata.value = {
+      engine: 'BANANA-v1-Core',
+      source: analysis.detectedMainIdea,
+      confidence: '98.4%'
+    }
+
     isGenerating.value = false
-    scrollToBottom() // Instatically auto-scroll down when AI response lands
-  }, 800)
+    scrollToBottom() // Instantly auto-scroll down when AI response lands
+  }, 750)
 }
 
 // Viewport Scroll Mechanics and Intersection Calculations
