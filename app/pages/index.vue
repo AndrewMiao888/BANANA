@@ -129,8 +129,6 @@ function deleteChat(id) {
   }
 }
 
-// 🧠 Hugging Face Pre-Processor Simulation Layer (Handles typos and extracts main concept insights)
-
 function runQuery() {
   if (!userPrompt.value.trim() || isGenerating.value) return;
 
