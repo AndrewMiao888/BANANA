@@ -25,7 +25,9 @@
           <div class="hidden sm:block text-slate-700">|</div>
           <div class="hidden sm:block">Source: <span class="text-amber-400">{{ activeMetadata?.source || 'Local File' }}</span></div>
         </div>
-        <div v-if="activeMetadata.confidence" class="text-xs font-mono px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-emerald-400 font-bold">{{ activeMetadata?.confidence || '0%' }}</div>
+     <div v-if="activeMetadata?.confidence" class="text-xs font-mono px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-emerald-400 font-bold">
+  {{ activeMetadata?.confidence || '0%' }}
+</div>
       </header>
       <div class="flex-1 overflow-y-auto p-6 space-y-4" ref="chatContainer">
         <div v-if="getCurrentMessages().length === 0" class="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
