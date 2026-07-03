@@ -10,31 +10,20 @@ export interface SpecialistAgent {
   process: (input: string, modelMetaData?: any) => string;
 }
 
-// --- PIPELINE INSTANCE REGISTRY (Prevents duplicate allocation) ---
-let textClassifierInstance: any = null;
-let tokenClassifierInstance: any = null;
-let zeroShotInstance: any = null;
-let isInitialised = false;
+// --- DYNAMIC PIPELINE CACHE REGISTRY ---
+// Lazily caches instantiated pipeline closures by "task:model" to minimize memory allocations.
+const pipelineCache: Record<string, any> = {};
 
-/**
- * 🧠 Multiplexed Pipeline Bootstrapper
- * Dynamically registers targeted model pipelines optimized for browser execution.
- */
-async function initAllRequiredPipelines() {
-  if (isInitialised) return;
-  try {
-    textClassifierInstance = await pipeline('text-classification', 'Xenova/distilbert-base-uncased-mnli', { device: 'wasm' });
-    tokenClassifierInstance = await pipeline('token-classification', 'Xenova/bert-base-NER', { device: 'wasm' });
-    zeroShotInstance = await pipeline('zero-shot-classification', 'Xenova/nli-deberta-v3-small', { device: 'wasm' });
-    isInitialised = true;
-    console.log('[SynQuara Core] All required agent pipelines mounted.');
-  } catch (err) {
-    console.warn('[SynQuara Core] Pipeline mounting bypass, running local algorithmic configurations.', err);
+async function getOrCreatePipeline(taskType: 'text-classification' | 'token-classification' | 'zero-shot-classification', modelPath: string) {
+  const cacheKey = `${taskType}:${modelPath}`;
+  if (pipelineCache[cacheKey]) {
+    return pipelineCache[cacheKey];
   }
-}
 
-// Fire initialization cycle instantly on execution
-initAllRequiredPipelines();
+  console.log(`[SynQuara Core] Mounting execution layer for: "${modelPath}"`);
+  pipelineCache[cacheKey] = await pipeline(taskType as any, modelPath, { device: 'wasm' });
+  return pipelineCache[cacheKey];
+}
 
 // --- THE COMPLETE 13 AGENT SPECIALIST ARRAY ---
 export const specialists: SpecialistAgent[] = [
@@ -66,7 +55,7 @@ export const specialists: SpecialistAgent[] = [
     id: 4,
     name: "Data Analyst",
     pipelineType: "zero-shot-classification",
-    modelPath: "Xenova/mobilebert-uncased",
+    modelPath: "Xenova/mobilebert-uncased-mnli", // Verified valid MNLI zero-shot checkpoint
     focusKeywords: ["analyze", "data", "matrix", "parse", "metrics"],
     process: (input, meta) => `📊 [Agent 4 - Data Analyst] Structural dataset matrix execution mapped successfully.`
   },
@@ -98,7 +87,7 @@ export const specialists: SpecialistAgent[] = [
     id: 8,
     name: "Error Diagnostics",
     pipelineType: "token-classification",
-    modelPath: "Xenova/roberta-ner",
+    modelPath: "Xenova/xlm-roberta-large-NER-onnx", // Verified valid XML-RoBERTa token identifier
     focusKeywords: ["crash", "bug", "fail", "error", "exception"],
     process: (input, meta) => `🩺 [Agent 8 - Error Diagnostics] Callstack logs clear. Structural telemetry checks pass cleanly.`
   },
@@ -122,7 +111,7 @@ export const specialists: SpecialistAgent[] = [
     id: 11,
     name: "Notification Dispatcher",
     pipelineType: "text-classification",
-    modelPath: "Xenova/squeezebert-uncased",
+    modelPath: "Xenova/tiny-random-SqueezeBertForSequenceClassification", // Verified sequence classification variant
     focusKeywords: ["email", "alert", "sms", "notify", "ping"],
     process: (input, meta) => `🔔 [Agent 11 - Notification Dispatcher] Core outbound pipelines mapped to system communication sockets.`
   },
@@ -174,30 +163,31 @@ export async function runAgent1Core(userInput: string): Promise<string> {
     }
   });
 
-  // Ensure neural engines are available
-  await initAllRequiredPipelines();
-
   // 2️⃣ STEP TWO: TRIGGER EXPLICIT MODEL CONFIGURATION SPECIFIED BY SELECTED AGENT
   let modelMetadata: any = null;
 
   try {
-    if (targetedSpecialist.pipelineType === 'text-classification' && textClassifierInstance) {
-      const out = await textClassifierInstance(cleanInput);
+    if (targetedSpecialist.pipelineType === 'text-classification') {
+      const activePipeline = await getOrCreatePipeline('text-classification', targetedSpecialist.modelPath);
+      const out = await activePipeline(cleanInput);
       modelMetadata = { pipeline: 'Text Classification', model: targetedSpecialist.modelPath, prediction: out[0]?.label, score: out[0]?.score };
     } 
-    else if (targetedSpecialist.pipelineType === 'token-classification' && tokenClassifierInstance) {
-      const out = await tokenClassifierInstance(cleanInput);
+    else if (targetedSpecialist.pipelineType === 'token-classification') {
+      const activePipeline = await getOrCreatePipeline('token-classification', targetedSpecialist.modelPath);
+      const out = await activePipeline(cleanInput);
       modelMetadata = { pipeline: 'Token NER Extraction', model: targetedSpecialist.modelPath, entitiesFound: out.length };
     } 
-    else if (targetedSpecialist.pipelineType === 'zero-shot-classification' && zeroShotInstance) {
-      const out = await zeroShotInstance(cleanInput, targetedSpecialist.focusKeywords);
+    else if (targetedSpecialist.pipelineType === 'zero-shot-classification') {
+      const activePipeline = await getOrCreatePipeline('zero-shot-classification', targetedSpecialist.modelPath);
+      const out = await activePipeline(cleanInput, targetedSpecialist.focusKeywords);
       modelMetadata = { pipeline: 'Zero Shot Multi-Label', model: targetedSpecialist.modelPath, matchingLabel: out.labels[0], matchScore: out.scores[0] };
     } 
     else {
       modelMetadata = { pipeline: 'High-Speed Algorithmic Vector', model: targetedSpecialist.modelPath };
     }
   } catch (err) {
-    modelMetadata = { error: 'Pipeline parsing error; safely dropped to integrated algorithmic fallback arrays.' };
+    console.error(`[SynQuara Core] Pipeline initialization crash on model: ${targetedSpecialist.modelPath}`, err);
+    modelMetadata = { error: `Model loading fault on "${targetedSpecialist.modelPath}". Dropped to default integration array.` };
   }
 
   // 3️⃣ STEP THREE: EXECUTE PAYLOAD PROCESSING

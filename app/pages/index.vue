@@ -67,100 +67,92 @@
 </template>
 
 <script setup>
+import { ref, nextTick } from 'vue'
 import { runAgent1Core } from '@/agents'
-import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 
-// 🔑 Complete Object Initialization Structure protecting template rendering properties
+// --- LAYOUT STATE MANAGEMENT ---
+const userPrompt = ref("")
+const isGenerating = ref(false)
+const currentChatId = ref('default-session')
+const chatContainer = ref(null)
+const showScrollButton = ref(false)
+
+// Protect template rendering properties with standardized reactive initialization
 const activeMetadata = ref({
-  engine: 'BANANA-v1-Core',
-  source: 'Local Cache',
+  engine: '13-Agent Architecture',
+  source: 'System Initialization Layer',
   confidence: '100%'
 })
 
-const userPrompt = ref("")     // 👈 ADDED THIS LINE
-const isGenerating = ref(false) // 👈 ADDED THIS LINE
-const currentChatId = ref('default-session')
-const chatContainer = ref(null) // Directly hooks up with ref="chatContainer" template element
-const showScrollButton = ref(false)
-// Memory Logs to track previous ideas and correct sloppy spelling tokens
-const sessionMainIdeas = ref({
-  'default-session': 'System configuration initialization.'
-})
-
-// Starter Session Data Structures
-const chatSessions = ref([
-  { id: 'default-session', title: 'Matrix Core Base Initialization' }
-])
-
+// Simulated chat history database mapping
 const chatMessagesMap = ref({
   'default-session': [
-    { role: 'system', text: "System ready. Welcome to BANANA Engine core array." }
+    { role: 'assistant', text: '👋 Welcome to SynQuara Digital Node Platform. System core diagnostics are fully operational. Input parameters below to delegate tasks to the 13 specialist agents.' }
   ]
 })
 
+// Helper function to pull the active array partition safely
 function getCurrentMessages() {
-  return chatMessagesMap.value[currentChatId.value] || []
+  if (!chatMessagesMap.value[currentChatId.value]) {
+    chatMessagesMap.value[currentChatId.value] = []
+  }
+  return chatMessagesMap.value[currentChatId.value]
 }
 
-// Session Creation, Switching, and Deletion Execution Nodes
-function createNewChat() {
-  const newId = 'session-' + Date.now()
-  chatSessions.value.push({ 
-    id: newId, 
-    title: 'Session Query ' + (chatSessions.value.length + 1) 
-  })
-  chatMessagesMap.value[newId] = []
-  sessionMainIdeas.value[newId] = "Fresh canvas started."
-  currentChatId.value = newId
-  scrollToBottom()
-}
-
-// Session Swapper
-function switchChat(id) {
-  currentChatId.value = id
-  scrollToBottom()
-}
-
-// Session Removal Node
-function deleteChat(id) {
-  chatSessions.value = chatSessions.value.filter(c => c.id !== id)
-  if (currentChatId.value === id) {
-    currentChatId.value = chatSessions.value[0]?.id || ''
+// Layout helper to cleanly force window viewport positioning
+async function scrollToBottom() {
+  await nextTick()
+  if (chatContainer.value) {
+    chatContainer.value.scrollTop = chatContainer.value.scrollHeight
   }
 }
 
-function runQuery() {
-  if (!userPrompt.value.trim() || isGenerating.value) return;
+/**
+ * ⚡ Main Ingress Interaction Query Handler
+ * Resolves asynchronous agent results and avoids UI rendering lockouts
+ */
+async function runQuery() {
+  const cleanInput = userPrompt.value.trim()
+  if (!cleanInput || isGenerating.value) return
 
-  const rawInput = userPrompt.value;
-  // Display the user prompt on the message frame instantly
-  getCurrentMessages().push({ role: 'user', text: rawInput });
+  // 1️⃣ Append user message payload to UI stack
+  const messages = getCurrentMessages()
+  messages.push({ role: 'user', text: cleanInput })
   
-  userPrompt.value = "";
-  isGenerating.value = true;
-  scrollToBottom();
+  // Clear field immediately to maximize user feedback loop metrics
+  userPrompt.value = ""
+  isGenerating.value = true
+  await scrollToBottom()
 
-  setTimeout(() => {
-    // Agent 1 ingests, sorts, executes, modifies, and aggregates the string output!
-    const frameResult = runAgent1Core(rawInput);
+  try {
+    // 2️⃣ Invoke asynchronous multi-pipeline routing boundary via Agent 1 Core
+    const systemResponse = await runAgent1Core(cleanInput)
 
-    getCurrentMessages().push({ 
+    // 3️⃣ Commit target payload response to layout array
+    messages.push({ 
       role: 'assistant', 
-      text: frameResult 
-    });
+      text: systemResponse 
+    })
 
-    // Dynamically flag the system status elements based on what occurred
+    // Update global dashboard indicator cards dynamically
     activeMetadata.value = {
-      engine: '13-Agent Architecture',
-      source: 'Agent 1 Control Layer',
-      confidence: 'Dynamic Core'
-    };
+      engine: '13-Agent Cluster',
+      source: 'HF Multiplexed Router',
+      confidence: 'Neural Tracking Sync'
+    }
 
-    isGenerating.value = false;
-    scrollToBottom();
-  }, 450);
+  } catch (error) {
+    console.error('[SynQuara UI] Pipeline exception caught during execution handoff:', error)
+    
+    messages.push({ 
+      role: 'assistant', 
+      text: '❌ [System Exception] Core runtime encountered a tracking fault while processing pipeline sequences.' 
+    })
+  } finally {
+    isGenerating.value = false
+    await scrollToBottom()
+  }
 }
-
 </script>
 
 <style scoped>
