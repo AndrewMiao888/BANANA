@@ -4,7 +4,7 @@
       <div class="flex flex-col h-full overflow-hidden">
         <div class="flex items-center justify-between mb-6 px-2">
           <div class="flex items-center space-x-3">
-            <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-yellow-400 to-amber-400 bg-clip-text text-transparent">BANANA Engine</h1>
+            <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-yellow-400 to-amber-400 bg-clip-text text-transparent">BANANA</h1>
           </div>
         </div>
         <button @click="createNewChat" class="w-full mb-4 py-2.5 px-4 rounded-xl font-medium text-sm bg-yellow-500 hover:bg-yellow-400 text-slate-950 border border-transparent shadow-lg shadow-yellow-950/20 transition-all flex items-center justify-center space-x-2 shrink-0">
@@ -21,7 +21,7 @@
     <main class="flex-1 flex flex-col bg-slate-950 overflow-hidden">
       <header class="h-16 border-b border-slate-900 px-6 flex items-center justify-between bg-slate-900/40 backdrop-blur-sm shrink-0">
         <div class="flex items-center space-x-4 text-sm font-mono text-slate-400">
-          <div>Engine: <span class="text-yellow-400">{{ activeMetadata.engine }}</span></div>
+          <div>Engine: <span class="text-yellow-400">{{ activeMetadata?.engine }}</span></div>
           <div class="hidden sm:block text-slate-700">|</div>
           <div class="hidden sm:block">Source: <span class="text-amber-400">{{ activeMetadata.source }}</span></div>
         </div>
