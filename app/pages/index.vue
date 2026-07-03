@@ -21,7 +21,7 @@
     <main class="flex-1 flex flex-col bg-slate-950 overflow-hidden">
       <header class="h-16 border-b border-slate-900 px-6 flex items-center justify-between bg-slate-900/40 backdrop-blur-sm shrink-0">
         <div class="flex items-center space-x-4 text-sm font-mono text-slate-400">
-          <div>Engine: <span class="text-yellow-400">{{ activeMetadata?.engine }}</span></div>
+          <div>BANANA<span class="text-yellow-400">{{ activeMetadata?.engine }}</span></div>
           <div class="hidden sm:block text-slate-700">|</div>
           <div class="hidden sm:block">Source: <span class="text-amber-400">{{ activeMetadata.source }}</span></div>
         </div>
