@@ -65,7 +65,6 @@
     </main>
   </div>
 </template>
-
 <script setup>
 import { runAgent1Core } from '@/agents'
 import { ref, nextTick, onMounted, onUnmounted } from 'vue'
@@ -77,14 +76,11 @@ const activeMetadata = ref({
   confidence: '100%'
 })
 
+const userPrompt = ref("")
+const isGenerating = ref(false)
 const currentChatId = ref('default-session')
-const chatContainer = ref(null) // Directly hooks up with ref="chatContainer" template element
+const chatContainer = ref(null)
 const showScrollButton = ref(false)
-
-// Memory Logs to track previous ideas and correct sloppy spelling tokens
-const sessionMainIdeas = ref({
-  'default-session': 'System configuration initialization.'
-})
 
 // Starter Session Data Structures
 const chatSessions = ref([
@@ -109,7 +105,6 @@ function createNewChat() {
     title: 'Session Query ' + (chatSessions.value.length + 1) 
   })
   chatMessagesMap.value[newId] = []
-  sessionMainIdeas.value[newId] = "Fresh canvas started."
   currentChatId.value = newId
   scrollToBottom()
 }
@@ -128,97 +123,39 @@ function deleteChat(id) {
   }
 }
 
-// 🧠 Hugging Face Pre-Processor Simulation Layer (Handles typos and extracts main concept insights)
-function preProcessPrompt(promptText, historicalContext) {
-  let cleanedText = promptText.trim()
-  
-  // A. Quick Typo Dictionary Fixer for messy inputs
-  const typoMap = {
-    "whts": "what's", "wat": "what", "u": "you", "r": "are", "hiii": "hello",
-    "bana": "banana", "enjin": "engine", "who r u": "who are you", "ur": "your",
-    "hellow": "hello", "naem": "name", "whois": "who is"
-  }
-  
-  let words = cleanedText.toLowerCase().split(/\s+/)
-  words = words.map(word => typoMap[word] || word)
-  
-  // B. Main Idea Extraction Synthesis 
-  let mainIdea = "Inquiring details"
-  if (words.includes("hello") || words.includes("hi") || words.includes("hey")) {
-    mainIdea = "User greeting check"
-  } else if (words.includes("name") || words.includes("who")) {
-    mainIdea = "Identity verification request"
-  } else if (historicalContext) {
-    mainIdea = `Iterating relative parameters on top of: "${historicalContext.substring(0, 25)}..."`
-  }
-  
-  return {
-    processedText: cleanedText,
-    detectedMainIdea: mainIdea
-  }
-}
-
-// Unified Query Action Execution (Matches form @submit.prevent="runQuery")
+// 🚀 Unified Query Action Execution connected straight to the 13-Agent Core Framework
 function runQuery() {
-  if (!userPrompt.value.trim() || isGenerating.value) return
-  
-  const currentMessages = chatMessagesMap.value[currentChatId.value]
-  if (!currentMessages) return
+  if (!userPrompt.value.trim() || isGenerating.value) return;
 
-  const rawInput = userPrompt.value
+  const rawInput = userPrompt.value;
+  const currentMessages = getCurrentMessages();
   
-  // 1. Process prompt using our tracking layer 
-  const previousIdea = sessionMainIdeas.value[currentChatId.value] || ""
-  const analysis = preProcessPrompt(rawInput, previousIdea)
+  // Display the user prompt on the message frame instantly
+  currentMessages.push({ role: 'user', text: rawInput });
   
-  // Save the fresh main idea to session memory storage
-  sessionMainIdeas.value[currentChatId.value] = analysis.detectedMainIdea
+  userPrompt.value = "";
+  isGenerating.value = true;
+  scrollToBottom();
 
-  // 2. Push user prompt entry
-  currentMessages.push({ role: 'user', text: rawInput })
-  userPrompt.value = ""
-  isGenerating.value = true
-  scrollToBottom() // Instantly auto-scroll down on message send
-  
-  // 3. Simulate AI engine responses sequence with intelligence filters
   setTimeout(() => {
-    const lowercaseClean = rawInput.toLowerCase().trim()
-    let responseText = ""
-
-    // AI Identity & Persona Logic Routers
-    if (
-      lowercaseClean.includes("who are you") || 
-      lowercaseClean.includes("what is your name") || 
-      lowercaseClean.includes("whats your name") ||
-      lowercaseClean.includes("who r u")
-    ) {
-      responseText = "I am Banana, a dev model built by SynQuara Digital. Think of me as your AI collaborator and digital assistant. I'm here to help you brainstorm ideas, write stories, learn new things, or just chat about whatever is on your mind. How can I help you today?"
-    } else if (
-      lowercaseClean.includes("hello") || 
-      lowercaseClean.includes("hi") || 
-      lowercaseClean.includes("hey")
-    ) {
-      responseText = "Hello! I am Banana. How can I assist your matrix development goals today?"
-    } else {
-      // General fallbacks displaying context awareness metrics
-      responseText = `Query processed. Hugging Face memory sub-layer recorded core intention: "${analysis.detectedMainIdea}". Everything looks solid on our end.`
-    }
+    // Agent 1 ingests, sorts, executes, modifies, and aggregates the string output!
+    const frameResult = runAgent1Core(rawInput);
 
     currentMessages.push({ 
       role: 'assistant', 
-      text: responseText 
-    })
-    
-    // Dynamically adjust metadata info for total look-and-feel authenticity
-    activeMetadata.value = {
-      engine: 'BANANA-v1-Core',
-      source: analysis.detectedMainIdea,
-      confidence: '98.4%'
-    }
+      text: frameResult 
+    });
 
-    isGenerating.value = false
-    scrollToBottom() // Instantly auto-scroll down when AI response lands
-  }, 750)
+    // Dynamically flag the system status elements based on what occurred
+    activeMetadata.value = {
+      engine: '13-Agent Architecture',
+      source: 'Agent 1 Control Layer',
+      confidence: 'Dynamic Core'
+    };
+
+    isGenerating.value = false;
+    scrollToBottom();
+  }, 450);
 }
 
 // Viewport Scroll Mechanics and Intersection Calculations
@@ -251,232 +188,6 @@ onUnmounted(() => {
     chatContainer.value.removeEventListener('scroll', handleScroll)
   }
 })
-
-// 1. Repair spaces inside broken words (e.g., "fro m" -> "from")
-function healSpaceTypos(text) {
-  // Finds single letters separated by a space from a word fragment and welds them
-  // e.g., "fro m ", " th ie r"
-  let cleaned = text.replace(/(\b\w{2,})\s(\w\b)/g, '$1$2'); // heals trailing single chars: fro m -> from
-  cleaned = cleaned.replace(/(\b\w)\s(\w{2,}\b)/g, '$1$2');   // heals leading single chars: t hie r -> thier
-  return cleaned;
-}
-
-// 2. Phrase Mapper for Complex Swaps (e.g., "not the" <-> "note he")
-function swapComplexPhrases(text) {
-  let cleaned = text.toLowerCase();
-  
-  // High-priority phrase corrections or contextual contextual swaps
-  const phraseMap = {
-    "not the": "note he",
-    "note he": "not the",
-    "dont know": "do not know",
-    "wont work": "will not work"
-  };
-
-  Object.keys(phraseMap).forEach(phrase => {
-    // Uses regex boundary checks to safely substitute exact phrase slips
-    const regex = new RegExp(`\\b${phrase}\\b`, 'g');
-    cleaned = cleaned.replace(regex, phraseMap[phrase]);
-  });
-
-  return cleaned;
-}
-
-// 3. Levenshtein Distance Matrix for standard word mutations (e.g., hte -> the, adn -> and)
-function calculateLevenshtein(wordA, wordB) {
-  const matrix = Array.from({ length: wordA.length + 1 }, (_, i) => 
-    Array.from({ length: wordB.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
-  );
-  
-  for (let i = 1; i <= wordA.length; i++) {
-    for (let j = 1; j <= wordB.length; j++) {
-      const cost = wordA[i - 1] === wordB[j - 1] ? 0 : 1;
-      matrix[i][j] = Math.min(
-        matrix[i - 1][j] + 1,      // Deletion
-        matrix[i][j - 1] + 1,      // Insertion
-        matrix[i - 1][j - 1] + cost // Substitution
-      );
-    }
-  }
-  return matrix[wordA.length][wordB.length];
-}
-
-// 🩹 Step A: Heal space drops ("fro m" -> "from")
-function healSpaceTypos(text) {
-  let cleaned = text.replace(/(\b\w{2,})\s(\w\b)/g, '$1$2'); // heals trailing single chars (fro m -> from)
-  cleaned = cleaned.replace(/(\b\w)\s(\w{2,}\b)/g, '$1$2');   // heals leading single chars (t hie r -> thier)
-  return cleaned;
-}
-
-// 🔄 Step B: Repair phrase mixups ("not the" <-> "note he")
-function swapComplexPhrases(text) {
-  let cleaned = text.toLowerCase();
-  const phraseMap = {
-    "not the": "note he",
-    "note he": "not the",
-    "dont know": "do not know",
-    "wont work": "will not work"
-  };
-  Object.keys(phraseMap).forEach(phrase => {
-    const regex = new RegExp(`\\b${phrase}\\b`, 'g');
-    cleaned = cleaned.replace(regex, phraseMap[phrase]);
-  });
-  return cleaned;
-}
-
-// 🧮 Step C: Fuzzy matching tool for standard typos (hte -> the)
-function calculateLevenshtein(wordA, wordB) {
-  const matrix = Array.from({ length: wordA.length + 1 }, (_, i) => 
-    Array.from({ length: wordB.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
-  );
-  for (let i = 1; i <= wordA.length; i++) {
-    for (let j = 1; j <= wordB.length; j++) {
-      const cost = wordA[i - 1] === wordB[j - 1] ? 0 : 1;
-      matrix[i][j] = Math.min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + cost);
-    }
-  }
-  return matrix[wordA.length][wordB.length];
-}
-
-// Variable definitions matched to your template names
-const messages = ref([{ text: "System initialized. Welcome to BANANA Core." }])
-
-function runQuery() {
-  if (!userPrompt.value.trim() || isGenerating.value) return
-  
-  // 🚨 PLACED AT THE BEGINNING: Grab and clean the text instantly!
-  const rawInput = userPrompt.value;
-  const spaceHealed = healSpaceTypos(rawInput);
-  const phraseHealed = swapComplexPhrases(spaceHealed);
-  const finalCleanTokens = phraseHealed.split(/\s+/);
-  
-  // Push original text to UI screen
-  messages.value.push({ role: 'user', text: rawInput })
-  userPrompt.value = ""
-  isGenerating.value = true
-  scrollToBottom()
-
-  // Simulate response processing (using the cleaned tokens)
-  setTimeout(() => {
-    // Recombine cleaned words back into a sentence string for checking
-    const processedSentence = finalCleanTokens.join(" ");
-    let responseText = "";
-
-    if (processedSentence.includes("who are you") || processedSentence.includes("whats your name")) {
-      responseText = "I am Banana, a dev model built by SynQuara Digital..."
-    } else {
-      responseText = `Healed input sequence evaluated: "${processedSentence}"`
-    }
-
-    messages.value.push({ role: 'assistant', text: responseText })
-    isGenerating.value = false
-    scrollToBottom()
-  }, 750)
-}
-
-import { pipeline } from '@huggingface/transformers'
-
-// Core system state
-const userPrompt = ref("")
-const isGenerating = ref(false)
-let aiPipeline = null // Storage container for our browser-based brain
-
-// Dynamic generator engine execution loop
-async function runQuery() {
-  if (!userPrompt.value.trim() || isGenerating.value) return
-
-  const currentMessages = chatMessagesMap.value[currentChatId.value]
-  if (!currentMessages) return
-
-  const rawInput = userPrompt.value
-  
-  // 1. Instantly push client message strings to screen viewport
-  currentMessages.push({ role: 'user', text: rawInput })
-  userPrompt.value = ""
-  isGenerating.value = true
-  scrollToBottom()
-
-  try {
-    // 2. Initialize the AI brain if it isn't loaded yet
-    if (!aiPipeline) {
-      activeMetadata.value.engine = "Downloading Neural Matrix..."
-      
-      // Pulls a super-compact, smart model and uses WebGPU hardware acceleration
-      aiPipeline = await pipeline(
-        "text-generation", 
-        "HuggingFaceTB/SmolLM2-360M-Instruct", 
-        { dtype: "q4", device: "webgpu" } 
-      )
-    }
-
-    activeMetadata.value = {
-      engine: 'SmolLM2-Local-Brain',
-      source: 'On-Device Matrix',
-      confidence: 'Statistical Model'
-    }
-
-    // 3. Match format array to chat history patterns
-    const historyArray = currentMessages.map(msg => ({
-      role: msg.role === 'assistant' ? 'assistant' : 'user',
-      content: msg.text
-    }))
-
-    // 4. Run mathematical generation loops (Zero cloud servers used!)
-    const result = await aiPipeline(historyArray, { 
-      max_new_tokens: 150, 
-      temperature: 0.6 
-    })
-
-    // Extract generated completion
-    const aiResponse = result[0].generated_text.at(-1).content
-
-    // 5. Output the result back onto your design components
-    currentMessages.push({ role: 'assistant', text: aiResponse })
-
-  } catch (err) {
-    console.error("Neural execution error:", err)
-    currentMessages.push({ 
-      role: 'assistant', 
-      text: "Neural layer failed to activate. Ensure your browser supports WebGPU, or fall back to standard rules!" 
-    })
-  } finally {
-    isGenerating.value = false
-    scrollToBottom()
-  }
-}
-
-function runQuery() {
-  if (!userPrompt.value.trim() || isGenerating.value) return;
-
-  const rawInput = userPrompt.value;
-  // Display the user prompt on the message frame instantly
-  getCurrentMessages().push({ role: 'user', text: rawInput });
-  
-  userPrompt.value = "";
-  isGenerating.value = true;
-  scrollToBottom();
-
-  setTimeout(() => {
-    // Agent 1 ingests, sorts, executes, modifies, and aggregates the string output!
-    const frameResult = runAgent1Core(rawInput);
-
-    getCurrentMessages().push({ 
-      role: 'assistant', 
-      text: frameResult 
-    });
-
-    // Dynamically flag the system status elements based on what occurred
-    activeMetadata.value = {
-      engine: '13-Agent Architecture',
-      source: 'Agent 1 Control Layer',
-      confidence: 'Dynamic Core'
-    };
-
-    isGenerating.value = false;
-    scrollToBottom();
-  }, 450);
-}
-
 </script>
 
 <style scoped>
