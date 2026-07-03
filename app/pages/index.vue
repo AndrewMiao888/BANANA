@@ -21,11 +21,11 @@
     <main class="flex-1 flex flex-col bg-slate-950 overflow-hidden">
       <header class="h-16 border-b border-slate-900 px-6 flex items-center justify-between bg-slate-900/40 backdrop-blur-sm shrink-0">
         <div class="flex items-center space-x-4 text-sm font-mono text-slate-400">
-          <div>BANANA<span class="text-yellow-400">{{ activeMetadata?.engine }}</span></div>
+          <div>BANANA<span class="text-yellow-400">{{ activeMetadata?.engine || 'BANANA-Core' }}</span></div>
           <div class="hidden sm:block text-slate-700">|</div>
-          <div class="hidden sm:block">Source: <span class="text-amber-400">{{ activeMetadata.source }}</span></div>
+          <div class="hidden sm:block">Source: <span class="text-amber-400">{{ activeMetadata?.source || 'Local File' }}</span></div>
         </div>
-        <div v-if="activeMetadata.confidence" class="text-xs font-mono px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-emerald-400 font-bold">{{ activeMetadata.confidence }}</div>
+        <div v-if="activeMetadata.confidence" class="text-xs font-mono px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-emerald-400 font-bold">{{ activeMetadata?.confidence || '0%' }}</div>
       </header>
       <div class="flex-1 overflow-y-auto p-6 space-y-4" ref="chatContainer">
         <div v-if="getCurrentMessages().length === 0" class="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
@@ -36,6 +36,17 @@
           <div>{{ msg.text }}</div>
         </div>
       </div>
+
+<div class="chat-viewport-wrapper">
+    
+    <div class="metadata-stats-bar">
+      <p>Engine: {{ activeMetadata?.engine }}</p>
+      <p>Source: {{ activeMetadata?.source }}</p>
+      <p>Confidence: {{ activeMetadata?.confidence }}</p>
+    </div>
+
+    </div>
+
       <footer class="p-4 md:p-6 bg-gradient-to-t from-slate-950 to-transparent shrink-0">
         <form @submit.prevent="runQuery" class="max-w-3xl mx-auto relative rounded-xl border border-slate-800 bg-slate-900/80 p-1.5 flex items-center">
           <input v-model="userPrompt" type="text" placeholder="Type word parameters..." :disabled="isGenerating" class="w-full bg-transparent px-4 py-2.5 text-sm text-slate-100 focus:outline-none" />
@@ -271,4 +282,7 @@ onUnmounted(() => {
     chatContainerRef.value.removeEventListener('scroll', handleScroll)
   }
 })
+
+
+
 </script>
