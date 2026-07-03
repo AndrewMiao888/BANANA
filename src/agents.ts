@@ -90,11 +90,10 @@ export function runAgent1Core(userInput: string): string {
   const cleanedText = userInput.toLowerCase().trim();
   const tokens = cleanedText.split(/\s+/);
   
-  let targetedSpecialist: SpecialistAgent | null = null;
+  let targetedSpecialist: any = null;
   let dominantScore = 0;
 
   // --- SORTING PHASE ---
-  // Agent 1 evaluates the input against specialist domains without any internal trigger words
   specialists.forEach(agent => {
     let intersectionScore = 0;
     tokens.forEach(token => {
@@ -109,10 +108,9 @@ export function runAgent1Core(userInput: string): string {
     }
   });
 
-// --- OUTPUT & MODIFICATION TRAY PHASE ---
+  // --- OUTPUT & MODIFICATION TRAY PHASE ---
   if (targetedSpecialist && dominantScore > 0) {
-    const specialistPayload = (targetedSpecialist as any).process(userInput);
-    return `⚡ [Agent 1 - Sorter Core Node Directing to Agent ${(targetedSpecialist as any).id}]\n${specialistPayload}`;
+    return targetedSpecialist.process(userInput);
   }
   // --- FALLBACK BRAID PHASE (AGENTS 12 & 13) ---
   // If Agent 1 scores a complete blank, it intelligently checks the length of user text
