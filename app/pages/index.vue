@@ -13,7 +13,7 @@
         <div class="flex-1 overflow-y-auto space-y-1.5 pr-1">
           <div v-for="chat in chatSessions" :key="chat.id" class="group w-full p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer" :class="currentChatId === chat.id ? 'bg-slate-950 border-slate-800 text-slate-100' : 'bg-slate-900/40 border-transparent text-slate-400 hover:bg-slate-800/40'" @click="switchChat(chat.id)">
             <span class="text-xs font-mono truncate block font-medium">{{ chat.title }}</span>
-            <button @click.stop="deleteChat(chat.id)" class="p-1 text-slate-500 hover:text-rose-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity">???</button>
+            <button @click.stop="deleteChat(chat.id)" class="p-1 text-slate-500 hover:text-rose-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity">🗑️</button>
           </div>
         </div>
       </div>
@@ -29,7 +29,6 @@
       </header>
       <div class="flex-1 overflow-y-auto p-6 space-y-4" ref="chatContainer">
         <div v-if="getCurrentMessages().length === 0" class="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
-          <div class="text-4xl mb-2">??</div>
           <div class="text-sm">No messages yet. Type a prompt below to start the conversation.</div>
         </div>
         <div v-for="(msg, idx) in getCurrentMessages()" :key="idx" class="flex flex-col max-w-3xl mx-auto p-4 rounded-xl border font-mono text-sm leading-relaxed whitespace-pre-wrap" :class="msg.role === 'user' ? 'bg-slate-900/60 border-slate-800/80 ml-12 text-slate-200' : 'bg-yellow-950/10 border-yellow-900/20 mr-12 text-yellow-100'">
