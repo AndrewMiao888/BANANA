@@ -206,7 +206,14 @@ html, body, #__nuxt {
 </style>
 
 <script setup>
+
+
 import { ref, nextTick, onMounted, onUnmounted } from 'vue'
+
+// 🔑 Add this to define your activeMetadata object locally
+const activeMetadata = ref({
+  engine: 'BANANA-v1-Core' // You can change this default string to whatever you like
+})
 
 // Replace this with your actual messages data array
 const messages = ref([
