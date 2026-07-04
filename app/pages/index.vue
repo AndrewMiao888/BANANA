@@ -68,7 +68,7 @@
 
 <script setup>
 import { ref, nextTick } from 'vue'
-import { runAgent1Core } from '@/agents'
+import { runAgent1Core } from '~~/src/agents'
 
 // --- LAYOUT STATE MANAGEMENT ---
 const userPrompt = ref("")
