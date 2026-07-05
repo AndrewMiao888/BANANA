@@ -7,8 +7,7 @@ export async function runAgent1Core(userInput: string): Promise<string> {
   if (!cleanInput) return "⚠️ Invalid input frame.";
 
   try {
-    // Points directly to the open-source engine running on your machine
-    const LOCAL_OLLAMA_URL = "http://localhost:11434/api/generate";
+    const LOCAL_OLLAMA_URL = "https://young-hats-exist.loca.lt/api/generate";
 
     const response = await fetch(LOCAL_OLLAMA_URL, {
       method: "POST",
@@ -16,14 +15,14 @@ export async function runAgent1Core(userInput: string): Promise<string> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-  model: "gemma2:2b",
-  // Added instruction to omit markdown symbols
-  prompt: `Provide the response as plain text only. Do not use bold tags, stars (**), dashes (---), or bullet points. Query: ${cleanInput}`,
-  stream: false,
-  options: {
-    temperature: 0.3
-  }
-}),
+        model: "gemma2:2b",
+        // Keeps the text clean without unwanted formatting stars/dashes
+        prompt: `Provide the response as plain text only. Do not use bold tags, stars (**), dashes (---), or bullet points. Query: ${cleanInput}`,
+        stream: false,
+        options: {
+          temperature: 0.3
+        }
+      }),
     });
 
     if (!response.ok) {
@@ -39,6 +38,6 @@ ${aiOutput}
 *(Status: 100% Local On-Premise Core Array | Engine: Open-Source Ollama)*`;
 
   } catch (error: any) {
-    return `❌ Local Engine Error: Could not establish a handshake with Ollama. Make sure Ollama is running on your machine. Details: ${error.message}`;
+    return `❌ Local Engine Error: Could not establish a handshake with Ollama. Make sure Ollama is running on your machine and ngrok is active. Details: ${error.message}`;
   }
 }
