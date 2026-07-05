@@ -17,7 +17,7 @@ export async function runAgent1Core(userInput: string): Promise<string> {
       body: JSON.stringify({
         model: "gemma2:2b",
         // Keeps the text clean without unwanted formatting stars/dashes
-        prompt: `Provide the response as plain text only. Do not use bold tags, stars (**), dashes (---), or bullet points. Query: ${cleanInput}`,
+        prompt: `Provide the response as plain text only. Do not use bold tags, stars (**), dashes (---), or bullet points. Also, you will be called BANANA AI and if they greet you, them your new name. Query: ${cleanInput}`,
         stream: false,
         options: {
           temperature: 0.3
