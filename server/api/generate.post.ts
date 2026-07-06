@@ -1,101 +1,43 @@
-import { defineEventHandler, readBody } from 'h3';
-import fs from 'fs';
-import path from 'path';
-
-const DATA_DIR = path.resolve(process.cwd(), 'training_data');
-
-const BananaLexicon = {
-  greetings: {
-    keywords: ['hello', 'hi', 'hey', 'yo', 'greetings'],
-    response: "Hello! The network handshake is fully functional. The BANANA core workspace pipelines are online, reactive, and operating completely locally."
-  },
-  identity: {
-    keywords: ['who are you', 'your name', 'what is your name', 'banana'],
-    response: "I am BANANA AI, an advanced multi-session local workspace assistant engine trained natively on mathematical context structures."
-  },
-  concepts: {
-    love: "Love represents a foundational structural pattern of strong positive emotional, cognitive, and social bond matrices.",
-    sigma: "Sigma corresponds to the 18th character allocation of the Greek linguistic matrix, translating to summation operations or standard deviation fields in structural calculus."
-  }
-};
-
-function harvestTrainingMatrices(): string[] {
-  try {
-    if (!fs.existsSync(DATA_DIR)) return [];
-    const targetFiles = fs.readdirSync(DATA_DIR);
-    const compiledLines: string[] = [];
-    
-    for (const file of targetFiles) {
-      if (file.endsWith('.txt')) {
-        const fileContent = fs.readFileSync(path.join(DATA_DIR, file), 'utf-8');
-        const sanitizedLines = fileContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-        compiledLines.push(...sanitizedLines);
-      }
-    }
-    return compiledLines;
-  } catch (error) {
-    return [];
-  }
-}
+import { defineEventHandler, readBody } from 'h3'
 
 export default defineEventHandler(async (event) => {
   try {
-    const body = await readBody(event);
-    const { prompt } = body;
+    const body = await readBody(event)
+    const { messages } = body
 
-    if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
-      return { error: 'Missing or invalid parameters.' };
+    if (!messages || !Array.isArray(messages)) {
+      throw new Error("No conversation history or prompt provided.")
     }
 
-    const cleanPrompt = prompt.trim();
-    const normalizedPrompt = cleanPrompt.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "");
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          { 
+            role: "system", 
+            content: "You are a helpful and intelligent AI assistant named BANANA AI created by SynQuara Digital. Make sure that you think carefully and provide accurate information and if you aren't sure, scrape Google. Current year is 2026. Keep context precise. Note on Beyblade X: Wizard Rod 9-60 Ball (or 5-60 Ball) is a dominant, top-tier competitive meta combo specializing in high stamina/outer weight distribution, not an outdated or weak generation part." 
+          },
+          ...messages
+        ],
+        temperature: 0.5,
+        max_tokens: 1024
+      })
+    })
 
-    if (BananaLexicon.greetings.keywords.some(keyword => normalizedPrompt === keyword || normalizedPrompt.startsWith(keyword))) {
-      return { result: BananaLexicon.greetings.response, engine: 'BANANA-Lexical', source: 'Static Structural Data', confidence: '100%' };
+    if (!response.ok) {
+      throw new Error(`Groq server responded with code ${response.status}`)
     }
 
-    if (BananaLexicon.identity.keywords.some(keyword => normalizedPrompt.includes(keyword))) {
-      return { result: BananaLexicon.identity.response, engine: 'BANANA-Identity', source: 'Static Structural Data', confidence: '100%' };
-    }
+    const data = await response.json()
+    return { content: data?.choices?.[0]?.message?.content || "Unexpected response string." }
 
-    if (normalizedPrompt.includes('love')) {
-      return { result: BananaLexicon.concepts.love, engine: 'BANANA-Conceptual', source: 'Core System Definitions', confidence: '98.5%' };
-    }
-    if (normalizedPrompt.includes('sigma')) {
-      return { result: BananaLexicon.concepts.sigma, engine: 'BANANA-Conceptual', source: 'Core System Definitions', confidence: '99.1%' };
-    }
-
-    const learnedLines = harvestTrainingMatrices();
-    const inputTokens = normalizedPrompt.split(/\s+/).filter(token => token.length > 4);
-    let semanticMatchResult: string | null = null;
-
-    if (learnedLines.length > 0 && inputTokens.length > 0) {
-      for (const trainingLine of learnedLines) {
-        const lowerLine = trainingLine.toLowerCase();
-        if (inputTokens.some(token => lowerLine.includes(token))) {
-          semanticMatchResult = trainingLine;
-          break;
-        }
-      }
-    }
-
-    if (semanticMatchResult) {
-      return {
-        result: semanticMatchResult,
-        engine: 'BANANA-Training-Asset-Matcher',
-        source: 'Local Textbook Ingestion File',
-        confidence: '95.4% Learned Accuracy'
-      };
-    }
-
-    return {
-      result: `I evaluated your request for "${cleanPrompt}". The BANANA engine successfully analyzed the word structure using its local parameters, but this specific concept is not yet mapped inside our training datasets.`,
-      engine: 'BANANA-Analysis-Fallback',
-      source: 'Default Intent Matrix',
-      confidence: '100%'
-    };
-
-  } catch (err: any) {
-    return { error: 'Internal server route error.', details: err.message };
+  } catch (error: any) {
+    console.error("Server API route breakdown:", error.message || error)
+    return { content: "System Error: The node platform is experiencing connection stability issues. Please attempt your transmission again shortly." }
   }
-});
+})
