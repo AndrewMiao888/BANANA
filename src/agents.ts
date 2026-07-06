@@ -1,6 +1,5 @@
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_API_KEY = "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";
-
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
