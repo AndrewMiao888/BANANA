@@ -219,7 +219,7 @@ const submitMessage = async () => {
     const systemPrompt = chatHistory.value[0]
     
     // Grab only the 6 most recent messages so token sizes stay small
-    const recentHistory = chatHistory.value.slice(-6)
+    const recentHistory = chatHistory.value.slice(-10)
     
     // Package them safely together before sending to the backend
     const optimizedPayload = [systemPrompt, ...recentHistory]
