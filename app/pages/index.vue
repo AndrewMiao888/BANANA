@@ -1,19 +1,69 @@
 <template>
   <div class="app-container">
-    <aside class="sidebar">
-      <div class="sidebar-top">
-        <button @click="startNewChat" class="new-chat-btn">
-          <span class="btn-icon">＋</span> New chat
-        </button>
-      </div>
+    <aside class="sidebar" :class="{ 'sidebar-collapsed': !isSidebarOpen }">
+  <div class="sidebar-top">
+    <div class="sidebar-header">
+      <button @click="isSidebarOpen = !isSidebarOpen" class="tooltip-btn toggle-sidebar-btn">
+        <span v-if="isSidebarOpen">[o]</span>
+        <span v-else>[+]</span>
+        <span class="tooltip">Close Sidebar Layout Panel</span>
+      </button>
       
-      <div class="sidebar-bottom">
-        <div class="user-profile">
-          <div class="avatar">BA</div>
-          <span class="username">Banana Admin</span>
+      <button v-if="isSidebarOpen" @click="startNewChat" class="tooltip-btn new-chat-btn-header">
+        <span class="new-chat-icon">✎</span>
+        <span>[+] New Chat</span>
+        <span class="tooltip">Initialize Clean Conversation Canvas</span>
+      </button>
+    </div>
+
+    <div v-if="isSidebarOpen" class="sidebar-body">
+      <div class="search-box">
+        <span class="search-icon">[?]</span>
+        <input 
+          v-model="searchQuery" 
+          type="text" 
+          placeholder="Search Chats..." 
+          class="search-input" 
+        />
+      </div>
+
+      <div class="recents-section">
+        <div class="recents-title">Recents</div>
+        <div class="recents-scrollbar-container">
+          <ul class="chat-list">
+            <li 
+              v-for="chat in sortedAndFilteredChats" 
+              :key="chat.originalIndex"
+              class="chat-item"
+              :class="{ 'active-session': currentSessionIndex === chat.originalIndex }"
+              @click="loadPastChat(chat.originalIndex)"
+            >
+              <span class="chat-bubble-icon">[*]</span>
+              <span class="chat-title-text">{{ chat.title }}</span>
+            </li>
+            
+            <li v-if="sortedAndFilteredChats.length === 0" class="no-chats-found">
+              No tracking sequences logged
+            </li>
+          </ul>
         </div>
       </div>
-    </aside>
+    </div>
+  </div>
+  
+  <div v-if="isSidebarOpen" class="sidebar-bottom">
+    <div class="sidebar-footer-actions">
+      <button class="tooltip-btn action-pill-btn">
+        <span>[*] BANANA Features</span>
+        <span class="tooltip">Explore Premium Core Matrix Capabilities</span>
+      </button>
+    </div>
+    <div class="user-profile">
+      <div class="avatar">BA</div>
+      <span class="username">Banana Admin</span>
+    </div>
+  </div>
+</aside>
 
     <main class="main-workspace">
       <header class="top-header">
@@ -260,30 +310,47 @@ const loadPastChat = (index) => {
 // 💡 ADD THIS RIGHT AFTER A SUCCESSFUL AI RESPONSE INSIDE YOUR `submitMessage` FUNCTION:
 // This function updates the sidebar item with the new text or creates a new row if it's a new chat!
 const updateSidebarTracking = () => {
-  // Find the first user message text to name the chat link title automatically
-  const firstUserMsg = chatHistory.value.find(msg => msg.role === 'user')?.content || 'New Chat Session'
+  const firstUserMsg = chatHistory.value.find(msg => msg.role === 'user')?.content || 'New Tracking Log'
   const cleanTitle = firstUserMsg.length > 25 ? firstUserMsg.substring(0, 25) + '...' : firstUserMsg
 
   if (currentSessionIndex.value !== null && savedSessions.value[currentSessionIndex.value]) {
-    // Update existing active historical node tree container
+    // Update existing chat history and refresh its modified timestamp sequence
     savedSessions.value[currentSessionIndex.value].history = [...chatHistory.value]
+    savedSessions.value[currentSessionIndex.value].updatedAt = Date.now()
   } else {
-    // Create a new sidebar row listing item
-    savedSessions.value.unshift({
+    // Initialize a new conversation log with a fresh timestamp tracking flag
+    const newChatSession = {
       title: cleanTitle,
-      history: [...chatHistory.value]
-    })
-    currentSessionIndex.value = 0 // Anchor active tracking down to the new row item
+      history: [...chatHistory.value],
+      updatedAt: Date.now()
+    }
+    
+    savedSessions.value.unshift(newChatSession)
+    // Synchronize the current session index to track its real structural spot
+    currentSessionIndex.value = 0
   }
 }
 
 // Auto-filters matching row items live as the user types
-const filteredChats = computed(() => {
-  if (!searchQuery.value.trim()) return savedSessions.value
-  return savedSessions.value.filter(chat => 
+// --- SORTED CHRONOLOGICAL RECENT CORES FILTER ---
+const sortedAndFilteredChats = computed(() => {
+  // Map items to retain their real original base index tracking locations
+  const mappedSessions = savedSessions.value.map((chat, idx) => ({
+    ...chat,
+    originalIndex: idx,
+    // Use an existing timestamp property, or default to item positioning sequence
+    updatedAt: chat.updatedAt || Date.now() - idx
+  }));
+
+  // Sort them in descending order: most recent timeline arrays move to top
+  const sorted = mappedSessions.sort((a, b) => b.updatedAt - a.updatedAt);
+
+  if (!searchQuery.value.trim()) return sorted;
+  
+  return sorted.filter(chat => 
     chat.title.toLowerCase().includes(searchQuery.value.toLowerCase())
-  )
-})
+  );
+});
 
 // Action rule to click and retrieve standard workspace items
 

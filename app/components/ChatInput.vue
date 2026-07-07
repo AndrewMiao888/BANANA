@@ -14,10 +14,10 @@
 
         <transition name="dropdown">
           <ul v-if="isMenuOpen" class="actions-dropdown">
-            <li @click="handleAction('image')">🖼️ Create an image</li>
-            <li @click="handleAction('edit')">✍️ Write or edit</li>
-            <li @click="handleAction('search')">🔍 Look something up</li>
-            <li @click="handleAction('file')">📁 Upload file</li>
+            <li @click="$emit('attach-click'); isMenuOpen = false"><strong>[FILE]</strong> Upload File Sequence</li>
+            <li @click="$emit('attach-click'); isMenuOpen = false"><strong>[IMG]</strong> Process Vision Image</li>
+            <li @click="handleAction('edit')"><strong>[EDIT]</strong> Write or Edit</li>
+            <li @click="handleAction('search')"><strong>[SRC]</strong> Look Something Up</li>
             
             <li class="dropdown-divider"></li>
             <li class="dropdown-header">Voice Translation Target:</li>
@@ -27,7 +27,7 @@
               :class="{ 'active-lang': translationTargetLang === lang.code }"
               @click="setTranslationLanguage(lang.code)"
             >
-              🌐 Translate to {{ lang.name }}
+              <strong>[TR]</strong> Translate to {{ lang.name }}
             </li>
           </ul>
         </transition>
@@ -36,7 +36,7 @@
       <input 
         v-model="internalInput" 
         type="text"
-        :placeholder="isListening ? 'Listening & translating to text...' : 'Ask anything'" 
+        :placeholder="isListening ? 'Listening & translating to text...' : 'Ask anything...'" 
         class="large-chat-input"
         @keydown.enter.prevent="triggerSend"
         :disabled="isLoading"
@@ -51,8 +51,8 @@
           :class="{ 'listening-active': isListening }"
           :title="`Voice Input (Auto-Translates to text language)`"
         >
-          <span v-if="!isListening">🎤</span>
-          <span v-else class="pulse-recording">🛑</span>
+          <span v-if="!isListening"><strong>[MIC]</strong></span>
+          <span v-else class="pulse-recording"><strong>[STOP]</strong></span>
         </button>
 
         <button 
@@ -73,7 +73,7 @@
           :disabled="!internalInput.trim()"
           title="Send message"
         >
-          <span>⬆</span>
+          <span>▲</span>
         </button>
 
       </div>

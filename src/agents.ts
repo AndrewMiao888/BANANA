@@ -10,36 +10,62 @@ interface ChatMessage {
  * @param messages An array of chat messages representing the ongoing conversation history.
  */
 export async function runAgent1Core(messages: ChatMessage[]): Promise<string> {
-  try {
-    // 1. Validation check to make sure history isn't completely empty
-    if (!messages || messages.length === 0) {
-      throw new Error("No conversation history or prompt provided.");
-    }
+  // Format the conversations into standard AI message arrays with strict types
+  const formattedMessages = messages.map((msg: ChatMessage) => ({
+    role: msg.role,
+    content: msg.content
+  }));
 
-    // 2. Route the request to your internal Nuxt server endpoint instead of Groq directly
-    const response = await fetch('/api/generate', {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ messages })
+  // 1. ATTEMPT LOCAL CONNECTION FIRST (Triggered when your computer is open/running)
+  try {
+    const localResponse = await fetch('http://localhost:11434/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama3.1', 
+        messages: formattedMessages,
+        stream: false,
+        // 💡 UNLIMITED MEMORY LAYER: No limit tokens when processing locally
+        options: {
+          num_ctx: 16384 // Massive context window size for long memories
+        }
+      }),
+      signal: AbortSignal.timeout(2000) // If your local PC server doesn't respond within 2 seconds, stop waiting
     });
 
-    // 3. Handle HTTP relay errors safely
-    if (!response.ok) {
-      throw new Error(`Internal server relay responded with status ${response.status}`);
+    if (localResponse.ok) {
+      const localData = await localResponse.json();
+      console.log("⚡ BANANA Core Status: Running Local Mode (Infinite Tokens Enabled)");
+      return localData.message.content;
+    }
+  } catch (error) {
+    // If it fails or times out, your computer is closed or offline. Quietly fall back to Groq Cloud.
+    console.log("☁️ BANANA Core Status: Computer offline/closed. Routing through Groq Cloud...");
+  }
+
+  // 2. FALLBACK TO GROQ CLOUD (Keeps your mobile/Vercel link alive when away from computer)
+  try {
+    const groqResponse = await fetch('https://api.groq.com/openapi/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+'Authorization': `Bearer ${process.env.GROQ_API_KEY || process.env.NUXT_GROQ_API_KEY || ''}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages: formattedMessages,
+        max_tokens: 1025 // Standard safe cap applied on remote server transactions to avoid usage spikes
+      })
+    });
+
+    if (!groqResponse.ok) {
+      throw new Error(`Groq API returned status code ${groqResponse.status}`);
     }
 
-    // 4. Parse and return the text response from the server handler
-    const data = await response.json();
-    if (data?.content) {
-      return data.content;
-    }
-
-    throw new Error("Unexpected API response structure from server route.");
-
-  } catch (error: any) {
-    console.error("Failed to execute runAgent1Core:", error.message || error);
-    return "System Error: The node platform is experiencing connection stability issues. Please attempt your transmission again shortly.";
+    const groqData = await groqResponse.json();
+    return groqData.choices[0].message.content;
+  } catch (groqError) {
+    console.error("Critical: Both BANANA Core and GROQ pipelines failed.", groqError);
+    return "Connection Error: BANANA Core systems are unreachable. Please check if your computer server is online or your account is valid.";
   }
 }
