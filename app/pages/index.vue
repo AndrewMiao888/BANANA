@@ -55,27 +55,81 @@
         </div>
       </div>
 
+      <div class="sidebar-header">
+  <button @click="isSidebarOpen = !isSidebarOpen" class="tooltip-btn toggle-sidebar-btn">
+    <span v-if="isSidebarOpen">📁</span>
+    <span v-else>📂</span>
+    <span class="tooltip">Toggle Sidebar</span>
+  </button>
+  
+  <button v-if="isSidebarOpen" @click="startNewChat" class="tooltip-btn new-chat-btn">
+    <span class="new-chat-icon">📝</span>
+    <span>New chat</span>
+    <span class="tooltip">Create New Chat</span>
+  </button>
+</div>
+
+<div v-if="isSidebarOpen" class="sidebar-body">
+  
+  <div class="search-box">
+    <span class="search-icon">🔍</span>
+    <input 
+      v-model="searchQuery" 
+      type="text" 
+      placeholder="Search chats" 
+      class="search-input" 
+    />
+  </div>
+
+  <div class="recents-section">
+    <div class="recents-title">Recents</div>
+    <div class="recents-scrollbar-container">
+      <ul class="chat-list">
+  <li 
+    v-for="chat in filteredChats" 
+    :key="savedSessions.indexOf(chat)"
+    class="chat-item"
+    :class="{ 'active-session': currentSessionIndex === savedSessions.indexOf(chat) }"
+    @click="loadPastChat(savedSessions.indexOf(chat))"
+  >
+    <span class="chat-bubble-icon">💬</span>
+    <span class="chat-title-text">{{ chat.title }}</span>
+  </li>
+  
+  <li v-if="filteredChats.length === 0" class="no-chats-found">
+    No chats found
+  </li>
+</ul>
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <button class="tooltip-btn action-pill-btn">
+      <span>🌟 BANANA Features</span>
+      <span class="tooltip">Explore Premium Core Matrix Capabilities</span>
+    </button>
+  </div>
+</div>
+
+<button 
+  v-if="!isSidebarOpen" 
+  @click="isSidebarOpen = true" 
+  class="tooltip-btn floating-open-btn"
+>
+  📂
+  <span class="tooltip">Open Sidebar</span>
+</button>
+
       <footer class="footer-input-tray">
         <div class="chat-input-container">
-          <div class="menu-wrapper">
-            <button 
-              @click="isMenuOpen = !isMenuOpen" 
-              class="action-toggle-btn"
-              :class="{ 'active': isMenuOpen }"
-              type="button"
-            >
-              <span class="plus-icon">＋</span>
-            </button>
-
-            <transition name="dropdown">
-              <ul v-if="isMenuOpen" class="actions-dropdown">
-                <li @click="handleAction('image')">🖼️ Create an image</li>
-                <li @click="handleAction('edit')">✍️ Write or edit</li>
-                <li @click="handleAction('search')">🔍 Look something up</li>
-                <li @click="handleAction('file')">📁 Upload file</li>
-              </ul>
-            </transition>
-          </div>
+          <footer class="footer-input-tray">
+        <ChatInput 
+          v-model="userInput"
+          :is-loading="isLoading"
+          @submit="submitMessage"
+          @stop="handleAbortTransmission"
+        />
+      </footer>
 
           <input 
             v-model="userInput" 
@@ -95,11 +149,12 @@
 import { ref, onMounted, watch, computed, nextTick } from 'vue'
 import { runAgent1Core } from '~~/src/agents'
 
-// --- STATE MANAGEMENT ---
+// --- UNIFIED STATE MANAGEMENT ---
 const userInput = ref('')
-const isMenuOpen = ref(false)
 const isLoading = ref(false)
+const isMenuOpen = ref(false)
 const chatWindow = ref(null)
+let currentAbortController = null // Tracks active network requests to stop them mid-generation
 
 // Default System Prompt
 const defaultSystemMessage = {
@@ -110,7 +165,7 @@ const defaultSystemMessage = {
 const chatHistory = ref([defaultSystemMessage])
 
 // --- COMPUTED PROPERTIES ---
-// We hide the 'system' prompt from the user interface
+// We hide the 'system' prompt from the user interface layout
 const visibleMessages = computed(() => {
   return chatHistory.value.filter(msg => msg.role !== 'system')
 })
@@ -130,13 +185,6 @@ watch(chatHistory, (newHistory) => {
   localStorage.setItem('banana_chat_history', JSON.stringify(newHistory))
 }, { deep: true })
 
-// --- ACTIONS HANDLERS ---
-const startNewChat = () => {
-  chatHistory.value = [defaultSystemMessage]
-  localStorage.removeItem('banana_chat_history')
-  isMenuOpen.value = false
-}
-
 const handleAction = (actionType) => {
   isMenuOpen.value = false
   alert(`Action chosen: ${actionType}`)
@@ -149,34 +197,164 @@ const scrollWindowToBottom = async () => {
   }
 }
 
+// --- MESSAGES SUBMISSION INTERACTION PIPELINE ---
+// --- MESSAGES SUBMISSION INTERACTION PIPELINE (MEMORY SAFE) ---
 const submitMessage = async () => {
   const cleanInput = userInput.value.trim()
   if (!cleanInput || isLoading.value) return
 
-  // 1. Add user message
+  // 1. Instantly append request block to the visual screen history
   chatHistory.value.push({ role: 'user', content: cleanInput })
   userInput.value = ''
   isLoading.value = true
   isMenuOpen.value = false // close menu if open
   await scrollWindowToBottom()
 
+  // 2. Provision Abort Controller logic handler to track active HTTP streams
+  currentAbortController = new AbortController()
+
   try {
-    // 2. Fetch AI response
-    const finalAiReply = await runAgent1Core(chatHistory.value)
+    // 💡 THE MEMORY WINDOW FIX:
+    // Extract the very first message (the system prompt) so it's NEVER lost
+    const systemPrompt = chatHistory.value[0]
     
-    // 3. Add AI message
-    chatHistory.value.push({ role: 'assistant', content: finalAiReply })
+    // Grab only the 6 most recent messages so token sizes stay small
+    const recentHistory = chatHistory.value.slice(-6)
+    
+    // Package them safely together before sending to the backend
+    const optimizedPayload = [systemPrompt, ...recentHistory]
+
+    // Pass the small, optimized message window to your agent file
+    const finalAiReply = await runAgent1Core(optimizedPayload)
+    
+    // Safety verification check ensures state wasn't cleared out or aborted early
+    if (isLoading.value) {
+      chatHistory.value.push({ role: 'assistant', content: finalAiReply })
+    }
   } catch (error) {
-    console.error("Transmission breakdown:", error)
-    chatHistory.value.push({ 
-      role: 'assistant', 
-      content: 'Connection Error: Failed to communicate with BANANA Core. Please try again.' 
-    })
+    console.error("Transmission breakdown handled:", error)
+    // Only show visible error messages if the action wasn't intentionally canceled
+    if (isLoading.value) {
+      chatHistory.value.push({ 
+        role: 'assistant', 
+        content: 'Connection Error: BANANA core limits exceeded. Please wait a minute or clear history.' 
+      })
+    }
   } finally {
     isLoading.value = false
+    currentAbortController = null
     await scrollWindowToBottom()
   }
 }
+/**
+ * Handles the '@stop' event emitted from ChatInput when clicked mid-generation
+ */
+const handleAbortTransmission = () => {
+  if (currentAbortController) {
+    currentAbortController.abort() // Cancel network fetch loop
+  }
+  isLoading.value = false // Release ui execution locked loops state immediately
+  chatHistory.value.push({ 
+    role: 'assistant', 
+    content: '_Generation stopped by Banana Admin._' 
+  })
+}
+
+// --- ADDITIONAL SIDEBAR STATE FEATURES ---
+const isSidebarOpen = ref(true)
+const searchQuery = ref('')
+
+// --- 1. SESSION TRACKING & ACTIVE LIST CONTROLLER ---
+// Holds the list of past chat sessions. Automatically loads from the browser storage.
+const savedSessions = ref([])
+
+// Tracks which session index is currently open (null means a brand new unsaved chat)
+const currentSessionIndex = ref(null)
+
+// --- 2. AUTOMATIC LOADING WHEN THE PAGE OPENS ---
+onMounted(() => {
+  // Try to load any previously saved sidebar session arrays
+  const storedSessions = localStorage.getItem('banana_saved_sessions')
+  if (storedSessions) {
+    savedSessions.value = JSON.parse(storedSessions)
+  }
+
+  // Load the current active open conversation
+  const activeChat = localStorage.getItem('banana_chat_history')
+  if (activeChat) {
+    chatHistory.value = JSON.parse(activeChat)
+  }
+  
+  // Also track which index was last being viewed
+  const storedIdx = localStorage.getItem('banana_current_session_index')
+  if (storedIdx !== null) {
+    currentSessionIndex.value = JSON.parse(storedIdx)
+  }
+
+  scrollWindowToBottom()
+})
+
+// --- 3. AUTO-SAVE HOOKS (WATCHERS) ---
+// Watch for changes to the chat list and update browser storage automatically
+watch(savedSessions, (newSessions) => {
+  localStorage.setItem('banana_saved_sessions', JSON.stringify(newSessions))
+}, { deep: true })
+
+watch(currentSessionIndex, (newIdx) => {
+  localStorage.setItem('banana_current_session_index', JSON.stringify(newIdx))
+})
+
+
+// --- 4. OPTIMIZED INTERACTION FUNCTIONS TO PASTE/UPDATE ---
+
+// Replaces your old startNewChat to clear layout state cleanly
+const startNewChat = () => {
+  chatHistory.value = [defaultSystemMessage]
+  currentSessionIndex.value = null
+  localStorage.removeItem('banana_chat_history')
+  isMenuOpen.value = false
+}
+
+// Loads a past conversation tree when clicked from the sidebar list
+const loadPastChat = (index) => {
+  const selectedChat = savedSessions.value[index]
+  if (selectedChat && selectedChat.history) {
+    chatHistory.value = [...selectedChat.history]
+    currentSessionIndex.value = index
+  }
+  scrollWindowToBottom()
+}
+
+// 💡 ADD THIS RIGHT AFTER A SUCCESSFUL AI RESPONSE INSIDE YOUR `submitMessage` FUNCTION:
+// This function updates the sidebar item with the new text or creates a new row if it's a new chat!
+const updateSidebarTracking = () => {
+  // Find the first user message text to name the chat link title automatically
+  const firstUserMsg = chatHistory.value.find(msg => msg.role === 'user')?.content || 'New Chat Session'
+  const cleanTitle = firstUserMsg.length > 25 ? firstUserMsg.substring(0, 25) + '...' : firstUserMsg
+
+  if (currentSessionIndex.value !== null && savedSessions.value[currentSessionIndex.value]) {
+    // Update existing active historical node tree container
+    savedSessions.value[currentSessionIndex.value].history = [...chatHistory.value]
+  } else {
+    // Create a new sidebar row listing item
+    savedSessions.value.unshift({
+      title: cleanTitle,
+      history: [...chatHistory.value]
+    })
+    currentSessionIndex.value = 0 // Anchor active tracking down to the new row item
+  }
+}
+
+// Auto-filters matching row items live as the user types
+const filteredChats = computed(() => {
+  if (!searchQuery.value.trim()) return savedSessions.value
+  return savedSessions.value.filter(chat => 
+    chat.title.toLowerCase().includes(searchQuery.value.toLowerCase())
+  )
+})
+
+// Action rule to click and retrieve standard workspace items
+
 </script>
 
 <style scoped>
@@ -468,4 +646,94 @@ const submitMessage = async () => {
   opacity: 0;
   transform: translateY(8px);
 }
+
+/* --- SIDEBAR TOGGLE TRANSITIONS & COLLAPSE --- */
+.sidebar {
+  transition: width 0.25s ease !important;
+}
+.sidebar-collapsed {
+  width: 0px !important;
+  border-right: none !important;
+}
+
+/* --- THE HOVER CSS TOOLTIP PATTERN --- */
+.tooltip-btn {
+  position: relative;
+}
+.tooltip {
+  position: absolute;
+  bottom: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #000000;
+  color: #ffffff;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 9999;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+}
+.tooltip-btn:hover .tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(4px);
+}
+
+/* --- CHAT FILTER BOX & SEARCH INPUT --- */
+.search-box {
+  display: flex;
+  align-items: center;
+  background-color: #202020;
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  margin: 0.5rem 0;
+  border: 1px solid #303030;
+}
+.search-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+  width: 100%;
+}
+
+/* --- CUSTOM CHAT RECENT LIST SCROLLBAR TRACKS --- */
+.recents-scrollbar-container {
+  overflow-y: auto;
+  max-height: 350px;
+}
+.recents-scrollbar-container::-webkit-scrollbar {
+  width: 6px;
+}
+.recents-scrollbar-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.recents-scrollbar-container::-webkit-scrollbar-thumb {
+  background-color: #383838;
+  border-radius: 10px;
+}
+.recents-scrollbar-container::-webkit-scrollbar-thumb:hover {
+  background-color: #4b4b4b;
+}
+
+/* --- COMPONENT ITEMS --- */
+.chat-list { list-style: none; padding: 0; margin: 0; }
+.chat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #c5c5c5;
+}
+.chat-item:hover { background-color: #212121; color: #fff; }
+.no-chats-found { font-size: 0.8rem; color: #555; padding: 0.5rem; text-align: center; }
+.floating-open-btn { position: absolute; top: 12px; left: 12px; background-color: #171717; border: 1px solid #333; color: #fff; padding: 0.5rem; border-radius: 8px; z-index: 999; }
 </style>

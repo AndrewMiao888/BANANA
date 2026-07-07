@@ -3,6 +3,8 @@ interface ChatMessage {
   content: string;
 }
 
+
+
 /**
  * Executes the core logic for Agent 1 by proxying through the secure local server endpoint.
  * @param messages An array of chat messages representing the ongoing conversation history.
