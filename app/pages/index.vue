@@ -668,4 +668,31 @@ const filteredChats = computed(() => {
 .chat-item:hover { background-color: #212121; color: #fff; }
 .no-chats-found { font-size: 0.8rem; color: #555; padding: 0.5rem; text-align: center; }
 .floating-open-btn { position: absolute; top: 12px; left: 12px; background-color: #171717; border: 1px solid #333; color: #fff; padding: 0.5rem; border-radius: 8px; z-index: 999; }
+
+/* 🧼 CLEANED UP: Removes duplicate background/border tray pill styling */
+.chat-input-container {
+  display: flex;
+  flex-direction: column;
+  background-color: transparent !important;
+  border-radius: 0px !important;
+  padding: 0px !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* 📁 UN-SQUEEZE SIDEBAR: Prevents sidebar buttons from being cut off */
+.sidebar {
+  width: 260px !important;
+  min-width: 260px !important; 
+}
+
+/* Maintain zero dimensions only when explicitly collapsed */
+.sidebar-collapsed {
+  width: 0px !important;
+  min-width: 0px !important;
+  padding: 1rem 0px !important;
+  border-right: none !important;
+  overflow: hidden;
+}
+
 </style>
