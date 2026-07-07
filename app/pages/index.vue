@@ -1,24 +1,19 @@
 <template>
   <div class="app-container">
-    <aside class="sidebar" :class="{ 'sidebar-collapsed': !isSidebarOpen }">
+   <aside class="sidebar" :class="{ 'sidebar-collapsed': !isSidebarOpen }">
   <div class="sidebar-top">
     <div class="sidebar-header">
-      <button @click="isSidebarOpen = !isSidebarOpen" class="tooltip-btn toggle-sidebar-btn">
-        <span v-if="isSidebarOpen">[o]</span>
-        <span v-else>[+]</span>
-        <span class="tooltip">Close Sidebar Layout Panel</span>
+      <button @click="isSidebarOpen = !isSidebarOpen" class="toggle-sidebar-btn">
+        <span>{{ isSidebarOpen ? '◀' : '▶' }}</span>
       </button>
       
-      <button v-if="isSidebarOpen" @click="startNewChat" class="tooltip-btn new-chat-btn-header">
-        <span class="new-chat-icon">✎</span>
-        <span>[+] New Chat</span>
-        <span class="tooltip">Initialize Clean Conversation Canvas</span>
+      <button v-if="isSidebarOpen" @click="startNewChat" class="new-chat-btn-header">
+        <span>✎ New Chat</span>
       </button>
     </div>
 
     <div v-if="isSidebarOpen" class="sidebar-body">
       <div class="search-box">
-        <span class="search-icon">[?]</span>
         <input 
           v-model="searchQuery" 
           type="text" 
@@ -38,12 +33,7 @@
               :class="{ 'active-session': currentSessionIndex === chat.originalIndex }"
               @click="loadPastChat(chat.originalIndex)"
             >
-              <span class="chat-bubble-icon">[*]</span>
               <span class="chat-title-text">{{ chat.title }}</span>
-            </li>
-            
-            <li v-if="sortedAndFilteredChats.length === 0" class="no-chats-found">
-              No tracking sequences logged
             </li>
           </ul>
         </div>
@@ -52,15 +42,14 @@
   </div>
   
   <div v-if="isSidebarOpen" class="sidebar-bottom">
-    <div class="sidebar-footer-actions">
-      <button class="tooltip-btn action-pill-btn">
-        <span>[*] BANANA Features</span>
-        <span class="tooltip">Explore Premium Core Matrix Capabilities</span>
-      </button>
-    </div>
+    <button class="banana-features-btn">
+      <span>[*] BANANA Features</span>
+    </button>
     <div class="user-profile">
       <div class="avatar">BA</div>
-      <span class="username">Banana Admin</span>
+      <div class="user-info">
+        <div class="username">Banana Admin</div>
+      </div>
     </div>
   </div>
 </aside>

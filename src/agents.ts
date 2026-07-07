@@ -44,13 +44,17 @@ export async function runAgent1Core(messages: ChatMessage[]): Promise<string> {
   }
 
   // 2. FALLBACK TO GROQ CLOUD (Keeps your mobile/Vercel link alive when away from computer)
-  try {
-    const groqResponse = await fetch('https://api.groq.com/openapi/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-'Authorization': `Bearer ${process.env.GROQ_API_KEY || process.env.NUXT_GROQ_API_KEY || ''}`,
-        'Content-Type': 'application/json'
-      },
+ try {
+  // Pull the key safely using Nuxt's runtime configuration engine
+  const config = useRuntimeConfig();
+  const apiKey = config.groqApiKey || config.public?.groqApiKey || process.env.GROQ_API_KEY || '';
+
+  const groqResponse = await fetch('https://api.groq.com/openapi/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
       body: JSON.stringify({
         model: 'llama-3.1-8b-instant',
         messages: formattedMessages,

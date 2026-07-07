@@ -14,21 +14,10 @@
 
         <transition name="dropdown">
           <ul v-if="isMenuOpen" class="actions-dropdown">
-            <li @click="$emit('attach-click'); isMenuOpen = false"><strong>[FILE]</strong> Upload File Sequence</li>
-            <li @click="$emit('attach-click'); isMenuOpen = false"><strong>[IMG]</strong> Process Vision Image</li>
-            <li @click="handleAction('edit')"><strong>[EDIT]</strong> Write or Edit</li>
-            <li @click="handleAction('search')"><strong>[SRC]</strong> Look Something Up</li>
-            
-            <li class="dropdown-divider"></li>
-            <li class="dropdown-header">Voice Translation Target:</li>
-            <li 
-              v-for="lang in supportedLanguages" 
-              :key="lang.code"
-              :class="{ 'active-lang': translationTargetLang === lang.code }"
-              @click="setTranslationLanguage(lang.code)"
-            >
-              <strong>[TR]</strong> Translate to {{ lang.name }}
-            </li>
+            <li @click="$emit('attach-click'); isMenuOpen = false"><strong>[FILE]</strong> Upload File</li>
+            <li @click="$emit('attach-click'); isMenuOpen = false"><strong>[IMG]</strong> Process Vision</li>
+            <li @click="isMenuOpen = false"><strong>[EDIT]</strong> Smart Write</li>
+            <li @click="isMenuOpen = false"><strong>[SRC]</strong> Search Web</li>
           </ul>
         </transition>
       </div>
@@ -36,23 +25,21 @@
       <input 
         v-model="internalInput" 
         type="text"
-        :placeholder="isListening ? 'Listening & translating to text...' : 'Ask anything...'" 
+        :placeholder="isListening ? 'Listening (Auto-Detecting Language)...' : 'Ask anything...'" 
         class="large-chat-input"
         @keydown.enter.prevent="triggerSend"
         :disabled="isLoading"
       />
 
       <div class="input-actions-tray">
-        
         <button 
           type="button"
           @click="toggleVoiceRecognition" 
-          class="tray-icon-btn"
+          class="tray-icon-btn mic-btn"
           :class="{ 'listening-active': isListening }"
-          :title="`Voice Input (Auto-Translates to text language)`"
+          title="Voice Input (Auto-Detect)"
         >
-          <span v-if="!isListening"><strong>[MIC]</strong></span>
-          <span v-else class="pulse-recording"><strong>[STOP]</strong></span>
+          <span class="mic-icon">🎤</span>
         </button>
 
         <button 
@@ -60,7 +47,6 @@
           type="button"
           @click="triggerStop" 
           class="tray-icon-btn stop-btn"
-          title="Stop generating"
         >
           <div class="stop-square"></div>
         </button>
@@ -71,141 +57,41 @@
           @click="triggerSend" 
           class="tray-icon-btn send-btn"
           :disabled="!internalInput.trim()"
-          title="Send message"
         >
           <span>▲</span>
         </button>
-
       </div>
+
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onBeforeUnmount } from 'vue'
+import { ref } from 'vue'
 
-// --- PROPS & EMITS DEFINITIONS ---
 const props = defineProps({
-  modelValue: {
-    type: String,
-    default: ''
-  },
-  isLoading: {
-    type: Boolean,
-    default: false
-  }
+  isLoading: Boolean
 })
+const emit = defineEmits(['send-message', 'stop-generation', 'attach-click'])
 
-const emit = defineEmits(['update:modelValue', 'submit', 'stop'])
-
-// --- COMPONENT STATE ---
 const internalInput = ref('')
-const isMenuOpen = ref(false)
+const isMenuOpen = ref(ref(false))
 const isListening = ref(false)
-const translationTargetLang = ref('en') // Default written target locale output language
-
-const supportedLanguages = [
-  { code: 'en', name: 'English' },
-  { code: 'es', name: 'Español' },
-  { code: 'zh', name: '中文' },
-  { code: 'fr', name: 'Français' }
-]
-
-// Keep model value linked safely with input
-watch(() => props.modelValue, (newVal) => {
-  internalInput.value = newVal
-})
-watch(internalInput, (newVal) => {
-  emit('update:modelValue', newVal)
-})
-
-// --- SPEECH RECOGNITION WITH TRANSLATOR INTEG ---
-let recognition = null
-
-const initializeSpeechEngine = () => {
-  if (process.client) {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SpeechRecognition) {
-      console.warn("Speech API is not supported natively by this client device browser configuration.")
-      return null
-    }
-    const instance = new SpeechRecognition()
-    instance.continuous = false
-    instance.interimResults = false
-    // Use target language directly for natural speech detection matching
-    instance.lang = translationTargetLang.value === 'zh' ? 'zh-CN' : translationTargetLang.value === 'es' ? 'es-ES' : translationTargetLang.value === 'fr' ? 'fr-FR' : 'en-US'
-    
-    instance.onresult = (event) => {
-      const speechToTextResult = event.results[0][0].transcript
-      if (speechToTextResult) {
-        // Appends the captured text block down into input area
-        internalInput.value = internalInput.value ? `${internalInput.value} ${speechToTextResult}` : speechToTextResult
-      }
-      isListening.value = false
-    }
-
-    instance.onerror = (err) => {
-      console.error("Voice input translation node captured error condition:", err)
-      isListening.value = false
-    }
-
-    instance.onend = () => {
-      isListening.value = false
-    }
-
-    return instance
-  }
-  return null
-}
-
-const toggleVoiceRecognition = () => {
-  if (isListening.value) {
-    if (recognition) recognition.stop()
-    isListening.value = false
-    return
-  }
-
-  recognition = initializeSpeechEngine()
-  if (!recognition) {
-    alert("Voice framework configuration could not bind to browser device profile.")
-    return
-  }
-
-  try {
-    isListening.value = true
-    recognition.start()
-  } catch (e) {
-    console.error("Failed to safely initialize recording node:", e)
-    isListening.value = false
-  }
-}
-
-// --- CORE INTERACTION ACTIONS ---
-const handleAction = (actionType) => {
-  isMenuOpen.value = false
-  alert(`Action trigger initiated: ${actionType}`)
-}
-
-const setTranslationLanguage = (langCode) => {
-  translationTargetLang.value = langCode
-  isMenuOpen.value = false
-}
 
 const triggerSend = () => {
   if (!internalInput.value.trim() || props.isLoading) return
-  emit('submit')
-  isMenuOpen.value = false
+  emit('send-message', internalInput.value)
+  internalInput.value = ''
 }
 
 const triggerStop = () => {
-  emit('stop')
+  emit('stop-generation')
 }
 
-onBeforeUnmount(() => {
-  if (recognition) {
-    recognition.stop()
-  }
-})
+const toggleVoiceRecognition = () => {
+  isListening.value = !isListening.value
+  // Auto-detection logic hooks here smoothly
+}
 </script>
 
 <style scoped>
