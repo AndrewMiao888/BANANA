@@ -54,90 +54,22 @@
           </div>
         </div>
       </div>
-
-      <div class="sidebar-header">
-  <button @click="isSidebarOpen = !isSidebarOpen" class="tooltip-btn toggle-sidebar-btn">
-    <span v-if="isSidebarOpen">📁</span>
-    <span v-else>📂</span>
-    <span class="tooltip">Toggle Sidebar</span>
-  </button>
-  
-  <button v-if="isSidebarOpen" @click="startNewChat" class="tooltip-btn new-chat-btn">
-    <span class="new-chat-icon">📝</span>
-    <span>New chat</span>
-    <span class="tooltip">Create New Chat</span>
-  </button>
-</div>
-
-<div v-if="isSidebarOpen" class="sidebar-body">
-  
-  <div class="search-box">
-    <span class="search-icon">🔍</span>
-    <input 
-      v-model="searchQuery" 
-      type="text" 
-      placeholder="Search chats" 
-      class="search-input" 
-    />
-  </div>
-
-  <div class="recents-section">
-    <div class="recents-title">Recents</div>
-    <div class="recents-scrollbar-container">
-      <ul class="chat-list">
-  <li 
-    v-for="chat in filteredChats" 
-    :key="savedSessions.indexOf(chat)"
-    class="chat-item"
-    :class="{ 'active-session': currentSessionIndex === savedSessions.indexOf(chat) }"
-    @click="loadPastChat(savedSessions.indexOf(chat))"
-  >
-    <span class="chat-bubble-icon">💬</span>
-    <span class="chat-title-text">{{ chat.title }}</span>
-  </li>
-  
-  <li v-if="filteredChats.length === 0" class="no-chats-found">
-    No chats found
-  </li>
-</ul>
-    </div>
-  </div>
-
-  <div class="sidebar-footer">
-    <button class="tooltip-btn action-pill-btn">
-      <span>🌟 BANANA Features</span>
-      <span class="tooltip">Explore Premium Core Matrix Capabilities</span>
-    </button>
-  </div>
-</div>
-
 <button 
-  v-if="!isSidebarOpen" 
-  @click="isSidebarOpen = true" 
-  class="tooltip-btn floating-open-btn"
->
-  📂
-  <span class="tooltip">Open Sidebar</span>
-</button>
+        v-if="!isSidebarOpen" 
+        @click="isSidebarOpen = true" 
+        class="tooltip-btn floating-open-btn"
+      >
+        [+]
+        <span class="tooltip">Open Sidebar</span>
+      </button>
 
       <footer class="footer-input-tray">
         <div class="chat-input-container">
-          <footer class="footer-input-tray">
-        <ChatInput 
-          v-model="userInput"
-          :is-loading="isLoading"
-          @submit="submitMessage"
-          @stop="handleAbortTransmission"
-        />
-      </footer>
-
-          <input 
-            v-model="userInput" 
-            type="text"
-            placeholder="Ask anything" 
-            class="large-chat-input"
-            @keydown.enter.prevent="submitMessage"
-            :disabled="isLoading"
+          <ChatInput 
+            v-model="userInput"
+            :is-loading="isLoading"
+            @submit="submitMessage"
+            @stop="handleAbortTransmission"
           />
         </div>
       </footer>
