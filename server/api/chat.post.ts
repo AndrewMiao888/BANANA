@@ -341,109 +341,11 @@ const content = data.message.content.trim();
       updatedSummary: updatedSummary 
     };
 
-  } catch (error: any) {
+ } catch (error: any) {
     console.error("[BANANA] Gateway failure:", error?.message || error);
     setResponseStatus(event, 500);
     return {
       content: "Connection Error: BANANA Core systems are unreachable.",
-      provider: "error"
-    };
-  }
-
-    if (!apiKey) {
-      throw new Error("Missing Groq API key.");
-    }
-
-    // 💡 Generate a short summary of the past conversation on the fly
-    summarizes true past history
-
-const conversationSummary = await generateConversationSummary(cleanMessages.slice(0, -1), apiKey);
-
-const latestUserMessage = cleanMessages[cleanMessages.length - 1]; 
-
-
-
-    // 💡 Build the optimized cloud payload: System Prompt + History Summary + Current Request
-    const optimizedCloudMessages = [
-      { 
-        role: "system", 
-        content: `${systemPrompt} Here is a summary of the conversation so far: ${conversationSummary}` 
-      },
-      latestUserMessage
-    ];
-
-    const response = await fetch(
-      "https://api.groq.com/openapi/v1/chat/completions",
-      {
-        method: "POST",
-
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
-
-        // 💡 Pass the optimized, memory-efficient array into the body
-        body: JSON.stringify({
-          model: "llama-3.1-8b-instant",
-          messages: optimizedCloudMessages,
-          max_tokens: 1025,
-          temperature: 0.7
-        }),
-       
-        signal: AbortSignal.timeout(15000)
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(
-        `Groq HTTP ${response.status}`
-      );
-    }
-
-    let data;
-
-    try {
-      data = await response.json();
-    } catch {
-      throw new Error(
-        "Invalid Groq JSON."
-      );
-    }
-
-   if (
-  !data ||
-  !Array.isArray(data.choices) ||
-  typeof data?.choices?.[0]?.message?.content !== "string"
-) {
-  throw new Error("Invalid Groq response.");
-}
-
-const content =
-  data.choices[0].message.content.trim();
-
-    if (!content) {
-      throw new Error(
-        "Empty Groq response."
-      );
-    }
-
-    return {
-      content,
-      provider: "groq"
-    };
-
-  } catch (error: any) {
-
-    console.error(
-      "[BANANA] Gateway failure:",
-      error?.message || error
-    );
-
-    setResponseStatus(event, 500);
-
-    return {
-      content:
-        "Connection Error: BANANA Core systems are unreachable.",
       provider: "error"
     };
   }
