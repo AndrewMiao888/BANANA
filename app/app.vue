@@ -1,7 +1,8 @@
 
 <script setup lang="typescript">
 import { ref, computed } from 'vue'
-import { runAgent1Core, type ChatMessage } from './src/agents'
+import { runAgent1Core } from './src/agents'
+import type { ChatMessage } from './src/agents'
 
 // UI States
 const isSidebarOpen = ref(true)
