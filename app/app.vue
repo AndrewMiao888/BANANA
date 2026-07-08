@@ -236,6 +236,8 @@ const formatMarkdown = (text: string) => {
     // 3. Bullet points e.g., 1. Item
     .replace(/(\d+\.\s+)/g, '<span class="text-yellow-400 font-bold">$1</span>')
 }
+
+
 </script>
 
 <template>

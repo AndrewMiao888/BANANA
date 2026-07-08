@@ -117,7 +117,6 @@
 </template>
 
 <script setup>
-const currentSummary = ref<string>('')
 import { ref, onMounted, watch, computed, nextTick } from 'vue'
 import { runAgent1Core } from '~~/src/agents'
 
@@ -126,6 +125,7 @@ const userInput = ref('')
 const isLoading = ref(false)
 const isMenuOpen = ref(false)
 const chatWindow = ref(null)
+const currentSummary = ref('') // Tracks the ongoing context summary
 let currentAbortController = null // Tracks active network requests to stop them mid-generation
 
 // Default System Prompt
@@ -142,20 +142,68 @@ const visibleMessages = computed(() => {
   return chatHistory.value.filter(msg => msg.role !== 'system')
 })
 
-// --- LIFECYCLE & LOCAL STORAGE ---
+// --- ADDITIONAL SIDEBAR STATE FEATURES ---
+const isSidebarOpen = ref(true)
+const searchQuery = ref('')
+
+// Holds the list of past chat sessions. Automatically loads from the browser storage.
+const savedSessions = ref([])
+
+// Tracks which session index is currently open (null means a brand new unsaved chat)
+const currentSessionIndex = ref(null)
+
+
+// --- AUTOMATIC LOADING WHEN THE PAGE OPENS ---
 onMounted(() => {
-  // Load saved chat history when the page loads
-  const savedChat = localStorage.getItem('banana_chat_history')
-  if (savedChat) {
-    chatHistory.value = JSON.parse(savedChat)
+  // 1. Load saved side sessions array
+  const storedSessions = localStorage.getItem('banana_saved_sessions')
+  if (storedSessions) {
+    savedSessions.value = JSON.parse(storedSessions)
   }
+
+  // 2. Load the current active conversation history tree
+  const activeChat = localStorage.getItem('banana_chat_history')
+  if (activeChat) {
+    chatHistory.value = JSON.parse(activeChat)
+  }
+  
+  // 3. Track which session index was last active
+  const storedIdx = localStorage.getItem('banana_current_session_index')
+  if (storedIdx !== null) {
+    currentSessionIndex.value = JSON.parse(storedIdx)
+  }
+
+  // 4. Restore the current working summary state
+  const storedSummary = localStorage.getItem('banana_current_summary')
+  if (storedSummary) {
+    currentSummary.value = storedSummary
+  }
+
   scrollWindowToBottom()
 })
 
-// Watch for any changes to chatHistory and save them to local storage automatically
+
+// --- AUTO-SAVE HOOKS (WATCHERS) ---
+// Watch for changes to the chat history array and auto-save
 watch(chatHistory, (newHistory) => {
   localStorage.setItem('banana_chat_history', JSON.stringify(newHistory))
 }, { deep: true })
+
+// Watch for changes to the session list array and auto-save
+watch(savedSessions, (newSessions) => {
+  localStorage.setItem('banana_saved_sessions', JSON.stringify(newSessions))
+}, { deep: true })
+
+// Watch the active active session index
+watch(currentSessionIndex, (newIdx) => {
+  localStorage.setItem('banana_current_session_index', JSON.stringify(newIdx))
+})
+
+// Watch the working AI background summary memory layer
+watch(currentSummary, (newSummary) => {
+  localStorage.setItem('banana_current_summary', newSummary)
+})
+
 
 const handleAction = (actionType) => {
   isMenuOpen.value = false
@@ -169,7 +217,7 @@ const scrollWindowToBottom = async () => {
   }
 }
 
-// --- MESSAGES SUBMISSION INTERACTION PIPELINE ---
+
 // --- MESSAGES SUBMISSION INTERACTION PIPELINE (MEMORY SAFE) ---
 const submitMessage = async () => {
   const cleanInput = userInput.value.trim()
@@ -187,11 +235,6 @@ const submitMessage = async () => {
 
   try {
     // 🍌 BANANA Core Full-Memory Pass-Through:
-    // We pass the entire chat history so Local Ollama gets full context,
-    // while the backend handling automatically manages the Groq summary fallback!
-// 💡 THE ALL-FEATURES REPLACEMENT BLOCK:
-    // 1. Pass the full history array (so Local always checks everything).
-    // 2. Pass the existing summary string (for Groq incremental parsing if Local fails).
     const finalAiReply = await runAgent1Core({
       messages: chatHistory.value,
       existingSummary: currentSummary.value
@@ -199,22 +242,22 @@ const submitMessage = async () => {
     
     // Safety verification check ensures state wasn't cleared out or aborted early
     if (isLoading.value) {
-      // Extract the plain text content safely out of the custom server reply object
       chatHistory.value.push({ 
         role: 'assistant', 
         content: finalAiReply.content 
       })
 
-      // 💡 If Groq was triggered, it passes back a brand new updated summary.
-      // We save it right here so the next turn appends to it cleanly!
+      // 💡 Save the brand new incremental text summary passed back from Groq
       if (finalAiReply.updatedSummary) {
         currentSummary.value = finalAiReply.updatedSummary
       }
+
+      // ✅ FIXED: Automatically generates name/saves session data right here!
+      updateSidebarTracking()
     }
 
   } catch (error) {
     console.error("Transmission breakdown handled:", error)
-    // Only show visible error messages if the action wasn't intentionally canceled
     if (isLoading.value) {
       chatHistory.value.push({ 
         role: 'assistant', 
@@ -227,6 +270,7 @@ const submitMessage = async () => {
     await scrollWindowToBottom()
   }
 }
+
 /**
  * Handles the '@stop' event emitted from ChatInput when clicked mid-generation
  */
@@ -234,65 +278,25 @@ const handleAbortTransmission = () => {
   if (currentAbortController) {
     currentAbortController.abort() // Cancel network fetch loop
   }
-  isLoading.value = false // Release ui execution locked loops state immediately
+  isLoading.value = false 
   chatHistory.value.push({ 
     role: 'assistant', 
     content: '_Generation stopped by Banana Admin._' 
   })
+  updateSidebarTracking() // Save the aborted state log to history tracking
 }
 
-// --- ADDITIONAL SIDEBAR STATE FEATURES ---
-const isSidebarOpen = ref(true)
-const searchQuery = ref('')
 
-// --- 1. SESSION TRACKING & ACTIVE LIST CONTROLLER ---
-// Holds the list of past chat sessions. Automatically loads from the browser storage.
-const savedSessions = ref([])
-
-// Tracks which session index is currently open (null means a brand new unsaved chat)
-const currentSessionIndex = ref(null)
-
-// --- 2. AUTOMATIC LOADING WHEN THE PAGE OPENS ---
-onMounted(() => {
-  // Try to load any previously saved sidebar session arrays
-  const storedSessions = localStorage.getItem('banana_saved_sessions')
-  if (storedSessions) {
-    savedSessions.value = JSON.parse(storedSessions)
-  }
-
-  // Load the current active open conversation
-  const activeChat = localStorage.getItem('banana_chat_history')
-  if (activeChat) {
-    chatHistory.value = JSON.parse(activeChat)
-  }
-  
-  // Also track which index was last being viewed
-  const storedIdx = localStorage.getItem('banana_current_session_index')
-  if (storedIdx !== null) {
-    currentSessionIndex.value = JSON.parse(storedIdx)
-  }
-
-  scrollWindowToBottom()
-})
-
-// --- 3. AUTO-SAVE HOOKS (WATCHERS) ---
-// Watch for changes to the chat list and update browser storage automatically
-watch(savedSessions, (newSessions) => {
-  localStorage.setItem('banana_saved_sessions', JSON.stringify(newSessions))
-}, { deep: true })
-
-watch(currentSessionIndex, (newIdx) => {
-  localStorage.setItem('banana_current_session_index', JSON.stringify(newIdx))
-})
-
-
-// --- 4. OPTIMIZED INTERACTION FUNCTIONS TO PASTE/UPDATE ---
+// --- INTERACTION FUNCTIONS TO PASTE/UPDATE ---
 
 // Replaces your old startNewChat to clear layout state cleanly
 const startNewChat = () => {
   chatHistory.value = [defaultSystemMessage]
+  currentSummary.value = ''
   currentSessionIndex.value = null
   localStorage.removeItem('banana_chat_history')
+  localStorage.removeItem('banana_current_summary')
+  localStorage.removeItem('banana_current_session_index')
   isMenuOpen.value = false
 }
 
@@ -301,43 +305,42 @@ const loadPastChat = (index) => {
   const selectedChat = savedSessions.value[index]
   if (selectedChat && selectedChat.history) {
     chatHistory.value = [...selectedChat.history]
+    currentSummary.value = selectedChat.summary || ''
     currentSessionIndex.value = index
   }
   scrollWindowToBottom()
 }
 
-// 💡 ADD THIS RIGHT AFTER A SUCCESSFUL AI RESPONSE INSIDE YOUR `submitMessage` FUNCTION:
-// This function updates the sidebar item with the new text or creates a new row if it's a new chat!
+// Automatically syncs titles, message history states, and context summaries per session
 const updateSidebarTracking = () => {
-  const firstUserMsg = chatHistory.value.find(msg => msg.role === 'user')?.content || 'New Tracking Log'
+  const firstUserMsg = chatHistory.value.find(msg => msg.role === 'user')?.content || 'New Chat'
+  // Auto Chat Name Generation Logic: Grab the beginning of the prompt cleanly
   const cleanTitle = firstUserMsg.length > 25 ? firstUserMsg.substring(0, 25) + '...' : firstUserMsg
 
   if (currentSessionIndex.value !== null && savedSessions.value[currentSessionIndex.value]) {
-    // Update existing chat history and refresh its modified timestamp sequence
+    // Update existing chat parameters
     savedSessions.value[currentSessionIndex.value].history = [...chatHistory.value]
+    savedSessions.value[currentSessionIndex.value].summary = currentSummary.value
     savedSessions.value[currentSessionIndex.value].updatedAt = Date.now()
   } else {
-    // Initialize a new conversation log with a fresh timestamp tracking flag
+    // Initialize an entirely fresh structural chat container row
     const newChatSession = {
       title: cleanTitle,
       history: [...chatHistory.value],
+      summary: currentSummary.value,
       updatedAt: Date.now()
     }
     
     savedSessions.value.unshift(newChatSession)
-    // Synchronize the current session index to track its real structural spot
-    currentSessionIndex.value = 0
+    currentSessionIndex.value = 0 // Snap focus cursor directly onto the new row element
   }
 }
 
-// Auto-filters matching row items live as the user types
 // --- SORTED CHRONOLOGICAL RECENT CORES FILTER ---
 const sortedAndFilteredChats = computed(() => {
-  // Map items to retain their real original base index tracking locations
   const mappedSessions = savedSessions.value.map((chat, idx) => ({
     ...chat,
     originalIndex: idx,
-    // Use an existing timestamp property, or default to item positioning sequence
     updatedAt: chat.updatedAt || Date.now() - idx
   }));
 
@@ -350,8 +353,6 @@ const sortedAndFilteredChats = computed(() => {
     chat.title.toLowerCase().includes(searchQuery.value.toLowerCase())
   );
 });
-
-// Action rule to click and retrieve standard workspace items
 
 </script>
 
