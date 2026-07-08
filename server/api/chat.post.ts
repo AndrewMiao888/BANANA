@@ -1,3 +1,32 @@
+// Helper to build a summary incrementally without checking old history again
+async function updateIncrementalSummary(oldSummary: string, newTurn: any, apiKey: string): Promise<string> {
+  try {
+    const contextText = oldSummary 
+      ? `Current Summary: "${oldSummary}". New conversation turn to append: ${JSON.stringify(newTurn)}`
+      : `New conversation turn: ${JSON.stringify(newTurn)}`;
+
+    const response = await fetch('https://api.groq.com/openapi/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'You are a memory processor. Update the current summary by seamlessly incorporating the information from the new conversation turn. Keep the output as a single, highly dense, concise paragraph.' 
+          },
+          { role: 'user', content: contextText }
+        ],
+        max_tokens: 200
+      })
+    });
+    const data = await response.json();
+    return data?.choices?.[0]?.message?.content || oldSummary || "Previous conversation context.";
+  } catch {
+    return oldSummary || "Error updating history context.";
+  }
+}
+
 import {
   defineEventHandler,
   readBody,
@@ -250,19 +279,101 @@ const content = data.message.content.trim();
   }
 
   // =====================================================
-  // 6. GROQ FALLBACK
+  // 6. GROQ FALLBACK (INCREMENTAL MEMORY LAYER)
   // =====================================================
 
   try {
-
     if (!apiKey) {
-      throw new Error(
-        "Missing Groq API key."
-      );
+      throw new Error("Missing Groq API key.");
     }
 
+    // Extract incoming summary state from frontend body
+    const existingSummary = body.existingSummary || "";
+    
+    // Grab just the latest exchange turn (the last assistant reply + the new user question)
+    const lastTwoMessages = cleanMessages.slice(-2); 
+
+    // 💡 Update the summary using ONLY the new turn, avoiding re-reading the entire message array!
+    const updatedSummary = await updateIncrementalSummary(existingSummary, lastTwoMessages, apiKey);
+    const latestUserMessage = cleanMessages[cleanMessages.length - 1];
+
+    const optimizedCloudMessages = [
+      { 
+        role: "system", 
+        content: `${systemPrompt}\n\n[CONVERSATION SUMMARY CONTEXT]: ${updatedSummary}` 
+      },
+      latestUserMessage
+    ];
+
     const response = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
+      "https://api.groq.com/openapi/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "llama-3.1-8b-instant",
+          messages: optimizedCloudMessages,
+          max_tokens: 1025,
+          temperature: 0.7
+        }),
+        signal: AbortSignal.timeout(15000)
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Groq HTTP ${response.status}`);
+    }
+
+    let data = await response.json();
+    const content = data?.choices?.[0]?.message?.content?.trim();
+
+    if (!content) {
+      throw new Error("Empty Groq response.");
+    }
+
+    // Return the answer AND the updated summary so the frontend saves it for next time!
+    return {
+      content,
+      provider: "groq",
+      updatedSummary: updatedSummary 
+    };
+
+  } catch (error: any) {
+    console.error("[BANANA] Gateway failure:", error?.message || error);
+    setResponseStatus(event, 500);
+    return {
+      content: "Connection Error: BANANA Core systems are unreachable.",
+      provider: "error"
+    };
+  }
+
+    if (!apiKey) {
+      throw new Error("Missing Groq API key.");
+    }
+
+    // 💡 Generate a short summary of the past conversation on the fly
+    summarizes true past history
+
+const conversationSummary = await generateConversationSummary(cleanMessages.slice(0, -1), apiKey);
+
+const latestUserMessage = cleanMessages[cleanMessages.length - 1]; 
+
+
+
+    // 💡 Build the optimized cloud payload: System Prompt + History Summary + Current Request
+    const optimizedCloudMessages = [
+      { 
+        role: "system", 
+        content: `${systemPrompt} Here is a summary of the conversation so far: ${conversationSummary}` 
+      },
+      latestUserMessage
+    ];
+
+    const response = await fetch(
+      "https://api.groq.com/openapi/v1/chat/completions",
       {
         method: "POST",
 
@@ -271,13 +382,14 @@ const content = data.message.content.trim();
           "Content-Type": "application/json"
         },
 
+        // 💡 Pass the optimized, memory-efficient array into the body
         body: JSON.stringify({
           model: "llama-3.1-8b-instant",
-          messages,
+          messages: optimizedCloudMessages,
           max_tokens: 1025,
           temperature: 0.7
         }),
-
+       
         signal: AbortSignal.timeout(15000)
       }
     );

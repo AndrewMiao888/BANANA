@@ -117,6 +117,7 @@
 </template>
 
 <script setup>
+const currentSummary = ref<string>('')
 import { ref, onMounted, watch, computed, nextTick } from 'vue'
 import { runAgent1Core } from '~~/src/agents'
 
@@ -185,23 +186,32 @@ const submitMessage = async () => {
   currentAbortController = new AbortController()
 
   try {
-    // 💡 THE MEMORY WINDOW FIX:
-    // Extract the very first message (the system prompt) so it's NEVER lost
-    const systemPrompt = chatHistory.value[0]
-    
-    // Grab only the 6 most recent messages so token sizes stay small
-    const recentHistory = chatHistory.value.slice(-10)
-    
-    // Package them safely together before sending to the backend
-    const optimizedPayload = [systemPrompt, ...recentHistory]
-
-    // Pass the small, optimized message window to your agent file
-    const finalAiReply = await runAgent1Core(optimizedPayload)
+    // 🍌 BANANA Core Full-Memory Pass-Through:
+    // We pass the entire chat history so Local Ollama gets full context,
+    // while the backend handling automatically manages the Groq summary fallback!
+// 💡 THE ALL-FEATURES REPLACEMENT BLOCK:
+    // 1. Pass the full history array (so Local always checks everything).
+    // 2. Pass the existing summary string (for Groq incremental parsing if Local fails).
+    const finalAiReply = await runAgent1Core({
+      messages: chatHistory.value,
+      existingSummary: currentSummary.value
+    })
     
     // Safety verification check ensures state wasn't cleared out or aborted early
     if (isLoading.value) {
-      chatHistory.value.push({ role: 'assistant', content: finalAiReply })
+      // Extract the plain text content safely out of the custom server reply object
+      chatHistory.value.push({ 
+        role: 'assistant', 
+        content: finalAiReply.content 
+      })
+
+      // 💡 If Groq was triggered, it passes back a brand new updated summary.
+      // We save it right here so the next turn appends to it cleanly!
+      if (finalAiReply.updatedSummary) {
+        currentSummary.value = finalAiReply.updatedSummary
+      }
     }
+
   } catch (error) {
     console.error("Transmission breakdown handled:", error)
     // Only show visible error messages if the action wasn't intentionally canceled

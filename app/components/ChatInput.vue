@@ -1,96 +1,238 @@
 <template>
-  <div class="chat-input-wrapper">
-    <div class="chat-input-container">
-      
-      <div class="menu-wrapper">
-        <button 
-          @click="isMenuOpen = !isMenuOpen" 
-          class="action-toggle-btn"
-          :class="{ 'active': isMenuOpen }"
-          type="button"
+  <div class="w-full max-w-3xl mx-auto px-4 pb-6 relative">
+    
+    <div 
+      v-if="showSlashMenu" 
+      class="absolute bottom-full left-4 right-4 mb-2 bg-zinc-900 border border-zinc-700/80 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto z-50 transition-all duration-150"
+    >
+      <div class="px-3 py-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider bg-zinc-950/40 border-b border-zinc-800 select-none">
+        BANANA Cluster Quick Actions
+      </div>
+      <ul class="divide-y divide-zinc-800">
+        <li 
+          v-for="(cmd, index) in filteredCommands" 
+          :key="cmd.trigger"
+          :class="[activeCommandIndex === index ? 'bg-yellow-400/10 text-yellow-400' : 'text-zinc-300 hover:bg-zinc-800/60']"
+          @click="selectSlashCommand(cmd)"
+          class="flex items-center px-4 py-2.5 text-sm cursor-pointer transition-colors space-x-3"
         >
-          <span class="plus-icon">＋</span>
-        </button>
+          <span class="text-lg font-mono text-zinc-500" :class="{'text-yellow-400': activeCommandIndex === index}">{{ cmd.icon }}</span>
+          <div class="flex-1">
+            <span class="font-semibold font-mono">/{{ cmd.trigger }}</span>
+            <span class="text-zinc-500 text-xs ml-2">— {{ cmd.desc }}</span>
+          </div>
+          <kbd class="hidden md:inline-block px-1.5 py-0.5 text-[10px] font-sans font-medium text-zinc-500 bg-zinc-800 rounded border border-zinc-700 shadow-sm">
+            Enter
+          </kbd>
+        </li>
+      </ul>
+    </div>
 
-        <transition name="dropdown">
-          <ul v-if="isMenuOpen" class="actions-dropdown">
-            <li @click="$emit('attach-click'); isMenuOpen = false"><strong>[FILE]</strong> Upload File</li>
-            <li @click="$emit('attach-click'); isMenuOpen = false"><strong>[IMG]</strong> Process Vision</li>
-            <li @click="isMenuOpen = false"><strong>[EDIT]</strong> Smart Write</li>
-            <li @click="isMenuOpen = false"><strong>[SRC]</strong> Search Web</li>
-          </ul>
-        </transition>
+    <div class="relative flex flex-col bg-zinc-850/90 border border-zinc-700/50 focus-within:border-yellow-400/50 rounded-2xl shadow-xl transition-all duration-200">
+      
+      <div class="relative flex items-end p-2.5">
+        
+        <textarea
+          ref="inputArea"
+          v-model="userInput"
+          rows="1"
+          placeholder="Message BANANA Core or type '/' for cluster commands..."
+          class="flex-1 max-h-52 bg-transparent text-zinc-100 text-sm pl-3 pr-14 py-2 resize-none focus:outline-none placeholder-zinc-500 leading-relaxed overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700"
+          @input="handleInput"
+          @keydown.enter.exact.prevent="handleEnterKey"
+          @keydown.up.exact.prevent="handleUpArrow"
+          @keydown.down.exact.prevent="handleDownArrow"
+          @keydown.esc.prevent="showSlashMenu = false"
+          @paste="handlePasteDetection"
+        />
+
+        <div class="absolute right-3 bottom-3 flex items-center space-x-2">
+          <button 
+            @click="isLoading ? $emit('cancel') : emitMessageSubmission()"
+            :disabled="!isLoading && !userInput.trim()"
+            class="p-2 rounded-xl transition-all duration-200 shadow-sm disabled:opacity-30 disabled:cursor-not-allowed"
+            :class="[
+              isLoading 
+                ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse' 
+                : 'bg-yellow-400 hover:bg-yellow-500 text-zinc-950 disabled:bg-zinc-800 disabled:text-zinc-600'
+            ]"
+            :title="isLoading ? 'Stop Response Generation' : 'Send Prompt to Core'"
+          >
+            <svg v-if="isLoading" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+              <rect x="5" y="5" width="14" height="14" rx="2" />
+            </svg>
+            
+            <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+            </svg>
+          </button>
+        </div>
+
       </div>
 
-      <input 
-        v-model="internalInput" 
-        type="text"
-        :placeholder="isListening ? 'Listening (Auto-Detecting Language)...' : 'Ask anything...'" 
-        class="large-chat-input"
-        @keydown.enter.prevent="triggerSend"
-        :disabled="isLoading"
-      />
+      <div class="flex items-center justify-between px-4 py-1.5 bg-zinc-900/40 rounded-b-2xl border-t border-zinc-800/50 text-[11px] text-zinc-500">
+        
+        <div class="flex items-center space-x-3 select-none">
+          <span><span class="text-zinc-400 font-medium">Shift + Enter</span> for new line</span>
+          <span class="text-zinc-700">|</span>
+          <span><span class="text-zinc-400 font-medium">↑</span> last prompt history</span>
+        </div>
 
-      <div class="input-actions-tray">
-        <button 
-          type="button"
-          @click="toggleVoiceRecognition" 
-          class="tray-icon-btn mic-btn"
-          :class="{ 'listening-active': isListening }"
-          title="Voice Input (Auto-Detect)"
-        >
-          <span class="mic-icon">🎤</span>
-        </button>
+        <div class="flex items-center space-x-3 font-mono select-none">
+          <span :class="{'text-yellow-500/80': wordCount > 800}">
+            {{ wordCount }} words
+          </span>
+          <span class="text-zinc-700">/</span>
+          <span :class="{'text-red-400 font-semibold': characterCount > 8000}">
+            {{ characterCount }}<span class="text-zinc-600">/10,000</span> chars
+          </span>
+        </div>
 
-        <button 
-          v-if="isLoading"
-          type="button"
-          @click="triggerStop" 
-          class="tray-icon-btn stop-btn"
-        >
-          <div class="stop-square"></div>
-        </button>
-
-        <button 
-          v-else
-          type="button"
-          @click="triggerSend" 
-          class="tray-icon-btn send-btn"
-          :disabled="!internalInput.trim()"
-        >
-          <span>▲</span>
-        </button>
       </div>
 
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref } from 'vue'
+<script setup lang="ts">
+import { ref, computed, watch, nextTick } from 'vue'
 
+// Define incoming component parameters and output state triggers
 const props = defineProps({
-  isLoading: Boolean
+  isLoading: { type: Boolean, default: false }
 })
-const emit = defineEmits(['send-message', 'stop-generation', 'attach-click'])
+const emit = defineEmits(['send', 'cancel'])
 
-const internalInput = ref('')
-const isMenuOpen = ref(ref(false))
-const isListening = ref(false)
+// --- STATE MANAGEMENT TRACKERS ---
+const userInput = ref('')
+const inputArea = ref<HTMLTextAreaElement | null>(null)
+const lastSentPrompt = ref('')
 
-const triggerSend = () => {
-  if (!internalInput.value.trim() || props.isLoading) return
-  emit('send-message', internalInput.value)
-  internalInput.value = ''
+// Slash Engine State Tracking flags
+const showSlashMenu = ref(false)
+const activeCommandIndex = ref(0)
+
+const commands = [
+  { trigger: 'clear', icon: '🧹', desc: 'Wipe current active screen context history.' },
+  { trigger: 'code', icon: '💻', desc: 'Pre-format prompt wrapper for software code blocks.' },
+  { trigger: 'summarize', icon: '📝', desc: 'Request a dense diagnostic rundown summary.' },
+  { trigger: 'help', icon: '❓', desc: 'Display global system infrastructure guide map.' }
+]
+
+// --- 4️⃣ WORD & CHARACTER COUNT CALCULATIONS ---
+const characterCount = computed(() => userInput.value.length)
+const wordCount = computed(() => {
+  const words = userInput.value.trim().split(/\s+/)
+  return words[0] === '' ? 0 : words.length
+})
+
+// --- 7️⃣ SLASH COMMAND PARSING ENGINE ---
+const filteredCommands = computed(() => {
+  if (!userInput.value.startsWith('/')) return []
+  const query = userInput.value.slice(1).toLowerCase()
+  return commands.filter(cmd => cmd.trigger.startsWith(query))
+})
+
+// Watch character adjustments to catch active '/' menu changes dynamically
+watch(userInput, (newVal) => {
+  if (newVal.startsWith('/')) {
+    showSlashMenu.value = filteredCommands.value.length > 0
+    // Keep selection bounds normalized
+    if (activeCommandIndex.value >= filteredCommands.value.length) {
+      activeCommandIndex.value = 0
+    }
+  } else {
+    showSlashMenu.value = false
+  }
+})
+
+// --- 1️⃣ AUTO-EXPANDING HEIGHT CALCULATION ENGINE ---
+const adjustTextareaHeight = () => {
+  const el = inputArea.value
+  if (!el) return
+  el.style.height = 'auto' // Force drop reference calculate boundary accurately
+  el.style.height = `${el.scrollHeight}px`
 }
 
-const triggerStop = () => {
-  emit('stop-generation')
+const handleInput = () => {
+  adjustTextareaHeight()
 }
 
-const toggleVoiceRecognition = () => {
-  isListening.value = !isListening.value
-  // Auto-detection logic hooks here smoothly
+// --- 3️⃣ PASTE DETECTION AND INDENTATION PRESERVATION ---
+const handlePasteDetection = (event: ClipboardEvent) => {
+  const pastedText = event.clipboardData?.getData('text') || ''
+  
+  // Custom Hook: If it looks like raw code, preserve structured indent paths
+  if (pastedText.includes('{') || pastedText.includes('function') || pastedText.includes('const')) {
+    console.log('[BANANA UX] Syntactical data block paste captured.')
+  }
+  
+  // Allow system to finish pasting text before resizing container
+  setTimeout(() => {
+    adjustTextareaHeight()
+  }, 10)
+}
+
+// --- 2️⃣ MANUAL LINE BREAK VS SUBMISSION HANDLING ---
+const handleEnterKey = () => {
+  // If slash action dropdown is visible, hit Enter to execute the selection command instead of typing
+  if (showSlashMenu.value && filteredCommands.value[activeCommandIndex.value]) {
+    selectSlashCommand(filteredCommands.value[activeCommandIndex.value]!)
+    return
+  }
+
+  // Otherwise, exact Enter triggers normal text message pipeline dispatch
+  emitMessageSubmission()
+}
+
+const emitMessageSubmission = () => {
+  if (userInput.value.trim() && !props.isLoading) {
+    lastSentPrompt.value = userInput.value // Archive text content string to up-arrow history
+    emit('send', userInput.value)
+    userInput.value = '' // Flush buffer
+    
+    nextTick(() => {
+      if (inputArea.value) inputArea.value.style.height = 'auto' // Reset box layer shape
+    })
+  }
+}
+
+// --- 6️⃣ PROMPT HISTORY (UP / DOWN NAVIGATION) ---
+const handleUpArrow = () => {
+  if (showSlashMenu.value) {
+    // Navigate upwards through slash options menu
+    if (activeCommandIndex.value > 0) activeCommandIndex.value--
+  } else if (userInput.value === '' && lastSentPrompt.value !== '') {
+    // Standard history lookup feature if box is empty
+    userInput.value = lastSentPrompt.value
+    nextTick(() => adjustTextareaHeight())
+  }
+}
+
+const handleDownArrow = () => {
+  if (showSlashMenu.value) {
+    // Navigate downwards through slash options menu
+    if (activeCommandIndex.value < filteredCommands.value.length - 1) activeCommandIndex.value++
+  }
+}
+
+// Execute slash utility mutations directly into active viewport string state
+const selectSlashCommand = (cmd: typeof commands[0]) => {
+  if (cmd.trigger === 'code') {
+    userInput.value = '```\n\n```'
+    showSlashMenu.value = false
+    nextTick(() => {
+      if (inputArea.value) {
+        inputArea.value.focus()
+        inputArea.value.setSelectionRange(4, 4) // Pin cursor elegantly inside middle of new code ticks
+      }
+      adjustTextareaHeight()
+    })
+  } else {
+    userInput.value = `/${cmd.trigger} `
+    showSlashMenu.value = false
+    nextTick(() => inputArea.value?.focus())
+  }
 }
 </script>
 

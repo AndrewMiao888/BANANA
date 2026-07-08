@@ -1,8 +1,8 @@
 
-<script setup lang="typescript">
+<script setup lang="ts">
 import { ref, computed } from 'vue'
-import { runAgent1Core } from './src/agents'
-import type { ChatMessage } from './src/agents'
+import { runAgent1Core } from '../src/agents'
+import type { ChatMessage } from '../src/agents'
 
 // UI States
 const isSidebarOpen = ref(true)
@@ -18,27 +18,169 @@ const messages = ref<ChatMessage[]>([
 ])
 
 // 🍌 Model List Configuration Matrix
+// 🍌 Ultimate BANANA Core Model Identity Mapping (20+ Configurations)
 const modelsList = computed(() => [
+  // --- CLOUD INSTANT LAYER ---
   { 
     id: 'Instant-Nana', 
     name: '🍌 Instant-Nana (Cloud Backup)', 
-    desc: 'Powered by Groq Cloud. Hyper-fast text completions.',
+    desc: 'Powered by Groq Cloud. Ultimate speed for general prompt routing.',
+    ollamaModelTag: 'llama-3.1-8b-instant', 
     requiresLocal: false 
   },
+
+  // --- GENERAL ENTERPRISE KERNELS (LLAMA FAMILY) ---
   { 
     id: 'Pro-Nana', 
-    name: '⚡ Pro-Nana (Local Engine)', 
-    desc: 'Powered by Llama 3.1. Maximum logical reasoning.',
+    name: '⚡ Pro-Nana (Llama 3.1 8B)', 
+    desc: 'Flagship local engine. Perfectly balanced for logic, reasoning, and context.',
+    ollamaModelTag: 'llama3.1:8b', 
     requiresLocal: true 
   },
   { 
+    id: 'Max-Nana', 
+    name: '🦍 Max-Nana (Llama 3.1 70B)', 
+    desc: 'Heavyweight intelligence cluster. Demands high VRAM for deep analytical problems.',
+    ollamaModelTag: 'llama3.1:70b', 
+    requiresLocal: true 
+  },
+  { 
+    id: 'Ultra-Nana', 
+    name: '👑 Ultra-Nana (Llama 3.3 70B)', 
+    desc: 'State-of-the-art enterprise intelligence. Absolute precision command matching.',
+    ollamaModelTag: 'llama3.3', 
+    requiresLocal: true 
+  },
+
+  // --- CODER & SYNTAX SPECIALISTS ---
+  { 
+    id: 'Code-Nana', 
+    name: '💻 Code-Nana (Qwen 2.5 Coder 7B)', 
+    desc: 'Specialized local script engineer. Flawless syntax generation and structural fixes.',
+    ollamaModelTag: 'qwen2.5-coder:7b', 
+    requiresLocal: true 
+  },
+  { 
+    id: 'Dev-Nana', 
+    name: '🛠️ Dev-Nana (Qwen 2.5 Coder 1.5B)', 
+    desc: 'Ultra-fast autocomplete engine for inline coding workflows.',
+    ollamaModelTag: 'qwen2.5-coder:1.5b', 
+    requiresLocal: true 
+  },
+  { 
+    id: 'Script-Nana', 
+    name: '📜 Script-Nana (CodeGemma)', 
+    desc: 'Google-backed local dev kernel. Optimized for code logic maps and math arrays.',
+    ollamaModelTag: 'codegemma', 
+    requiresLocal: true 
+  },
+  { 
+    id: 'Deep-Code-Nana', 
+    name: '🐋 Deep-Code-Nana (DeepSeek Coder V2)', 
+    desc: 'Advanced architectural coder. Exceptional multi-file project analysis.',
+    ollamaModelTag: 'deepseek-coder-v2', 
+    requiresLocal: true 
+  },
+
+  // --- LIGHTWEIGHT & SPEED-OPTIMIZED SYSTEMS ---
+  { 
     id: 'Mini-Nana', 
-    name: '🍃 Mini-Nana (Local Tiny)', 
-    desc: 'Lightweight local model for prompt summaries.',
+    name: '🍃 Mini-Nana (Phi 3 3.8B)', 
+    desc: 'Microsoft-backed small model. Incredibly smart for its lightweight resource footprint.',
+    ollamaModelTag: 'phi3', 
+    requiresLocal: true 
+  },
+  { 
+    id: 'Micro-Nana', 
+    name: '🔎 Micro-Nana (Llama 3.2 1B)', 
+    desc: 'Ultra-compact model. Designed for instant summaries and background parsing.',
+    ollamaModelTag: 'llama3.2:1b', 
+    requiresLocal: true 
+  },
+  { 
+    id: 'Nano-Nana', 
+    name: '⚛️ Nano-Nana (Llama 3.2 3B)', 
+    desc: 'Perfect local balance of low-RAM usage and fast chat responses.',
+    ollamaModelTag: 'llama3.2:3b', 
+    requiresLocal: true 
+  },
+  { 
+    id: 'Gemma-Mini', 
+    name: '💎 Gemma-Mini (Gemma 2 2B)', 
+    desc: 'Google open-source engine. Lightning-fast text structuring.',
+    ollamaModelTag: 'gemma2:2b', 
+    requiresLocal: true 
+  },
+
+  // --- REASONING, LOGIC & MATH ENGINES ---
+  { 
+    id: 'Logic-Nana', 
+    name: '🧠 Logic-Nana (DeepSeek R1 Distill 8B)', 
+    desc: 'Chain-of-thought engine. Explicitly thinks through math and logical paradoxes step-by-step.',
+    ollamaModelTag: 'deepseek-r1:8b', 
+    requiresLocal: true 
+  },
+  { 
+    id: 'Think-Nana', 
+    name: '💭 Think-Nana (DeepSeek R1 Distill 14B)', 
+    desc: 'Extended chain-of-thought core for highly complex scientific parsing tasks.',
+    ollamaModelTag: 'deepseek-r1:14b', 
+    requiresLocal: true 
+  },
+  { 
+    id: 'Qwen-Math-Nana', 
+    name: '📊 Qwen-Math-Nana (Qwen 2.5 Math)', 
+    desc: 'Dedicated mathematical matrix calculator and algorithmic expert.',
+    ollamaModelTag: 'qwen2.5-math', 
+    requiresLocal: true 
+  },
+
+  // --- CREATIVE, CHAT, & AGENT CORES ---
+  { 
+    id: 'Creative-Nana', 
+    name: '🎨 Creative-Nana (Mistral 7B)', 
+    desc: 'Excellent prose generation, copy editing, and flexible conversational dynamics.',
+    ollamaModelTag: 'mistral', 
+    requiresLocal: true 
+  },
+  { 
+    id: 'Gemma-Core', 
+    name: '🔮 Gemma-Core (Gemma 2 9B)', 
+    desc: 'Highly accurate text engine optimized for nuanced prompt understanding.',
+    ollamaModelTag: 'gemma2:9b', 
+    requiresLocal: true 
+  },
+  { 
+    id: 'Qwen-Chat-Nana', 
+    name: '💬 Qwen-Chat-Nana (Qwen 2.5 7B)', 
+    desc: 'Exceptional instruction-following model for agent-based automation paths.',
+    ollamaModelTag: 'qwen2.5:7b', 
+    requiresLocal: true 
+  },
+  { 
+    id: 'Command-Nana', 
+    name: '🎖️ Command-Nana (Cohere Command R)', 
+    desc: 'Built specifically for enterprise agents and massive RAG context lookups.',
+    ollamaModelTag: 'command-r', 
+    requiresLocal: true 
+  },
+
+  // --- VECTOR EMBEDDING & PIPELINE ENGINES ---
+  { 
+    id: 'Embed-Nana', 
+    name: '🗂️ Embed-Nana (All-MiniLM-L6-V2)', 
+    desc: 'Specialized embedding core. Used silently to convert local data into vector search maps.',
+    ollamaModelTag: 'all-minilm', 
+    requiresLocal: true 
+  },
+  { 
+    id: 'Bge-Embed-Nana', 
+    name: '📌 Bge-Embed-Nana (BGE Large)', 
+    desc: 'High-accuracy sentence embedding engine for complex document searching.',
+    ollamaModelTag: 'bge-large', 
     requiresLocal: true 
   }
 ])
-
 // Toggle Sidebar Helper
 const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value
@@ -81,6 +223,18 @@ const sendMessage = async () => {
   } finally {
     isLoading.value = false
   }
+}
+
+const formatMarkdown = (text: string) => {
+  if (!text) return ''
+  
+  return text
+    // 1. Clean up line breaks safely
+    .replace(/\n/g, '<br />')
+    // 2. Bold text headings e.g., **Heading**
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-yellow-400 text-base block my-1">$1</strong>')
+    // 3. Bullet points e.g., 1. Item
+    .replace(/(\d+\.\s+)/g, '<span class="text-yellow-400 font-bold">$1</span>')
 }
 </script>
 
@@ -149,21 +303,22 @@ const sendMessage = async () => {
         </div>
       </header>
 
-      <main class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 max-w-3xl mx-auto w-full">
-        <div 
-          v-for="(msg, index) in messages" 
-          :key="index"
-          class="flex"
-          :class="[msg.role === 'user' ? 'justify-end' : 'justify-start']"
-        >
-          <div 
-            :class="[msg.role === 'user' ? 'bg-yellow-400 text-zinc-950 font-medium ml-12' : 'bg-zinc-800 text-zinc-100 mr-12 border border-zinc-700/50']"
-            class="px-4 py-3 rounded-2xl shadow-sm text-sm leading-relaxed max-w-full whitespace-pre-wrap"
-          >
-            {{ msg.content }}
-          </div>
-        </div>
-      </main>
+<main class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 max-w-3xl mx-auto w-full">
+  <div 
+    v-for="(msg, index) in messages" 
+    :key="index"
+    class="flex"
+    :class="[msg.role === 'user' ? 'justify-end' : 'justify-start']"
+  >
+    <div 
+      :class="[msg.role === 'user' ? 'bg-yellow-400 text-zinc-950 font-medium ml-12' : 'bg-zinc-800 text-zinc-100 mr-12 border border-zinc-700/50']"
+      class="px-4 py-3 rounded-2xl shadow-sm text-sm leading-relaxed max-w-full"
+    >
+      <span v-if="msg.role === 'assistant'" v-html="formatMarkdown(msg.content)"></span>
+      <span v-else>{{ msg.content }}</span>
+    </div>
+  </div>
+</main>
 
       <footer class="p-4 max-w-3xl mx-auto w-full">
         <div class="bg-zinc-950 border border-zinc-800 rounded-2xl p-2 focus-within:border-zinc-700 transition relative flex items-end">
