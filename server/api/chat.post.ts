@@ -7,11 +7,7 @@ async function performWebSearch(query: string, apiKey: string): Promise<string> 
     const res = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query,
-        search_depth: 'basic',
-        max_results: 3
-      })
+      body: JSON.stringify({ query, search_depth: 'basic', max_results: 3 })
     })
     const data = await res.json()
     return data.results?.map((r: any) => `[Source: ${r.title}] ${r.content}`).join('\n\n') || "No results found."
@@ -55,13 +51,16 @@ export default defineEventHandler(async (event) => {
   const lastTurn = cleanMessages.slice(-2)
   const userPrompt = cleanMessages[cleanMessages.length - 1]
 
+  // Synthesize memory summary in background using cloud if key exists
   const updatedSummary = config.groqApiKey 
     ? await buildIncrementalSummary(existingSummary || '', lastTurn, config.groqApiKey)
     : (existingSummary || 'Memory matrix synced.')
 
-  let localFailed = false
+  let isLocalEngineOffline = false
 
-  // 1. LOCAL OLLAMA FIRST (With local fallback check)
+  // ==========================================
+  // RULE 1: LOCAL SELECTION -> TRY LOCAL OLLAMA DIRECTLY
+  // ==========================================
   if (model === 'Pro-Nana') {
     try {
       const ollamaRes = await fetch(`${config.homeOllamaUrl}/api/chat`, {
@@ -78,7 +77,7 @@ export default defineEventHandler(async (event) => {
           ],
           stream: false
         }),
-        signal: AbortSignal.timeout(4000) // 4-second fast check to see if local computer is awake
+        signal: AbortSignal.timeout(3000) // Fast 3-second heartbeat check
       })
 
       if (ollamaRes.ok) {
@@ -89,25 +88,28 @@ export default defineEventHandler(async (event) => {
           updatedSummary 
         }
       } else {
-        localFailed = true
+        isLocalEngineOffline = true
       }
     } catch {
-      localFailed = true
+      isLocalEngineOffline = true
     }
   }
 
-  // 2. AUTO-FALLBACK / CLOUD ROUTE WITH AUTOMATIC SEARCH DISCOVERY
-  if (model === 'Instant-Nana' || model === 'Logic-Nana' || localFailed) {
+  // ==========================================
+  // RULE 2: ROUTING CLOUD OR TRIGGERING LOCAL FALLBACK
+  // ==========================================
+  // If the user picked a cloud model OR our local check failed, use Groq
+  if (model === 'Instant-Nana' || model === 'Logic-Nana' || isLocalEngineOffline) {
+    
     if (!config.groqApiKey) {
       return {
-        content: `<thinking>System failed to reach local machine.</thinking>🚨 HIGH DEMAND WARNING: Cloud networks are currently over-capacity. Please switch on your local computer server and launch Ollama to run queries locally.`,
+        content: `<thinking>System routing failed. Local computer status: OFFLINE. Cloud recovery: NO KEYS.</thinking>🚨 HIGH DEMAND WARNING: Cloud networks are currently over-capacity. Please switch on your local computer server and launch Ollama to run queries locally.`,
         provider: 'error',
         updatedSummary
       }
     }
 
     try {
-      // Step A: Request first generation with explicit reasoning instructions
       const systemInstructions = `${config.bananaSystemPrompt}
 [CONTEXT MEMORY MATRIX]: ${updatedSummary}
 
@@ -116,34 +118,36 @@ You must think out loud before writing any final answer.
 2. If you do not know the answer or lack up-to-date facts, output inside your thinking tags: "DECISION: SEARCH [your query]".
 3. Keep final answers concise.`
 
+      // FALLBACK STRATEGY: 
+      // If we are forced to fall back due to local being offline, or if the user explicitly wants Instant,
+      // we use 'llama-3.1-8b-instant'. Only explicit requests for 'Logic-Nana' get 'deepseek-r1-distill-llama-70b'.
+      const targetCloudModel = (model === 'Pro-Nana' || model === 'Instant-Nana' || isLocalEngineOffline)
+        ? 'llama-3.1-8b-instant' 
+        : 'deepseek-r1-distill-llama-70b'
+
       const cloudRes = await fetch('https://api.groq.com/openapi/v1/chat/completions', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${config.groqApiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: model === 'Logic-Nana' ? 'deepseek-r1-distill-llama-70b' : 'llama-3.1-8b-instant',
-          messages: [
-            { role: 'system', content: systemInstructions },
-            userPrompt
-          ],
+          model: targetCloudModel,
+          messages: [{ role: 'system', content: systemInstructions }, userPrompt],
           temperature: 0.6
         })
       })
 
-      if (!cloudRes.ok) throw new Error("Cloud network congestion.")
+      if (!cloudRes.ok) throw new Error("Cloud API connection failure.")
 
       const cData = await cloudRes.json()
       const firstResponse = cData?.choices?.[0]?.message?.content || ''
 
-      // Step B: Check if the AI decided it needs to perform a web search
+      // Check if AI requested search
       const searchMatch = firstResponse.match(/<thinking>[\s\S]*?DECISION:\s*SEARCH\s*\[(.*?)\][\s\S]*?<\/thinking>/i)
 
       if (searchMatch && searchMatch[1] && config.tavilyApiKey) {
         const searchQuery = searchMatch[1].trim()
-        
-        // Execute automated background web search
         const searchResults = await performWebSearch(searchQuery, config.tavilyApiKey)
 
-        // Step C: Supply search findings back to the model for a definitive answer
+        // Web search follow-up sequence (Using rapid cloud fallback)
         const followUpRes = await fetch('https://api.groq.com/openapi/v1/chat/completions', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${config.groqApiKey}`, 'Content-Type': 'application/json' },
@@ -153,7 +157,7 @@ You must think out loud before writing any final answer.
               { role: 'system', content: systemInstructions },
               userPrompt,
               { role: 'assistant', content: firstResponse },
-              { role: 'user', content: `WEB SEARCH RESULTS:\n${searchResults}\n\nIncorporate these facts and output your final updated response (include a new <thinking> block acknowledging the search results).` }
+              { role: 'user', content: `WEB SEARCH RESULTS:\n${searchResults}\n\nIncorporate these facts and output your final updated response.` }
             ],
             temperature: 0.4
           })
@@ -162,22 +166,20 @@ You must think out loud before writing any final answer.
         if (followUpRes.ok) {
           const followUpData = await followUpRes.json()
           let finalContent = followUpData?.choices?.[0]?.message?.content || firstResponse
-          if (localFailed) {
-            finalContent = `⚠️ *Note: Local computer offline. Routing via Cloud Backup.*\n\n${finalContent}`
+          if (isLocalEngineOffline) {
+            finalContent = `⚠️ *Note: Local computer offline. Routing via Cloud Backup (Instant-Nana).*\n\n${finalContent}`
           }
           return { content: finalContent, provider: 'groq', updatedSummary }
         }
       }
 
-      // If no search was required, return original response
       let finalContent = firstResponse
-      if (localFailed) {
-        finalContent = `⚠️ *Note: Local computer offline. Routing via Cloud Backup.*\n\n${finalContent}`
+      if (isLocalEngineOffline) {
+        finalContent = `⚠️ *Note: Local computer offline. Routing via Cloud Backup (Instant-Nana).*\n\n${finalContent}`
       }
       return { content: finalContent, provider: 'groq', updatedSummary }
 
     } catch (err) {
-      // 3. BOTH CHANNELS FAILED -> RETURN CUSTOM HIGH DEMAND ERROR STATE
       return {
         content: `<thinking>Critical network pipeline timeout. Local machine status check: OFFLINE.</thinking>⚠️ HIGH DEMAND [COMPUTER NOT ON]:
 Our cloud processing pipelines are congested with active workloads. 

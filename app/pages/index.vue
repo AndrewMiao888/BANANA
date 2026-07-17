@@ -202,7 +202,7 @@ let currentAbortController = null
 marked.setOptions({ gfm: true, breaks: true })
 
 const defaultHistory = () => [
-  { role: 'assistant', content: '<thinking>Bootstrapping logic pipeline... State loaded.</thinking>System initialized. Welcome to BANANA Core control panel.' }
+  { role: 'assistant', content: '<thinking>Bootstrapping logic pipeline... Local-First Fallback enabled.</thinking>System initialized. Welcome to BANANA Core control panel.' }
 ]
 
 const currentSession = computed(() => {
@@ -221,7 +221,7 @@ const visibleMessages = computed(() => {
   return chatHistory.value.filter(msg => msg.role !== 'system')
 })
 
-// Extract thinking block
+// Extract thinking blocks
 const extractThinking = (content) => {
   const match = content.match(/<thinking>([\s\S]*?)<\/thinking>/)
   return match ? match[1].trim() : null
@@ -231,7 +231,7 @@ const stripThinking = (content) => {
   return content.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim()
 }
 
-// Markdown & Math parser pipeline
+// Markdown & Math parsing
 const renderRichPayload = (rawContent) => {
   if (!rawContent) return ''
   let processed = rawContent
@@ -259,7 +259,6 @@ const renderRichPayload = (rawContent) => {
   }
 }
 
-// Query Filters
 const filteredSessions = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
   if (!query) return savedSessions.value
@@ -271,7 +270,7 @@ const filteredSessions = computed(() => {
 
 const setSelectedModel = (modelId) => { selectedModel.value = modelId }
 
-// Mounted Sync & Layout Fixes
+// Initializations
 onMounted(() => {
   const stored = localStorage.getItem('banana_workspace_sessions')
   if (stored) {
@@ -305,7 +304,7 @@ const scrollWindowToBottom = async () => {
   }
 }
 
-// Workspace Management
+// Session Helpers
 const createNewSession = () => {
   const newId = 'session_' + Date.now()
   const newChat = {
@@ -339,7 +338,7 @@ const deleteSession = (id) => {
   }
 }
 
-// core submission pipeline
+// API Submission Handler
 const submitMessage = async (textPrompt) => {
   const cleanInput = textPrompt?.trim()
   if (!cleanInput || isLoading.value) return
@@ -371,9 +370,10 @@ const submitMessage = async (textPrompt) => {
       activeChat.history.push({ role: 'assistant', content: responsePayload.content })
       if (responsePayload.updatedSummary) activeChat.summary = responsePayload.updatedSummary
       
+      // Connection states
       if (responsePayload.provider === 'ollama') {
         isServerOnline.value = true
-      } else if (responsePayload.provider === 'groq' && selectedModel.value !== 'Instant-Nana') {
+      } else if (responsePayload.provider === 'groq') {
         isServerOnline.value = false 
       } else if (responsePayload.provider === 'error') {
         isServerOnline.value = false
@@ -410,7 +410,6 @@ const handleAbortTransmission = () => {
 </script>
 
 <style>
-/* Safe, non-deprecated styled element structures for rich Markdown layout rendering */
 .prose-custom {
   color: #d4d4d8; 
 }
