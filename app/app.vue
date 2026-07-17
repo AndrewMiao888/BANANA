@@ -1,41 +1,41 @@
 <template>
   <div 
-    class="flex h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-100 font-sans select-none"
+    class="flex h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-150 font-sans select-none"
     :style="{ height: 'calc(var(--vh, 1vh) * 100)' }"
   >
     
     <div 
       v-if="isSidebarOpen" 
       @click="isSidebarOpen = false" 
-      class="md:hidden fixed inset-0 bg-black/70 z-40 backdrop-blur-sm transition-opacity duration-300"
+      class="md:hidden fixed inset-0 bg-black/75 z-40 backdrop-blur-sm transition-opacity duration-300"
     ></div>
 
     <aside 
       :class="[
         isSidebarOpen 
-          ? 'w-64 translate-x-0 opacity-100 visual-sidebar-visible' 
-          : 'w-0 -translate-x-full opacity-0 md:w-64 md:translate-x-0 md:opacity-100'
+          ? 'translate-x-0 w-64 shadow-2xl' 
+          : '-translate-x-full w-64 md:translate-x-0 md:shadow-none'
       ]" 
-      class="bg-zinc-900 border-r border-zinc-850 flex flex-col h-full z-50 fixed md:relative transition-all duration-300 ease-in-out overflow-hidden"
+      class="bg-zinc-900 border-r border-zinc-800 flex flex-col h-full z-50 fixed md:static transition-transform duration-300 ease-in-out shrink-0"
     >
-      <div class="p-4 flex justify-between items-center border-b border-zinc-850 min-w-[256px] shrink-0">
+      <div class="p-4 flex justify-between items-center border-b border-zinc-800 shrink-0">
         <div class="flex items-center space-x-2">
           <span class="text-xl">🍌</span>
           <span class="font-bold text-xs tracking-widest text-yellow-400 font-mono">BANANA CORE</span>
         </div>
         <button 
           @click="isSidebarOpen = false" 
-          class="md:hidden p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-100 transition active:scale-95 flex items-center justify-center border border-transparent hover:border-zinc-700"
-          title="Close Menu Workspace"
+          class="md:hidden p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-100 transition active:scale-95 flex items-center justify-center border border-zinc-700/50"
+          title="Close Workspace"
         >
-          <span class="text-sm">✕</span>
+          ✕
         </button>
       </div>
 
-      <div class="p-3 space-y-2 min-w-[256px] border-b border-zinc-850/40 shrink-0">
+      <div class="p-3 space-y-2 border-b border-zinc-800/60 shrink-0">
         <button 
           @click="createNewSession"
-          class="w-full bg-zinc-950 hover:bg-zinc-850 hover:text-yellow-400 border border-zinc-800 text-xs font-mono py-2.5 px-3 rounded-xl flex items-center justify-center space-x-2 transition-all duration-200 active:scale-[0.99]"
+          class="w-full bg-zinc-950 hover:bg-zinc-800 text-yellow-400 hover:text-yellow-300 border border-zinc-800 text-xs font-mono py-2.5 px-3 rounded-xl flex items-center justify-center space-x-2 transition active:scale-[0.99]"
         >
           <span class="text-sm font-bold leading-none">+</span>
           <span>New Workspace Chat</span>
@@ -59,7 +59,7 @@
         </div>
       </div>
 
-      <div class="flex-1 p-3 overflow-y-auto space-y-1 min-w-[256px] custom-scrollbar select-none">
+      <div class="flex-1 p-3 overflow-y-auto space-y-1 custom-scrollbar select-none">
         <div class="text-[10px] font-bold text-zinc-500 uppercase px-2 tracking-widest mb-2 flex justify-between items-center">
           <span>Active Sessions</span>
           <span v-if="searchQuery" class="text-[9px] text-yellow-500 font-mono normal-case">
@@ -74,8 +74,8 @@
           class="group w-full text-left p-2.5 rounded-xl transition flex items-center justify-between cursor-pointer border"
           :class="[
             currentSessionId === session.id 
-              ? 'bg-zinc-850 border-zinc-750 text-zinc-100 shadow-sm' 
-              : 'bg-transparent border-transparent hover:bg-zinc-850/50 text-zinc-400 hover:text-zinc-200'
+              ? 'bg-zinc-800 border-zinc-700 text-zinc-100 shadow-sm' 
+              : 'bg-transparent border-transparent hover:bg-zinc-850 text-zinc-400 hover:text-zinc-200'
           ]"
         >
           <div class="flex flex-col min-w-0 pr-2 pointer-events-none">
@@ -99,14 +99,14 @@
       </div>
     </aside>
 
-    <div class="flex-1 flex flex-col min-w-0 h-full relative overflow-hidden">
+    <div class="flex-1 flex flex-col min-w-0 h-full relative overflow-hidden bg-zinc-950">
       
-      <header class="h-14 border-b border-zinc-850 bg-zinc-900/40 backdrop-blur-md px-4 flex items-center justify-between z-30 select-none shrink-0 w-full">
+      <header class="h-14 border-b border-zinc-850 bg-zinc-900/40 backdrop-blur-md px-4 flex items-center justify-between z-30 shrink-0 w-full">
         <div class="flex items-center space-x-3">
           <button 
             @click="isSidebarOpen = !isSidebarOpen" 
-            class="p-2 hover:bg-zinc-800 active:bg-zinc-750 border border-zinc-800 hover:border-zinc-700 rounded-xl text-zinc-300 transition-all duration-150 flex items-center justify-center shadow-sm"
-            title="Toggle Sidebar Matrix Menu"
+            class="p-2 hover:bg-zinc-800 active:bg-zinc-750 border border-zinc-800 hover:border-zinc-700 rounded-xl text-zinc-300 transition flex items-center justify-center shadow-sm"
+            title="Toggle Sidebar Menu"
           >
             <span class="text-base leading-none">☰</span>
           </button>
@@ -146,7 +146,7 @@
               class="px-4 py-3 rounded-2xl shadow-md text-sm leading-relaxed max-w-[85%] border"
               :class="[
                 msg.role === 'user' 
-                  ? 'bg-zinc-800 border-zinc-700/50 text-zinc-100 rounded-tr-sm' 
+                  ? 'bg-zinc-800 border-zinc-700 text-zinc-100 rounded-tr-sm' 
                   : msg.content.includes('Connection Error:')
                     ? 'bg-red-500/10 border-red-500/20 text-red-400 rounded-tl-sm font-mono'
                     : 'bg-zinc-900 border-zinc-800 text-zinc-300 rounded-tl-sm'
@@ -181,7 +181,7 @@ import { marked } from 'marked'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 
-// --- WORKSPACE APPLICATION SYSTEM VARIABLES ---
+// --- CORE FRAME SYSTEM STATE MANAGERS ---
 const isLoading = ref(false)
 const chatWindow = ref(null)
 const isSidebarOpen = ref(false)
@@ -215,7 +215,7 @@ const visibleMessages = computed(() => {
   return chatHistory.value.filter(msg => msg.role !== 'system')
 })
 
-// Equation Parser and Rich Text Engine System Loop
+// Math LaTeX Syntax and Markdown Render Pipeline Engine
 const renderRichPayload = (rawContent) => {
   if (!rawContent) return ''
   let processed = rawContent
@@ -228,7 +228,7 @@ const renderRichPayload = (rawContent) => {
   try { return marked.parse(processed) } catch { return processed }
 }
 
-// Session Matching Logic Filtering Indexes
+// Search Filter Calculations Matrix
 const filteredSessions = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
   if (!query) return savedSessions.value
@@ -240,7 +240,7 @@ const filteredSessions = computed(() => {
 
 const setSelectedModel = (modelId) => { selectedModel.value = modelId }
 
-// Mounted System Initialization Hook Parameters
+// Mounted Initialization Loop
 onMounted(() => {
   const stored = localStorage.getItem('banana_workspace_sessions')
   if (stored) {
@@ -278,7 +278,7 @@ const scrollWindowToBottom = async () => {
   if (chatWindow.value) chatWindow.value.scrollTop = chatWindow.value.scrollHeight
 }
 
-// Active Multi-Chat Array Controller Mutation
+// Session Creation Operations
 const createNewSession = () => {
   const newId = 'session_' + Date.now()
   const newChat = {
@@ -312,7 +312,7 @@ const deleteSession = (id) => {
   }
 }
 
-// Conversation Payload Formatter Dispatcher Pipeline
+// Conversation Dispatch Router Transmission Hook
 const submitMessage = async (textPrompt) => {
   const cleanInput = textPrompt?.trim()
   if (!cleanInput || isLoading.value) return
@@ -327,7 +327,7 @@ const submitMessage = async (textPrompt) => {
   isLoading.value = true
   await scrollWindowToBottom()
 
-  // Dynamic Auto-Naming Summary Sequencer
+  // Dynamic Auto-Naming Summary Namer
   if (activeChat.title === 'New Chat Workspace' || activeChat.title.trim() === 'New Chat') {
     activeChat.title = cleanInput.length > 28 ? cleanInput.substring(0, 28) + '...' : cleanInput
   }
@@ -379,33 +379,24 @@ const handleAbortTransmission = () => {
 </script>
 
 <style>
-/* 🎨 CSS Syntax Class Matrix Replacement overrides */
+/* 🎨 STABLE GLOBAL CORE RECOVERY CSS OVERRIDES */
 .prose-custom {
-  color: #d4d4d8; 
+  color: #e4e4e7; 
 }
-.prose-custom h1 { font-size: 1.35rem; font-weight: 700; color: #f4f4f5; margin-top: 1.25rem; margin-bottom: 0.5rem; }
-.prose-custom h2 { font-size: 1.15rem; font-weight: 600; color: #f4f4f5; margin-top: 1rem; margin-bottom: 0.4rem; }
-.prose-custom h3 { font-size: 1rem; font-weight: 600; color: #e4e4e7; margin-top: 0.75rem; margin-bottom: 0.25rem; }
+.prose-custom h1 { font-size: 1.4rem; font-weight: 700; color: #f4f4f5; margin: 1.25rem 0 0.5rem 0; }
+.prose-custom h2 { font-size: 1.2rem; font-weight: 600; color: #f4f4f5; margin: 1rem 0 0.4rem 0; }
+.prose-custom h3 { font-size: 1.05rem; font-weight: 600; color: #e4e4e7; margin: 0.75rem 0 0.25rem 0; }
 .prose-custom p { margin-bottom: 0.75rem; line-height: 1.6; }
 .prose-custom p:last-child { margin-bottom: 0; }
 .prose-custom hr { border: 0; border-top: 1px solid #27272a; margin: 1.5rem 0; }
-.prose-custom pre { background-color: #09090b; border: 1px solid #27272a; border-radius: 0.75rem; padding: 1rem; margin: 1rem 0; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.85rem; }
-.prose-custom code { background-color: rgba(39, 39, 42, 0.4); padding: 0.15rem 0.35rem; border-radius: 0.25rem; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.85rem; color: #f4f4f5; }
+.prose-custom pre { background-color: #09090b; border: 1px solid #27272a; border-radius: 0.75rem; padding: 1rem; margin: 1rem 0; overflow-x: auto; font-family: monospace; font-size: 0.85rem; }
+.prose-custom code { background-color: rgba(63, 63, 70, 0.4); padding: 0.15rem 0.35rem; border-radius: 0.25rem; font-family: monospace; font-size: 0.85rem; color: #f4f4f5; }
 .prose-custom pre code { background-color: transparent; padding: 0; border-radius: 0; color: #e4e4e7; }
 .prose-custom ul { list-style-type: disc; padding-left: 1.25rem; margin-bottom: 0.75rem; }
 .prose-custom ol { list-style-type: decimal; padding-left: 1.25rem; margin-bottom: 0.75rem; }
 .prose-custom li { margin-bottom: 0.25rem; }
-.katex-display { margin: 0.5em 0 !important; }
-.katex { font-size: 1.05em; text-rendering: auto; }
 
-/* Desktop scaling grid correction layouts */
-@media (min-width: 768px) {
-  .visual-sidebar-visible {
-    min-width: 256px !important;
-  }
-}
-
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: #27272a; border-radius: 99px; }
 </style>
