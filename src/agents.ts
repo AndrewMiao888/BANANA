@@ -7,38 +7,33 @@ export interface ChatResponse {
   content: string;
   provider: 'ollama' | 'groq' | 'error';
   updatedSummary?: string;
-  wasSearched?: boolean;
 }
 
-export interface AgentOptions {
+export interface AgentPayload {
   messages: ChatMessage[];
   model?: string;
   existingSummary?: string;
 }
 
-export async function runAgent1Core({ 
-  messages, 
-  model = 'Instant-Nana', 
-  existingSummary = '' 
-}: AgentOptions): Promise<ChatResponse> {
-  
-  const formattedMessages = messages.map((msg: ChatMessage) => ({
-    role: msg.role,
-    content: msg.content
-  }));
-
+/**
+ * Dispatches current conversation histories to the backend endpoint router.
+ */
+export async function runAgent1Core(payload: AgentPayload): Promise<ChatResponse> {
   const response = await fetch('/api/chat', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
     body: JSON.stringify({ 
-      messages: formattedMessages,
-      model,
-      existingSummary
+      messages: payload.messages,
+      model: payload.model || 'Instant-Nana',
+      existingSummary: payload.existingSummary || ''
     })
   });
 
   if (!response.ok) {
-    throw new Error('Network response was not ok');
+    throw new Error(`Server connection failure with status: ${response.status}`);
   }
 
   return await response.json();

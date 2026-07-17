@@ -1,39 +1,43 @@
 <template>
   <div 
-    class="flex h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-100 font-sans"
+    class="flex h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-100 font-sans select-none"
     :style="{ height: 'calc(var(--vh, 1vh) * 100)' }"
   >
     
     <div 
       v-if="isSidebarOpen" 
       @click="isSidebarOpen = false" 
-      class="md:hidden fixed inset-0 bg-black/60 z-40 backdrop-blur-sm animate-fade-in"
+      class="md:hidden fixed inset-0 bg-black/70 z-40 backdrop-blur-sm transition-opacity duration-300"
     ></div>
 
     <aside 
-      :class="[isSidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full md:w-64 md:translate-x-0']" 
+      :class="[
+        isSidebarOpen 
+          ? 'w-64 translate-x-0 opacity-100 visual-sidebar-visible' 
+          : 'w-0 -translate-x-full opacity-0 md:w-64 md:translate-x-0 md:opacity-100'
+      ]" 
       class="bg-zinc-900 border-r border-zinc-850 flex flex-col h-full z-50 fixed md:relative transition-all duration-300 ease-in-out overflow-hidden"
     >
-      <div class="p-4 flex justify-between items-center border-b border-zinc-850 min-w-[256px]">
+      <div class="p-4 flex justify-between items-center border-b border-zinc-850 min-w-[256px] shrink-0">
         <div class="flex items-center space-x-2">
           <span class="text-xl">🍌</span>
           <span class="font-bold text-xs tracking-widest text-yellow-400 font-mono">BANANA CORE</span>
         </div>
         <button 
           @click="isSidebarOpen = false" 
-          class="md:hidden p-1.5 hover:bg-zinc-800 rounded text-zinc-400 transition"
-          title="Close Sidebar"
+          class="md:hidden p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-100 transition active:scale-95 flex items-center justify-center border border-transparent hover:border-zinc-700"
+          title="Close Menu Workspace"
         >
-          ✕
+          <span class="text-sm">✕</span>
         </button>
       </div>
 
-      <div class="p-3 space-y-2 min-w-[256px] border-b border-zinc-850/40">
+      <div class="p-3 space-y-2 min-w-[256px] border-b border-zinc-850/40 shrink-0">
         <button 
           @click="createNewSession"
-          class="w-full bg-zinc-950 hover:bg-zinc-850 hover:text-yellow-400 border border-zinc-800 text-xs font-mono py-2.5 px-3 rounded-xl flex items-center justify-center space-x-2 transition-all duration-200"
+          class="w-full bg-zinc-950 hover:bg-zinc-850 hover:text-yellow-400 border border-zinc-800 text-xs font-mono py-2.5 px-3 rounded-xl flex items-center justify-center space-x-2 transition-all duration-200 active:scale-[0.99]"
         >
-          <span class="text-sm font-bold">+</span>
+          <span class="text-sm font-bold leading-none">+</span>
           <span>New Workspace Chat</span>
         </button>
 
@@ -55,7 +59,7 @@
         </div>
       </div>
 
-      <div class="flex-1 p-3 overflow-y-auto space-y-1 min-w-[256px] custom-scrollbar">
+      <div class="flex-1 p-3 overflow-y-auto space-y-1 min-w-[256px] custom-scrollbar select-none">
         <div class="text-[10px] font-bold text-zinc-500 uppercase px-2 tracking-widest mb-2 flex justify-between items-center">
           <span>Active Sessions</span>
           <span v-if="searchQuery" class="text-[9px] text-yellow-500 font-mono normal-case">
@@ -64,25 +68,25 @@
         </div>
         
         <div 
-          v-for="(session, idx) in filteredSessions" 
-          :key="session.originalIndex"
-          @click="switchSession(session.originalIndex)"
+          v-for="session in filteredSessions" 
+          :key="session.id"
+          @click="switchSession(session.id)"
           class="group w-full text-left p-2.5 rounded-xl transition flex items-center justify-between cursor-pointer border"
           :class="[
-            currentSessionIndex === session.originalIndex 
+            currentSessionId === session.id 
               ? 'bg-zinc-850 border-zinc-750 text-zinc-100 shadow-sm' 
               : 'bg-transparent border-transparent hover:bg-zinc-850/50 text-zinc-400 hover:text-zinc-200'
           ]"
         >
-          <div class="flex flex-col min-w-0 pr-2">
+          <div class="flex flex-col min-w-0 pr-2 pointer-events-none">
             <span class="text-xs truncate font-medium">{{ session.title }}</span>
             <span class="text-[9px] text-zinc-500 mt-0.5">
               {{ new Date(session.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }}
             </span>
           </div>
           <button 
-            @click.stop="deleteSession(session.originalIndex)"
-            class="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/10 rounded text-zinc-500 hover:text-red-400 transition-all duration-150"
+            @click.stop="deleteSession(session.id)"
+            class="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/10 rounded text-zinc-500 hover:text-red-400 transition-all duration-150 active:scale-90"
             title="Delete Session"
           >
             ✕
@@ -95,17 +99,18 @@
       </div>
     </aside>
 
-    <div class="flex-1 flex flex-col min-w-0 h-full relative">
+    <div class="flex-1 flex flex-col min-w-0 h-full relative overflow-hidden">
       
-      <header class="h-14 border-b border-zinc-850 bg-zinc-900/40 backdrop-blur-md px-4 flex items-center justify-between z-30 select-none">
+      <header class="h-14 border-b border-zinc-850 bg-zinc-900/40 backdrop-blur-md px-4 flex items-center justify-between z-30 select-none shrink-0 w-full">
         <div class="flex items-center space-x-3">
           <button 
             @click="isSidebarOpen = !isSidebarOpen" 
-            class="p-2 hover:bg-zinc-850 rounded-lg text-zinc-400 transition"
-            title="Toggle Workspace Sidebar"
+            class="p-2 hover:bg-zinc-800 active:bg-zinc-750 border border-zinc-800 hover:border-zinc-700 rounded-xl text-zinc-300 transition-all duration-150 flex items-center justify-center shadow-sm"
+            title="Toggle Sidebar Matrix Menu"
           >
-            <span>☰</span>
+            <span class="text-base leading-none">☰</span>
           </button>
+          
           <span class="text-xs font-mono text-zinc-400 hidden sm:inline uppercase tracking-widest bg-zinc-950 px-2.5 py-1 border border-zinc-850 rounded-lg">
             BANANA_SYS_V4.0
           </span>
@@ -125,7 +130,7 @@
       <div class="flex-1 flex flex-col overflow-hidden max-w-4xl mx-auto w-full p-4 pb-0">
         <div 
           ref="chatWindow"
-          class="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin scrollbar-thumb-zinc-800 scroll-smooth pb-6"
+          class="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin scrollbar-thumb-zinc-800 scroll-smooth pb-6 select-text"
         >
           <div 
             v-for="(msg, idx) in visibleMessages" 
@@ -155,7 +160,7 @@
           </div>
         </div>
 
-        <div class="mt-auto pt-2 bg-gradient-to-t from-zinc-950 via-zinc-950 to-transparent">
+        <div class="mt-auto pt-2 bg-gradient-to-t from-zinc-950 via-zinc-950 to-transparent shrink-0">
           <ChatInput 
             :is-loading="isLoading"
             @send="submitMessage"
@@ -176,183 +181,181 @@ import { marked } from 'marked'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 
-// --- CORE SYSTEM STATES ---
+// --- WORKSPACE APPLICATION SYSTEM VARIABLES ---
 const isLoading = ref(false)
 const chatWindow = ref(null)
-const currentSummary = ref('')
 const isSidebarOpen = ref(false)
 const isServerOnline = ref(true) 
 const selectedModel = ref('Instant-Nana')
-const searchQuery = ref('') // Real-time chat filter state query
+const searchQuery = ref('')
+
+const savedSessions = ref([])
+const currentSessionId = ref(null)
 let currentAbortController = null
 
-const chatHistory = ref([
+marked.setOptions({ gfm: true, breaks: true })
+
+const defaultHistory = () => [
   { role: 'assistant', content: 'System initialized. Welcome to BANANA Core control panel.' }
-])
-const savedSessions = ref([])
-const currentSessionIndex = ref(null)
+]
 
-// Ensure safety checks are disabled so inline links render smoothly
-marked.setOptions({
-  gfm: true,
-  breaks: true,
-});
+const currentSession = computed(() => {
+  return savedSessions.value.find(s => s.id === currentSessionId.value)
+})
 
-// =====================================================
-// ⚡ PARSING PIPELINE: MATH (KATEX) & MARKDOWN RENDERING
-// =====================================================
-const renderRichPayload = (rawContent) => {
-  if (!rawContent) return ''
+const chatHistory = computed(() => {
+  return currentSession.value ? currentSession.value.history : defaultHistory()
+})
 
-  let processed = rawContent
+const currentSummary = computed(() => {
+  return currentSession.value ? currentSession.value.summary : ''
+})
 
-  // 1. Render Block Math equations ($$ formula $$)
-  processed = processed.replace(/\$\$(.*?)\$\$/gs, (match, formula) => {
-    try {
-      return `<div class="katex-block my-4 overflow-x-auto py-1">${katex.renderToString(formula, { displayMode: true, throwOnError: false })}</div>`
-    } catch {
-      return match
-    }
-  })
-
-  // 2. Render Inline Math equations ($ formula $)
-  processed = processed.replace(/\$(.*?)\$/g, (match, formula) => {
-    try {
-      return katex.renderToString(formula, { displayMode: false, throwOnError: false })
-    } catch {
-      return match
-    }
-  })
-
-  // 3. Process complete Markdown Structure using Marked.js
-  try {
-    return marked.parse(processed)
-  } catch (err) {
-    console.error("Renderer Failure:", err)
-    return processed
-  }
-}
-
-// Hide system instructional tags from main user viewport
 const visibleMessages = computed(() => {
   return chatHistory.value.filter(msg => msg.role !== 'system')
 })
 
-// =====================================================
-// 🔍 DYNAMIC CHAT SEARCH FILTER ENGINE
-// =====================================================
-const filteredSessions = computed(() => {
-  const query = searchQuery.value.trim().toLowerCase()
-  // Map index tracking so we switch to the correct absolute item when filtered
-  const mapped = savedSessions.value.map((session, index) => ({
-    ...session,
-    originalIndex: index
-  }))
-  
-  if (!query) return mapped
-
-  return mapped.filter(session => {
-    const titleMatch = session.title?.toLowerCase().includes(query)
-    const historyMatch = session.history?.some(msg => msg.content?.toLowerCase().includes(query))
-    return titleMatch || historyMatch
+// Equation Parser and Rich Text Engine System Loop
+const renderRichPayload = (rawContent) => {
+  if (!rawContent) return ''
+  let processed = rawContent
+  processed = processed.replace(/\$\$(.*?)\$\$/gs, (m, f) => {
+    try { return `<div class="katex-block my-4 overflow-x-auto py-1">${katex.renderToString(f, { displayMode: true, throwOnError: false })}</div>` } catch { return m }
   })
-})
-
-const setSelectedModel = (modelId) => {
-  selectedModel.value = modelId
+  processed = processed.replace(/\$(.*?)\$/g, (m, f) => {
+    try { return katex.renderToString(f, { displayMode: false, throwOnError: false }) } catch { return m }
+  })
+  try { return marked.parse(processed) } catch { return processed }
 }
 
-// =====================================================
-// 💾 DYNAMIC LOCAL STORAGE & TELEMETRY INITIALIZERS
-// =====================================================
+// Session Matching Logic Filtering Indexes
+const filteredSessions = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase()
+  if (!query) return savedSessions.value
+  return savedSessions.value.filter(s => 
+    s.title.toLowerCase().includes(query) || 
+    s.history.some(m => m.content.toLowerCase().includes(query))
+  )
+})
+
+const setSelectedModel = (modelId) => { selectedModel.value = modelId }
+
+// Mounted System Initialization Hook Parameters
 onMounted(() => {
-  const storedSessions = localStorage.getItem('banana_saved_sessions')
-  if (storedSessions) savedSessions.value = JSON.parse(storedSessions)
-
-  const activeChat = localStorage.getItem('banana_chat_history')
-  if (activeChat) chatHistory.value = JSON.parse(activeChat)
-  
-  const storedIdx = localStorage.getItem('banana_current_session_index')
-  if (storedIdx !== null) currentSessionIndex.value = JSON.parse(storedIdx)
-
-  const storedSummary = localStorage.getItem('banana_current_summary')
-  if (storedSummary) currentSummary.value = storedSummary
+  const stored = localStorage.getItem('banana_workspace_sessions')
+  if (stored) {
+    savedSessions.value = JSON.parse(stored)
+  }
+  const lastActiveId = localStorage.getItem('banana_active_session_id')
+  if (lastActiveId && savedSessions.value.some(s => s.id === lastActiveId)) {
+    currentSessionId.value = lastActiveId
+  } else if (savedSessions.value.length > 0) {
+    currentSessionId.value = savedSessions.value[0].id
+  } else {
+    createNewSession()
+  }
 
   setVhProperty()
   window.addEventListener('resize', setVhProperty)
-
   scrollWindowToBottom()
 })
 
 const setVhProperty = () => {
-  const vh = window.innerHeight * 0.01
-  document.documentElement.style.setProperty('--vh', `${vh}px`)
+  document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`)
 }
 
-// State watcher pipelines to guarantee storage integrity
-watch(chatHistory, (newHistory) => {
-  localStorage.setItem('banana_chat_history', JSON.stringify(newHistory))
+watch(savedSessions, (newVal) => {
+  localStorage.setItem('banana_workspace_sessions', JSON.stringify(newVal))
 }, { deep: true })
 
-watch(savedSessions, (newSessions) => {
-  localStorage.setItem('banana_saved_sessions', JSON.stringify(newSessions))
-}, { deep: true })
-
-watch(currentSessionIndex, (newIdx) => {
-  localStorage.setItem('banana_current_session_index', JSON.stringify(newIdx))
-})
-
-watch(currentSummary, (newSummary) => {
-  localStorage.setItem('banana_current_summary', newSummary)
+watch(currentSessionId, (newId) => {
+  if (newId) localStorage.setItem('banana_active_session_id', newId)
+  scrollWindowToBottom()
 })
 
 const scrollWindowToBottom = async () => {
   await nextTick()
-  if (chatWindow.value) {
-    chatWindow.value.scrollTop = chatWindow.value.scrollHeight
+  if (chatWindow.value) chatWindow.value.scrollTop = chatWindow.value.scrollHeight
+}
+
+// Active Multi-Chat Array Controller Mutation
+const createNewSession = () => {
+  const newId = 'session_' + Date.now()
+  const newChat = {
+    id: newId,
+    title: 'New Chat Workspace',
+    history: defaultHistory(),
+    summary: '',
+    updatedAt: Date.now()
+  }
+  savedSessions.value.unshift(newChat)
+  currentSessionId.value = newId
+  isSidebarOpen.value = false
+}
+
+const switchSession = (id) => {
+  currentSessionId.value = id
+  isSidebarOpen.value = false
+}
+
+const deleteSession = (id) => {
+  const targetIdx = savedSessions.value.findIndex(s => s.id === id)
+  if (targetIdx !== -1) {
+    savedSessions.value.splice(targetIdx, 1)
+    if (currentSessionId.value === id) {
+      if (savedSessions.value.length > 0) {
+        currentSessionId.value = savedSessions.value[0].id
+      } else {
+        createNewSession()
+      }
+    }
   }
 }
 
-// =====================================================
-// 🤖 CORE MSG DISPATCHER & CONNECTION WATCHDOG
-// =====================================================
+// Conversation Payload Formatter Dispatcher Pipeline
 const submitMessage = async (textPrompt) => {
   const cleanInput = textPrompt?.trim()
   if (!cleanInput || isLoading.value) return
 
-  chatHistory.value.push({ role: 'user', content: cleanInput })
+  if (!currentSessionId.value) createNewSession()
+  
+  const activeChat = savedSessions.value.find(s => s.id === currentSessionId.value)
+  if (!activeChat) return
+
+  activeChat.history.push({ role: 'user', content: cleanInput })
+  activeChat.updatedAt = Date.now()
   isLoading.value = true
   await scrollWindowToBottom()
+
+  // Dynamic Auto-Naming Summary Sequencer
+  if (activeChat.title === 'New Chat Workspace' || activeChat.title.trim() === 'New Chat') {
+    activeChat.title = cleanInput.length > 28 ? cleanInput.substring(0, 28) + '...' : cleanInput
+  }
 
   currentAbortController = new AbortController()
 
   try {
-    const finalAiReply = await runAgent1Core({
-      messages: chatHistory.value,
+    const responsePayload = await runAgent1Core({
+      messages: activeChat.history,
       model: selectedModel.value,
-      existingSummary: currentSummary.value
+      existingSummary: activeChat.summary
     })
     
     if (isLoading.value) {
-      chatHistory.value.push({ role: 'assistant', content: finalAiReply.content })
-
-      if (finalAiReply.updatedSummary) {
-        currentSummary.value = finalAiReply.updatedSummary
-      }
+      activeChat.history.push({ role: 'assistant', content: responsePayload.content })
+      if (responsePayload.updatedSummary) activeChat.summary = responsePayload.updatedSummary
       
-      // Sync telemetry signal indicator
-      if (finalAiReply.provider === 'ollama') {
+      if (responsePayload.provider === 'ollama') {
         isServerOnline.value = true
-      } else if (finalAiReply.provider === 'groq' && selectedModel.value !== 'Instant-Nana') {
+      } else if (responsePayload.provider === 'groq' && selectedModel.value !== 'Instant-Nana') {
         isServerOnline.value = false 
       }
-
-      updateSidebarTracking()
+      activeChat.updatedAt = Date.now()
     }
   } catch (error) {
     if (isLoading.value) {
       isServerOnline.value = false
-      chatHistory.value.push({ 
+      activeChat.history.push({ 
         role: 'assistant', 
         content: 'Connection Error: BANANA Core systems are unreachable. Please check if your computer server is online or your account is valid.' 
       })
@@ -367,166 +370,42 @@ const submitMessage = async (textPrompt) => {
 const handleAbortTransmission = () => {
   if (currentAbortController) currentAbortController.abort()
   isLoading.value = false 
-  chatHistory.value.push({ role: 'assistant', content: '_Generation stopped by Banana Admin._' })
-  updateSidebarTracking()
-}
-
-// =====================================================
-// 📂 WORKSPACE SEEDING & MANAGEMENT
-// =====================================================
-const createNewSession = () => {
-  chatHistory.value = [{ role: 'assistant', content: 'System initialized. Welcome to BANANA Core control panel.' }]
-  currentSummary.value = ''
-  currentSessionIndex.value = null
-  isSidebarOpen.value = false
-}
-
-const switchSession = (idx) => {
-  const session = savedSessions.value[idx]
-  if (session) {
-    chatHistory.value = [...session.history]
-    currentSummary.value = session.summary
-    currentSessionIndex.value = idx
-  }
-  isSidebarOpen.value = false
-  scrollWindowToBottom()
-}
-
-const deleteSession = (idx) => {
-  savedSessions.value.splice(idx, 1)
-  if (currentSessionIndex.value === idx) {
-    createNewSession()
-  } else if (currentSessionIndex.value > idx) {
-    currentSessionIndex.value--
-  }
-}
-
-const updateSidebarTracking = () => {
-  const firstUserMsg = chatHistory.value.find(msg => msg.role === 'user')?.content || 'New Chat'
-  const cleanTitle = firstUserMsg.length > 25 ? firstUserMsg.substring(0, 25) + '...' : firstUserMsg
-
-  if (currentSessionIndex.value !== null && savedSessions.value[currentSessionIndex.value]) {
-    savedSessions.value[currentSessionIndex.value].history = [...chatHistory.value]
-    savedSessions.value[currentSessionIndex.value].summary = currentSummary.value
-    savedSessions.value[currentSessionIndex.value].updatedAt = Date.now()
-  } else {
-    const newChatSession = {
-      title: cleanTitle,
-      history: [...chatHistory.value],
-      summary: currentSummary.value,
-      updatedAt: Date.now()
-    }
-    savedSessions.value.unshift(newChatSession)
-    currentSessionIndex.value = 0
+  const activeChat = savedSessions.value.find(s => s.id === currentSessionId.value)
+  if (activeChat) {
+    activeChat.history.push({ role: 'assistant', content: '_Generation stopped by Banana Admin._' })
+    activeChat.updatedAt = Date.now()
   }
 }
 </script>
 
 <style>
-/* =====================================================
-🎨 MARKDOWN RICH PARSING DESIGN SPECIFICATIONS
-===================================================== */
+/* 🎨 CSS Syntax Class Matrix Replacement overrides */
 .prose-custom {
-  color: #d4d4d8; /* The exact hex value for Tailwind's text-zinc-300 */
+  color: #d4d4d8; 
 }
-/* Base Headings Layout Formatting */
-.prose-custom h1 {
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: #f4f4f5; /* zinc-100 */
-  margin-top: 1.25rem;
-  margin-bottom: 0.5rem;
-}
-.prose-custom h2 {
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: #f4f4f5;
-  margin-top: 1rem;
-  margin-bottom: 0.4rem;
-}
-.prose-custom h3 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #e4e4e7; /* zinc-200 */
-  margin-top: 0.75rem;
-  margin-bottom: 0.25rem;
+.prose-custom h1 { font-size: 1.35rem; font-weight: 700; color: #f4f4f5; margin-top: 1.25rem; margin-bottom: 0.5rem; }
+.prose-custom h2 { font-size: 1.15rem; font-weight: 600; color: #f4f4f5; margin-top: 1rem; margin-bottom: 0.4rem; }
+.prose-custom h3 { font-size: 1rem; font-weight: 600; color: #e4e4e7; margin-top: 0.75rem; margin-bottom: 0.25rem; }
+.prose-custom p { margin-bottom: 0.75rem; line-height: 1.6; }
+.prose-custom p:last-child { margin-bottom: 0; }
+.prose-custom hr { border: 0; border-top: 1px solid #27272a; margin: 1.5rem 0; }
+.prose-custom pre { background-color: #09090b; border: 1px solid #27272a; border-radius: 0.75rem; padding: 1rem; margin: 1rem 0; overflow-x: auto; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.85rem; }
+.prose-custom code { background-color: rgba(39, 39, 42, 0.4); padding: 0.15rem 0.35rem; border-radius: 0.25rem; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.85rem; color: #f4f4f5; }
+.prose-custom pre code { background-color: transparent; padding: 0; border-radius: 0; color: #e4e4e7; }
+.prose-custom ul { list-style-type: disc; padding-left: 1.25rem; margin-bottom: 0.75rem; }
+.prose-custom ol { list-style-type: decimal; padding-left: 1.25rem; margin-bottom: 0.75rem; }
+.prose-custom li { margin-bottom: 0.25rem; }
+.katex-display { margin: 0.5em 0 !important; }
+.katex { font-size: 1.05em; text-rendering: auto; }
+
+/* Desktop scaling grid correction layouts */
+@media (min-width: 768px) {
+  .visual-sidebar-visible {
+    min-width: 256px !important;
+  }
 }
 
-/* Content Spacers */
-.prose-custom p {
-  margin-bottom: 0.75rem;
-  line-height: 1.6;
-}
-.prose-custom p:last-child {
-  margin-bottom: 0;
-}
-
-/* Horizontal Partition (<hr>) Rule Styles */
-.prose-custom hr {
-  border: 0;
-  border-top: 1px solid #27272a; /* zinc-800 */
-  margin: 1.5rem 0;
-}
-
-/* Code Container Boxes */
-.prose-custom pre {
-  background-color: #09090b; /* zinc-950 */
-  border: 1px solid #27272a; /* zinc-800 */
-  border-radius: 0.75rem;
-  padding: 1rem;
-  margin: 1rem 0;
-  overflow-x: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.85rem;
-}
-.prose-custom code {
-  background-color: rgba(39, 39, 42, 0.4); /* zinc-800/40 */
-  padding: 0.15rem 0.35rem;
-  border-radius: 0.25rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.85rem;
-  color: #f4f4f5;
-}
-.prose-custom pre code {
-  background-color: transparent;
-  padding: 0;
-  border-radius: 0;
-  color: #e4e4e7;
-}
-
-/* Lists Rendering */
-.prose-custom ul {
-  list-style-type: disc;
-  padding-left: 1.25rem;
-  margin-bottom: 0.75rem;
-}
-.prose-custom ol {
-  list-style-type: decimal;
-  padding-left: 1.25rem;
-  margin-bottom: 0.75rem;
-}
-.prose-custom li {
-  margin-bottom: 0.25rem;
-}
-
-/* KaTeX Adjustment Metrics */
-.katex-display {
-  margin: 0.5em 0 !important;
-}
-.katex {
-  font-size: 1.05em;
-  text-rendering: auto;
-}
-
-/* custom slim track scrollbars */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 99px;
-}
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #27272a; border-radius: 99px; }
 </style>

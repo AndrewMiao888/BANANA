@@ -1,24 +1,11 @@
-import { defineNuxtConfig } from 'nuxt/config'
-
 export default defineNuxtConfig({
-  // 🎨 Core UI Modules
-  modules: [
-    '@nuxtjs/tailwindcss'
-  ],
-
-  // 🚀 Nuxt 4 Architecture Settings
-  future: {
-    compatibilityVersion: 4, // Enables modern folder structure (app/) and strict builds
-  },
-
-  // Set compliance tracking baseline date
-  compatibilityDate: '2024-04-03',
-
-  // 🔒 SECURE PRIVATE RUNTIME CONFIGURATION (Server-Side Only)
-  // These properties are hidden from the browser bundle and never leak to the client.
+  // Other standard configurations...
   runtimeConfig: {
-    groqApiKey: process.env.GROQ_API_KEY,         // Pulls from local .env or Vercel config
-    homeOllamaUrl: process.env.HOME_OLLAMA_URL,   // Exposes your secure home tunnel endpoint
-    bananaSystemPrompt: process.env.BANANA_SYSTEM_PROMPT // Modifiable core system instruction block
-  }
+    // Keys defined inside here are private and only readable inside the server directory
+    groqApiKey: process.env.GROQ_API_KEY || '',
+    tavilyApiKey: process.env.TAVILY_API_KEY || '',
+    homeOllamaUrl: process.env.HOME_OALLMA_URL || 'http://localhost:11434',
+    bananaSystemPrompt: process.env.BANANA_SYSTEM_PROMPT || 'You are the secure BANANA Core system assistant.'
+  },
+  compatibilityDate: '2026-07-17'
 })
