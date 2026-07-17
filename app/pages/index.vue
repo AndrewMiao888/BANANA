@@ -12,7 +12,7 @@
 
     <aside 
       :class="[isSidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full md:w-64 md:translate-x-0']" 
-      class="bg-zinc-900 border-r border-zinc-850 flex flex-col h-full z-50 fixed md:static transition-all duration-300 ease-in-out overflow-hidden"
+      class="bg-zinc-900 border-r border-zinc-850 flex flex-col h-full z-50 fixed md:static transition-all duration-300 ease-in-out overflow-hidden shrink-0"
     >
       <div class="p-4 flex justify-between items-center border-b border-zinc-850 min-w-[256px] select-none">
         <div class="flex items-center space-x-2">
@@ -188,7 +188,6 @@ import { marked } from 'marked'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 
-// --- CORE SYSTEM STATES ---
 const isLoading = ref(false)
 const chatWindow = ref(null)
 const isSidebarOpen = ref(false)
@@ -203,7 +202,7 @@ let currentAbortController = null
 marked.setOptions({ gfm: true, breaks: true })
 
 const defaultHistory = () => [
-  { role: 'assistant', content: '<thinking>Bootstrapping initial state matrix... Core services linked.</thinking>System initialized. Welcome to BANANA Core control panel.' }
+  { role: 'assistant', content: '<thinking>Bootstrapping logic pipeline... State loaded.</thinking>System initialized. Welcome to BANANA Core control panel.' }
 ]
 
 const currentSession = computed(() => {
@@ -222,7 +221,7 @@ const visibleMessages = computed(() => {
   return chatHistory.value.filter(msg => msg.role !== 'system')
 })
 
-// --- REGEX REASONING EXTRACTION ENGINES ---
+// Extract thinking block
 const extractThinking = (content) => {
   const match = content.match(/<thinking>([\s\S]*?)<\/thinking>/)
   return match ? match[1].trim() : null
@@ -232,12 +231,11 @@ const stripThinking = (content) => {
   return content.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim()
 }
 
-// --- LATEX & MARKDOWN PARSING ENGINE ---
+// Markdown & Math parser pipeline
 const renderRichPayload = (rawContent) => {
   if (!rawContent) return ''
   let processed = rawContent
   
-  // Parse Block-level Formulas: $$...$$
   processed = processed.replace(/\$\$(.*?)\$\$/gs, (m, formula) => {
     try {
       return `<div class="katex-block my-4 overflow-x-auto py-1">${katex.renderToString(formula, { displayMode: true, throwOnError: false })}</div>`
@@ -246,7 +244,6 @@ const renderRichPayload = (rawContent) => {
     }
   })
 
-  // Parse Inline Formulas: $...$
   processed = processed.replace(/\$(.*?)\$/g, (m, formula) => {
     try {
       return katex.renderToString(formula, { displayMode: false, throwOnError: false })
@@ -262,7 +259,7 @@ const renderRichPayload = (rawContent) => {
   }
 }
 
-// --- WORKSPACE SEARCH MODULES ---
+// Query Filters
 const filteredSessions = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
   if (!query) return savedSessions.value
@@ -274,7 +271,7 @@ const filteredSessions = computed(() => {
 
 const setSelectedModel = (modelId) => { selectedModel.value = modelId }
 
-// --- LIFECYCLE SYNC & ENVIRONMENT ---
+// Mounted Sync & Layout Fixes
 onMounted(() => {
   const stored = localStorage.getItem('banana_workspace_sessions')
   if (stored) {
@@ -308,7 +305,7 @@ const scrollWindowToBottom = async () => {
   }
 }
 
-// --- WORKSPACE MEMORY MODIFIERS ---
+// Workspace Management
 const createNewSession = () => {
   const newId = 'session_' + Date.now()
   const newChat = {
@@ -342,7 +339,7 @@ const deleteSession = (id) => {
   }
 }
 
-// --- AGENT EXECUTION TRANSMISSION HANDLER ---
+// core submission pipeline
 const submitMessage = async (textPrompt) => {
   const cleanInput = textPrompt?.trim()
   if (!cleanInput || isLoading.value) return
@@ -357,7 +354,6 @@ const submitMessage = async (textPrompt) => {
   isLoading.value = true
   await scrollWindowToBottom()
 
-  // Auto-Naming Workspace Feature
   if (activeChat.title === 'New Chat Workspace' || activeChat.title.trim() === 'New Chat') {
     activeChat.title = cleanInput.length > 28 ? cleanInput.substring(0, 28) + '...' : cleanInput
   }
@@ -375,7 +371,6 @@ const submitMessage = async (textPrompt) => {
       activeChat.history.push({ role: 'assistant', content: responsePayload.content })
       if (responsePayload.updatedSummary) activeChat.summary = responsePayload.updatedSummary
       
-      // Determine Online Indicator based on engine provider response
       if (responsePayload.provider === 'ollama') {
         isServerOnline.value = true
       } else if (responsePayload.provider === 'groq' && selectedModel.value !== 'Instant-Nana') {
@@ -390,7 +385,7 @@ const submitMessage = async (textPrompt) => {
       isServerOnline.value = false
       activeChat.history.push({ 
         role: 'assistant', 
-        content: '<thinking>Host connection timed out.</thinking>⚠️ HIGH DEMAND [COMPUTER NOT ON]: Offline or cloud queues blocked. Check local Ollama execution configurations.' 
+        content: '<thinking>Host connection timed out.</thinking>⚠️ HIGH DEMAND [COMPUTER NOT ON]: Pipeline unreachable. Ensure your local server is online.' 
       })
     }
   } finally {
@@ -407,7 +402,7 @@ const handleAbortTransmission = () => {
   if (activeChat) {
     activeChat.history.push({ 
       role: 'assistant', 
-      content: '<thinking>Signal sequence interrupted by user action.</thinking>_Generation stopped by Banana Admin._' 
+      content: '<thinking>Signal sequence interrupted.</thinking>_Generation stopped by user._' 
     })
     activeChat.updatedAt = Date.now()
   }
@@ -415,7 +410,7 @@ const handleAbortTransmission = () => {
 </script>
 
 <style>
-/* Pure CSS overrides replacing deprecated @apply classes safely for production rendering */
+/* Safe, non-deprecated styled element structures for rich Markdown layout rendering */
 .prose-custom {
   color: #d4d4d8; 
 }

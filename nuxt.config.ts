@@ -1,10 +1,14 @@
 import { defineNuxtConfig } from 'nuxt/config'
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineNuxtConfig({
-  // Enables Nuxt 4 directory structures (app/ layouts/, pages/, components/) explicitly
+  // Enables Nuxt 4 directory structures (app/ layouts/, pages/, components/)
   future: {
     compatibilityVersion: 4
   },
+
+  // Declare global styles containing Tailwind v4 directives
+  css: ['~/assets/css/main.css'],
 
   runtimeConfig: {
     groqApiKey: process.env.GROQ_API_KEY || '',
@@ -15,10 +19,10 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2026-07-17',
 
-  postcss: {
-    plugins: {
-      tailwindcss: {},
-      autoprefixer: {}
-    }
+  // Use the Vite integration for Tailwind v4 (removes legacy PostCSS compilation issues)
+  vite: {
+    plugins: [
+      tailwindcss()
+    ]
   }
 })
