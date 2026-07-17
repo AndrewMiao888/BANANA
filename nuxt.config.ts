@@ -1,7 +1,7 @@
+import { defineNuxtConfig } from 'nuxt/config'
+
 export default defineNuxtConfig({
-  // Other standard configurations...
   runtimeConfig: {
-    // Keys defined inside here are private and only readable inside the server directory
     groqApiKey: process.env.GROQ_API_KEY || '',
     tavilyApiKey: process.env.TAVILY_API_KEY || '',
     homeOllamaUrl: process.env.HOME_OALLMA_URL || 'http://localhost:11434',
