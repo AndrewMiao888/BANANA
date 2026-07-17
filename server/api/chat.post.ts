@@ -1,372 +1,196 @@
-import {
-  defineEventHandler,
-  readBody,
-  setResponseStatus,
-  setHeader
-} from "h3";
+import { defineEventHandler, readBody } from 'h3'
 
-import {
-  useRuntimeConfig
-} from "nitropack/runtime";
-
-// ============================================================================
-// 🔄 MEMORY PIPELINE: INCREMENTAL SUMMARY UPDATER (GROQ POWERED)
-// ============================================================================
-async function updateIncrementalSummary(oldSummary: string, newTurn: any[], apiKey: string): Promise<string> {
+// Live Web Search tool helper
+async function performWebSearch(query: string, apiKey: string): Promise<string> {
+  if (!apiKey) return "Search failed: Tavily API key is not configured."
   try {
-    const contextText = oldSummary 
-      ? `Current Summary: "${oldSummary}". New conversation turn to append: ${JSON.stringify(newTurn)}`
-      : `New conversation turn: ${JSON.stringify(newTurn)}`;
-
-    const response = await fetch('https://api.groq.com/openapi/v1/chat/completions', {
+    const res = await fetch('https://api.tavily.com/search', {
       method: 'POST',
-      headers: { 
-        'Authorization': `Bearer ${apiKey}`, 
-        'Content-Type': 'application/json' 
-      },
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query,
+        search_depth: 'basic',
+        max_results: 3
+      })
+    })
+    const data = await res.json()
+    return data.results?.map((r: any) => `[Source: ${r.title}] ${r.content}`).join('\n\n') || "No results found."
+  } catch (e: any) {
+    return `Search query error: ${e.message}`
+  }
+}
+
+// Memory Synthesizer
+async function buildIncrementalSummary(oldSummary: string, newTurn: any, apiKey: string): Promise<string> {
+  try {
+    const res = await fetch('https://api.groq.com/openapi/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'llama-3.1-8b-instant',
         messages: [
-          { 
-            role: 'system', 
-            content: 'You are a memory processor. Update the current summary by seamlessly incorporating the information from the new conversation turn. Keep the output as a single, highly dense, concise paragraph.' 
-          },
-          { role: 'user', content: contextText }
+          { role: 'system', content: 'Update the summary by merging the new turn. Return one dense paragraph.' },
+          { role: 'user', content: `Summary: "${oldSummary}". New turn: ${JSON.stringify(newTurn)}` }
         ],
-        max_tokens: 200
+        max_tokens: 150
       })
-    });
-    
-    const data = await response.json();
-    return data?.choices?.[0]?.message?.content || oldSummary || "Previous conversation context.";
+    })
+    const data = await res.json()
+    return data?.choices?.[0]?.message?.content || oldSummary
   } catch {
-    return oldSummary || "Error updating history context.";
+    return oldSummary
   }
 }
 
 export default defineEventHandler(async (event) => {
+  const config = useRuntimeConfig()
+  const body = await readBody(event)
+  const { messages, model, existingSummary } = body
 
-  // ============================================================================
-  // 0. REQUEST METHOD PROTECTION & CORS HEADERS
-  // ============================================================================
-  if (event.node.req.method !== "POST") {
-    setHeader(event, "Allow", "POST");
-    setResponseStatus(event, 405);
-    return {
-      content: "Method not allowed.",
-      provider: "error"
-    };
+  if (!messages || !Array.isArray(messages)) {
+    throw new Error("Invalid conversation structure payload.")
   }
 
-  setHeader(event, "Cache-Control", "no-store");
-  setHeader(event, "Pragma", "no-cache");
-  setHeader(event, "X-Content-Type-Options", "nosniff");
-  setHeader(event, "Referrer-Policy", "no-referrer");
+  const cleanMessages = messages.filter(m => m.role === 'user' || m.role === 'assistant')
+  const lastTurn = cleanMessages.slice(-2)
+  const userPrompt = cleanMessages[cleanMessages.length - 1]
 
-  // ============================================================================
-  // 1. READ & VALIDATE REQUEST BODY
-  // ============================================================================
-  let body;
-  try {
-    body = await readBody(event);
-  } catch {
-    setResponseStatus(event, 400);
-    return {
-      content: "Invalid JSON body.",
-      provider: "error"
-    };
-  }
+  const updatedSummary = config.groqApiKey 
+    ? await buildIncrementalSummary(existingSummary || '', lastTurn, config.groqApiKey)
+    : (existingSummary || 'Memory matrix synced.')
 
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    setResponseStatus(event, 400);
-    return {
-      content: "Invalid request body.",
-      provider: "error"
-    };
-  }
+  let localFailed = false
 
-  const clientMessages = Object.prototype.hasOwnProperty.call(body, "messages")
-    ? body.messages
-    : undefined;
-
-  const selectedModel = body.model || "Instant-Nana";
-  const existingSummary = body.existingSummary || "";
-
-  if (!Array.isArray(clientMessages)) {
-    setResponseStatus(event, 400);
-    return {
-      content: "Invalid message format.",
-      provider: "error"
-    };
-  }
-
-  if (clientMessages.length > 50) {
-    setResponseStatus(event, 413);
-    return {
-      content: "Too many messages.",
-      provider: "error"
-    };
-  }
-
-  const allowedRoles = ["user", "assistant"];
-  const validMessages = clientMessages.every(
-    (msg) =>
-      msg &&
-      typeof msg === "object" &&
-      !Array.isArray(msg) &&
-      typeof msg.role === "string" &&
-      typeof msg.content === "string" &&
-      allowedRoles.includes(msg.role) &&
-      msg.content.trim().length > 0 &&
-      msg.content.length <= 10000
-  );
-
-  if (!validMessages) {
-    setResponseStatus(event, 400);
-    return {
-      content: "Invalid message structure.",
-      provider: "error"
-    };
-  }
-
-  const cleanMessages = clientMessages.map((msg) => ({
-    role: msg.role as "user" | "assistant",
-    content: msg.content.trim()
-  }));
-
-  // ============================================================================
-  // 2. CONFIGURATION MATRIX INITIALIZATION
-  // ============================================================================
-  const config = useRuntimeConfig();
-  const apiKey = config.groqApiKey || "";
-  const tavilyApiKey = config.tavilyApiKey || "";
-  const OLLAMA_TARGET = config.homeOllamaUrl || "http://localhost:11434";
-
-  const systemPrompt =
-    typeof config.bananaSystemPrompt === "string" &&
-    config.bananaSystemPrompt.trim().length > 0
-      ? config.bananaSystemPrompt.trim()
-      : "You are the secure BANANA Core system assistant.";
-
-  // ============================================================================
-  // 🌐 3. INTERNET ENGINE RETRIEVAL PIPELINE (TAVILY API LINK)
-  // ============================================================================
-  const latestMessage = cleanMessages[cleanMessages.length - 1];
-  let isSearchRequested = false;
-
-  if (latestMessage && latestMessage.role === "user" && latestMessage.content.startsWith("[Web Search Active]")) {
-    isSearchRequested = true;
-    // Extract pure semantic string query out of the front-end formatting flag
-    latestMessage.content = latestMessage.content.replace("[Web Search Active] ", "").trim();
-  }
-
-  if (isSearchRequested && tavilyApiKey) {
+  // 1. LOCAL OLLAMA FIRST (With local fallback check)
+  if (model === 'Pro-Nana') {
     try {
-      console.log(`🌐 [BANANA CORE] Querying live search index matrices for: "${latestMessage.content}"`);
-      
-      const searchResponse = await fetch("https://api.tavily.com/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const ollamaRes = await fetch(`${config.homeOllamaUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          api_key: tavilyApiKey,
-          query: latestMessage.content,
-          search_depth: "basic",
-          max_results: 3
+          model: 'llama3',
+          messages: [
+            { 
+              role: 'system', 
+              content: `${config.bananaSystemPrompt}\nAlways output your thought process in <thinking>...</thinking> tags first, then provide your final answer.` 
+            }, 
+            userPrompt
+          ],
+          stream: false
         }),
-        signal: AbortSignal.timeout(6000)
-      });
+        signal: AbortSignal.timeout(4000) // 4-second fast check to see if local computer is awake
+      })
 
-      if (searchResponse.ok) {
-        const searchData = await searchResponse.json();
-        if (searchData && Array.isArray(searchData.results) && searchData.results.length > 0) {
-          const contextSnippets = searchData.results
-            .map((r: any) => `Source Document: ${r.title || 'Untitled'} (${r.url || 'No URL'})\nExtract: ${r.content || ''}`)
-            .join('\n\n');
-
-          // Mutate target user content string with newly compiled reference contexts
-          latestMessage.content = `[LIVE WEB SEARCH DATA CAPTURED]\n${contextSnippets}\n\nUsing the live search details above to provide an accurate, up-to-date answer for the year 2026, address the following user query:\nUser Question: ${latestMessage.content}`;
+      if (ollamaRes.ok) {
+        const oData = await ollamaRes.json()
+        return { 
+          content: oData?.message?.content || '<thinking>Running local pipeline</thinking>Empty local engine response.', 
+          provider: 'ollama', 
+          updatedSummary 
         }
-      }
-    } catch (searchError: any) {
-      console.error("⚠️ [BANANA CORE] Web Search index extraction timeline degraded, continuing without context:", searchError?.message || searchError);
-    }
-  }
-
-  // ============================================================================
-  // 4. CHAT ROUTING TARGET RESOLUTION DICTIONARY
-  // ============================================================================
-  let targetOllamaModel = "";
-  let forceCloudFallback = false;
-
-  switch (selectedModel) {
-    case "Pro-Nana":
-      targetOllamaModel = "llama3.1";
-      break;
-    case "Logic-Nana":
-      targetOllamaModel = "deepseek-r1";
-      break;
-    case "Code-Nana":
-      targetOllamaModel = "qwen2.5-coder";
-      break;
-    case "Instant-Nana":
-    default:
-      forceCloudFallback = true;
-      break;
-  }
-
-  const messages = [
-    {
-      role: "system",
-      content: systemPrompt
-    },
-    ...cleanMessages
-  ];
-
-  let payloadSize = 0;
-  try {
-    payloadSize = Buffer.byteLength(JSON.stringify(messages), "utf8");
-  } catch {
-    setResponseStatus(event, 400);
-    return {
-      content: "Invalid message format.",
-      provider: "error"
-    };
-  }
-
-  if (payloadSize > 50000) {
-    setResponseStatus(event, 413);
-    return {
-      content: "Message payload too large.",
-      provider: "error"
-    };
-  }
-
-  // ============================================================================
-  // ⚙️ 5. LOCAL HARDWARE CLUSTER ENGINE RETRIEVAL PIPELINE (OLLAMA)
-  // ============================================================================
-  if (!forceCloudFallback && targetOllamaModel) {
-    try {
-      const response = await fetch(
-        `${OLLAMA_TARGET}/api/chat`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            model: targetOllamaModel,
-            messages,
-            stream: false,
-            options: {
-              num_ctx: 16384,
-              temperature: 0.7
-            }
-          }),
-          signal: AbortSignal.timeout(10000)
-        }
-      );
-
-      if (response.ok) {
-        let data;
-        try {
-          data = await response.json();
-        } catch {
-          throw new Error("Invalid Ollama JSON.");
-        }
-
-        if (
-          !data ||
-          typeof data !== "object" ||
-          typeof data?.message?.content !== "string"
-        ) {
-          throw new Error("Invalid Ollama response.");
-        }
-
-        const content = data.message.content.trim();
-        if (content) {
-          return {
-            content,
-            provider: "ollama"
-          };
-        }
-      }
-    } catch (error: any) {
-      if (
-        error?.name === "AbortError" ||
-        error?.name === "TimeoutError" ||
-        error?.code === "ABORT_ERR"
-      ) {
-        console.log(`[BANANA] Local engine ${targetOllamaModel} connection window timed out. Executing failover...`);
       } else {
-        console.log(`[BANANA] Local core ${targetOllamaModel} offline/unreachable. Executing failover...`);
+        localFailed = true
       }
+    } catch {
+      localFailed = true
     }
   }
 
-  // ============================================================================
-  // ☁️ 6. CLOUD FALLBACK BACKUP PIPELINE (GROQ CLOUD GATEWAY)
-  // ============================================================================
-  try {
-    if (!apiKey) {
-      throw new Error("Missing Groq API key configuration.");
+  // 2. AUTO-FALLBACK / CLOUD ROUTE WITH AUTOMATIC SEARCH DISCOVERY
+  if (model === 'Instant-Nana' || model === 'Logic-Nana' || localFailed) {
+    if (!config.groqApiKey) {
+      return {
+        content: `<thinking>System failed to reach local machine.</thinking>🚨 HIGH DEMAND WARNING: Cloud networks are currently over-capacity. Please switch on your local computer server and launch Ollama to run queries locally.`,
+        provider: 'error',
+        updatedSummary
+      }
     }
 
-    // Capture solely the last question/answer sequence exchange loop
-    const lastTwoMessages = cleanMessages.slice(-2); 
+    try {
+      // Step A: Request first generation with explicit reasoning instructions
+      const systemInstructions = `${config.bananaSystemPrompt}
+[CONTEXT MEMORY MATRIX]: ${updatedSummary}
 
-    // Compute updated structural memory text content incrementally
-    const updatedSummary = await updateIncrementalSummary(existingSummary, lastTwoMessages, apiKey);
-    const latestUserExchange = cleanMessages[cleanMessages.length - 1];
+You must think out loud before writing any final answer. 
+1. Always start your response with a thinking block: <thinking>your step-by-step thoughts</thinking>.
+2. If you do not know the answer or lack up-to-date facts, output inside your thinking tags: "DECISION: SEARCH [your query]".
+3. Keep final answers concise.`
 
-    const optimizedCloudMessages = [
-      { 
-        role: "system", 
-        content: `${systemPrompt}\n\n[CONVERSATION SUMMARY CONTEXT LOGS]: ${updatedSummary}` 
-      },
-      latestUserExchange
-    ];
-
-    const response = await fetch(
-      "https://api.groq.com/openapi/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
+      const cloudRes = await fetch('https://api.groq.com/openapi/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${config.groqApiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: "llama-3.1-8b-instant",
-          messages: optimizedCloudMessages,
-          max_tokens: 1025,
-          temperature: 0.7
-        }),
-        signal: AbortSignal.timeout(15000)
+          model: model === 'Logic-Nana' ? 'deepseek-r1-distill-llama-70b' : 'llama-3.1-8b-instant',
+          messages: [
+            { role: 'system', content: systemInstructions },
+            userPrompt
+          ],
+          temperature: 0.6
+        })
+      })
+
+      if (!cloudRes.ok) throw new Error("Cloud network congestion.")
+
+      const cData = await cloudRes.json()
+      const firstResponse = cData?.choices?.[0]?.message?.content || ''
+
+      // Step B: Check if the AI decided it needs to perform a web search
+      const searchMatch = firstResponse.match(/<thinking>[\s\S]*?DECISION:\s*SEARCH\s*\[(.*?)\][\s\S]*?<\/thinking>/i)
+
+      if (searchMatch && searchMatch[1] && config.tavilyApiKey) {
+        const searchQuery = searchMatch[1].trim()
+        
+        // Execute automated background web search
+        const searchResults = await performWebSearch(searchQuery, config.tavilyApiKey)
+
+        // Step C: Supply search findings back to the model for a definitive answer
+        const followUpRes = await fetch('https://api.groq.com/openapi/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${config.groqApiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'llama-3.1-8b-instant',
+            messages: [
+              { role: 'system', content: systemInstructions },
+              userPrompt,
+              { role: 'assistant', content: firstResponse },
+              { role: 'user', content: `WEB SEARCH RESULTS:\n${searchResults}\n\nIncorporate these facts and output your final updated response (include a new <thinking> block acknowledging the search results).` }
+            ],
+            temperature: 0.4
+          })
+        })
+
+        if (followUpRes.ok) {
+          const followUpData = await followUpRes.json()
+          let finalContent = followUpData?.choices?.[0]?.message?.content || firstResponse
+          if (localFailed) {
+            finalContent = `⚠️ *Note: Local computer offline. Routing via Cloud Backup.*\n\n${finalContent}`
+          }
+          return { content: finalContent, provider: 'groq', updatedSummary }
+        }
       }
-    );
 
-    if (!response.ok) {
-      throw new Error(`Groq Gateway HTTP status response: ${response.status}`);
+      // If no search was required, return original response
+      let finalContent = firstResponse
+      if (localFailed) {
+        finalContent = `⚠️ *Note: Local computer offline. Routing via Cloud Backup.*\n\n${finalContent}`
+      }
+      return { content: finalContent, provider: 'groq', updatedSummary }
+
+    } catch (err) {
+      // 3. BOTH CHANNELS FAILED -> RETURN CUSTOM HIGH DEMAND ERROR STATE
+      return {
+        content: `<thinking>Critical network pipeline timeout. Local machine status check: OFFLINE.</thinking>⚠️ HIGH DEMAND [COMPUTER NOT ON]:
+Our cloud processing pipelines are congested with active workloads. 
+
+To bypass these queues:
+1. Boot up your local hardware node.
+2. Ensure Ollama is running on port 11434.
+3. Switch your model configuration to **Pro-Nana (Local)**.`,
+        provider: 'error',
+        updatedSummary
+      }
     }
-
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content?.trim();
-
-    if (!content) {
-      throw new Error("Empty Groq response payload string generated.");
-    }
-
-    return {
-      content,
-      provider: "groq",
-      updatedSummary: updatedSummary 
-    };
-
-  } catch (error: any) {
-    console.error("[BANANA CORE ERROR] Dynamic Failover Path Broken:", error?.message || error);
-    setResponseStatus(event, 500);
-    return {
-      content: "Connection Error: BANANA Core systems are unreachable. Please check if your computer server is online or your account is valid.",
-      provider: "error"
-    };
   }
-});
+
+  return { content: "System router failed to resolve target configuration.", provider: "error" }
+})

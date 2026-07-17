@@ -1,267 +1,270 @@
 <template>
-  <div class="app-container">
-   <aside class="sidebar" :class="{ 'sidebar-collapsed': !isSidebarOpen }">
-  <div class="sidebar-top">
-    <div class="sidebar-header">
-      <button @click="isSidebarOpen = !isSidebarOpen" class="toggle-sidebar-btn">
-        <span>{{ isSidebarOpen ? '◀' : '▶' }}</span>
-      </button>
-      
-      <button v-if="isSidebarOpen" @click="startNewChat" class="new-chat-btn-header">
-        <span>✎ New Chat</span>
-      </button>
-    </div>
+  <div 
+    class="flex h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-200 font-sans relative"
+    :style="{ height: 'calc(var(--vh, 1vh) * 100)' }"
+  >
+    
+    <div 
+      v-if="isSidebarOpen" 
+      @click="isSidebarOpen = false" 
+      class="md:hidden fixed inset-0 bg-black/80 z-40 backdrop-blur-sm transition-opacity duration-300"
+    ></div>
 
-    <div v-if="isSidebarOpen" class="sidebar-body">
-      <div class="search-box">
-        <input 
-          v-model="searchQuery" 
-          type="text" 
-          placeholder="Search Chats..." 
-          class="search-input" 
-        />
+    <aside 
+      :class="[isSidebarOpen ? 'translate-x-0 w-64 shadow-2xl' : '-translate-x-full w-64 md:translate-x-0 md:shadow-none']" 
+      class="bg-zinc-900 border-r border-zinc-800 flex flex-col h-full z-50 fixed md:static transition-transform duration-300 ease-in-out shrink-0"
+    >
+      <div class="p-4 flex justify-between items-center border-b border-zinc-800 shrink-0 select-none">
+        <div class="flex items-center space-x-2">
+          <span class="text-xl">🍌</span>
+          <span class="font-bold text-xs tracking-widest text-yellow-400 font-mono">BANANA CORE</span>
+        </div>
+        <button @click="isSidebarOpen = false" class="md:hidden p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-100 border border-zinc-700/50 transition">✕</button>
       </div>
 
-      <div class="recents-section">
-        <div class="recents-title">Recents</div>
-        <div class="recents-scrollbar-container">
-          <ul class="chat-list">
-            <li 
-              v-for="chat in sortedAndFilteredChats" 
-              :key="chat.originalIndex"
-              class="chat-item"
-              :class="{ 'active-session': currentSessionIndex === chat.originalIndex }"
-              @click="loadPastChat(chat.originalIndex)"
-            >
-              <span class="chat-title-text">{{ chat.title }}</span>
-            </li>
-          </ul>
+      <div class="p-3 space-y-2 border-b border-zinc-800/60 shrink-0">
+        <button @click="createNewSession" class="w-full bg-zinc-950 hover:bg-zinc-800 text-yellow-400 hover:text-yellow-300 border border-zinc-800 text-xs font-mono py-2.5 px-3 rounded-xl flex items-center justify-center space-x-2 transition active:scale-[0.99]">
+          <span class="text-sm font-bold leading-none">+</span>
+          <span>New Workspace Chat</span>
+        </button>
+        <div class="relative">
+          <span class="absolute left-3 top-2.5 text-zinc-500 text-xs select-none">🔍</span>
+          <input v-model="searchQuery" type="text" placeholder="Search workspace chats..." class="w-full bg-zinc-950/80 border border-zinc-800 focus:border-zinc-700 text-xs py-2 pl-8 pr-7 rounded-xl focus:outline-none text-zinc-300 placeholder-zinc-600 transition" />
+          <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-2.5 top-2 text-zinc-500 hover:text-zinc-300 text-xs p-0.5">✕</button>
         </div>
       </div>
-    </div>
-  </div>
-  
-  <div v-if="isSidebarOpen" class="sidebar-bottom">
-    <button class="banana-features-btn">
-      <span>[*] BANANA Features</span>
-    </button>
-    <div class="user-profile">
-      <div class="avatar">BA</div>
-      <div class="user-info">
-        <div class="username">Banana Admin</div>
-      </div>
-    </div>
-  </div>
-</aside>
 
-    <main class="main-workspace">
-      <header class="top-header">
-        <h1 class="platform-title">BANANA <span class="version-tag">v2.0</span></h1>
+      <div class="flex-1 p-3 overflow-y-auto space-y-1 custom-scrollbar select-none">
+        <div class="text-[10px] font-bold text-zinc-500 uppercase px-2 tracking-widest mb-2 flex justify-between items-center">
+          <span>Active Sessions</span>
+          <span v-if="searchQuery" class="text-[9px] text-yellow-500 font-mono normal-case">{{ filteredSessions.length }} found</span>
+        </div>
+        <div 
+          v-for="session in filteredSessions" :key="session.id" @click="switchSession(session.id)"
+          class="group w-full text-left p-2.5 rounded-xl transition flex items-center justify-between cursor-pointer border"
+          :class="[currentSessionId === session.id ? 'bg-zinc-800 border-zinc-700 text-zinc-100 shadow-sm' : 'bg-transparent border-transparent hover:bg-zinc-850 text-zinc-400 hover:text-zinc-200']"
+        >
+          <div class="flex flex-col min-w-0 pr-2 pointer-events-none">
+            <span class="text-xs truncate font-medium">{{ session.title }}</span>
+            <span class="text-[9px] text-zinc-500 mt-0.5">{{ new Date(session.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }}</span>
+          </div>
+          <button @click.stop="deleteSession(session.id)" class="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/10 rounded text-zinc-500 hover:text-red-400 transition">✕</button>
+        </div>
+      </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col min-w-0 h-full relative overflow-hidden bg-zinc-950">
+      
+      <header class="h-14 border-b border-zinc-850 bg-zinc-900/40 backdrop-blur-md px-4 flex items-center justify-between z-30 shrink-0 w-full select-none">
+        <div class="flex items-center space-x-3">
+          <button @click="isSidebarOpen = !isSidebarOpen" class="p-2 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-zinc-300 transition shadow-sm">
+            <span class="text-base leading-none">☰</span>
+          </button>
+          <span class="text-xs font-mono text-zinc-400 hidden sm:inline uppercase tracking-widest bg-zinc-950 px-2.5 py-1 border border-zinc-850 rounded-lg">BANANA_SYS_V4.0</span>
+        </div>
+        <div class="flex items-center space-x-2 text-[11px] px-3 py-1 rounded-full border bg-zinc-950 transition-all duration-300" :class="isServerOnline ? 'text-green-400 border-green-900/30' : 'text-amber-400 border-amber-900/30'">
+          <span class="h-1.5 w-1.5 rounded-full animate-pulse" :class="isServerOnline ? 'bg-green-400' : 'bg-amber-400'"></span>
+          <span class="font-medium font-mono">{{ isServerOnline ? 'Ollama Cluster Linked' : 'Cloud Recovery Active' }}</span>
+        </div>
       </header>
 
-      <div class="chat-log-window" ref="chatWindow">
-        <div v-if="visibleMessages.length === 0" class="empty-state-hero">
-          <h2>What's on the agenda today?</h2>
+      <div class="flex-1 flex flex-col overflow-hidden max-w-4xl mx-auto w-full p-4 pb-0">
+        <div ref="chatWindow" class="flex-1 overflow-y-auto space-y-5 pr-1 custom-scrollbar scroll-smooth pb-6 select-text">
+          <div 
+            v-for="(msg, idx) in visibleMessages" :key="idx"
+            class="flex flex-col space-y-1.5"
+            :class="[msg.role === 'user' ? 'items-end' : 'items-start']"
+          >
+            <span class="text-[10px] font-mono font-medium text-zinc-500 uppercase px-1">{{ msg.role === 'user' ? 'Operator' : 'Banana Core' }}</span>
+
+            <div 
+              class="w-full max-w-[85%] rounded-2xl shadow-md text-sm leading-relaxed border p-4"
+              :class="[
+                msg.role === 'user' 
+                  ? 'bg-zinc-800 border-zinc-700 text-zinc-100 rounded-tr-sm self-end' 
+                  : msg.content.includes('Connection Error:') || msg.content.includes('HIGH DEMAND')
+                    ? 'bg-red-500/10 border-red-500/20 text-red-400 rounded-tl-sm font-mono'
+                    : 'bg-zinc-900 border-zinc-800 text-zinc-300 rounded-tl-sm'
+              ]"
+            >
+              <div v-if="msg.role !== 'user' && extractThinking(msg.content)" class="mb-3 border-l-2 border-zinc-700 pl-3">
+                <details class="group cursor-pointer" open>
+                  <summary class="text-xs font-mono text-zinc-500 select-none hover:text-zinc-400 transition flex items-center space-x-1.5">
+                    <span class="group-open:rotate-90 transition-transform duration-150 inline-block">▶</span>
+                    <span>Thinking Process...</span>
+                  </summary>
+                  <p class="text-xs text-zinc-500 font-mono mt-1.5 whitespace-pre-wrap leading-relaxed">
+                    {{ extractThinking(msg.content) }}
+                  </p>
+                </details>
+              </div>
+
+              <div class="prose-custom w-full break-words" v-html="renderRichPayload(stripThinking(msg.content))"></div>
+            </div>
+          </div>
         </div>
 
-        <div 
-          v-else
-          class="message-list"
-        >
-          <div 
-            v-for="(msg, index) in visibleMessages" 
-            :key="index" 
-            :class="['message-card', msg.role]"
-          >
-            <div class="sender-label">
-              <span v-if="msg.role === 'user'" class="avatar-small user-avatar">BA</span>
-              <span v-else class="avatar-small ai-avatar">🍌</span>
-              {{ msg.role === 'user' ? 'Banana Admin' : 'BANANA Core' }}
-            </div>
-            <div class="response-text-block">
-              <p v-for="(paragraph, pIdx) in msg.content.split('\n')" :key="pIdx">
-                {{ paragraph }}
-              </p>
-            </div>
-          </div>
-          
-          <div v-if="isLoading" class="message-card assistant loading">
-            <div class="sender-label">
-              <span class="avatar-small ai-avatar">🍌</span> BANANA Core
-            </div>
-            <div class="response-text-block status">Analyzing request...</div>
-          </div>
+        <div class="mt-auto pt-2 bg-gradient-to-t from-zinc-950 via-zinc-950 to-transparent shrink-0">
+          <ChatInput :is-loading="isLoading" @send="submitMessage" @cancel="handleAbortTransmission" @update-model="setSelectedModel" />
         </div>
       </div>
-<button 
-        v-if="!isSidebarOpen" 
-        @click="isSidebarOpen = true" 
-        class="tooltip-btn floating-open-btn"
-      >
-        [+]
-        <span class="tooltip">Open Sidebar</span>
-      </button>
+    </div>
 
-      <footer class="footer-input-tray">
-        <div class="chat-input-container">
-          <ChatInput 
-            v-model="userInput"
-            :is-loading="isLoading"
-            @submit="submitMessage"
-            @stop="handleAbortTransmission"
-          />
-        </div>
-      </footer>
-    </main>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, watch, computed, nextTick } from 'vue'
 import { runAgent1Core } from '~~/src/agents'
+import { marked } from 'marked'
+import katex from 'katex'
+import 'katex/dist/katex.min.css'
 
-// --- UNIFIED STATE MANAGEMENT ---
-const userInput = ref('')
 const isLoading = ref(false)
-const isMenuOpen = ref(false)
 const chatWindow = ref(null)
-const currentSummary = ref('') // Tracks the ongoing context summary
-let currentAbortController = null // Tracks active network requests to stop them mid-generation
+const isSidebarOpen = ref(false)
+const isServerOnline = ref(true) 
+const selectedModel = ref('Instant-Nana')
+const searchQuery = ref('')
+const savedSessions = ref([])
+const currentSessionId = ref(null)
+let currentAbortController = null
 
-// Default System Prompt
-const defaultSystemMessage = {
-  role: 'system',
-  content: 'You are BANANA system core agent. You are helpful, precise, and highly capable.'
+marked.setOptions({ gfm: true, breaks: true })
+
+const defaultHistory = () => [
+  { role: 'assistant', content: '<thinking>Connecting status diagnostics...</thinking>System initialized. Welcome to BANANA Core control panel.' }
+]
+
+const currentSession = computed(() => savedSessions.value.find(s => s.id === currentSessionId.value))
+const chatHistory = computed(() => currentSession.value ? currentSession.value.history : defaultHistory())
+const currentSummary = computed(() => currentSession.value ? currentSession.value.summary : '')
+const visibleMessages = computed(() => chatHistory.value.filter(msg => msg.role !== 'system'))
+
+// Helper: Extract Thinking Trace
+const extractThinking = (content) => {
+  const match = content.match(/<thinking>([\s\S]*?)<\/thinking>/)
+  return match ? match[1].trim() : null
 }
 
-const chatHistory = ref([defaultSystemMessage])
+// Helper: Remove thinking tags from output render
+const stripThinking = (content) => {
+  return content.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim()
+}
 
-// --- COMPUTED PROPERTIES ---
-// We hide the 'system' prompt from the user interface layout
-const visibleMessages = computed(() => {
-  return chatHistory.value.filter(msg => msg.role !== 'system')
+const renderRichPayload = (raw) => {
+  if (!raw) return ''
+  let processed = raw
+  processed = processed.replace(/\$\$(.*?)\$\$/gs, (m, f) => {
+    try { return `<div class="katex-block my-3 overflow-x-auto">${katex.renderToString(f, { displayMode: true, throwOnError: false })}</div>` } catch { return m }
+  })
+  processed = processed.replace(/\$(.*?)\$/g, (m, f) => {
+    try { return katex.renderToString(f, { displayMode: false, throwOnError: false }) } catch { return m }
+  })
+  try { return marked.parse(processed) } catch { return processed }
+}
+
+const filteredSessions = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return savedSessions.value
+  return savedSessions.value.filter(s => s.title.toLowerCase().includes(q) || s.history.some(m => m.content.toLowerCase().includes(q)))
 })
 
-// --- ADDITIONAL SIDEBAR STATE FEATURES ---
-const isSidebarOpen = ref(true)
-const searchQuery = ref('')
+const setSelectedModel = (mId) => { selectedModel.value = mId }
 
-// Holds the list of past chat sessions. Automatically loads from the browser storage.
-const savedSessions = ref([])
-
-// Tracks which session index is currently open (null means a brand new unsaved chat)
-const currentSessionIndex = ref(null)
-
-
-// --- AUTOMATIC LOADING WHEN THE PAGE OPENS ---
 onMounted(() => {
-  // 1. Load saved side sessions array
-  const storedSessions = localStorage.getItem('banana_saved_sessions')
-  if (storedSessions) {
-    savedSessions.value = JSON.parse(storedSessions)
-  }
-
-  // 2. Load the current active conversation history tree
-  const activeChat = localStorage.getItem('banana_chat_history')
-  if (activeChat) {
-    chatHistory.value = JSON.parse(activeChat)
-  }
+  const stored = localStorage.getItem('banana_v4_sessions')
+  if (stored) savedSessions.value = JSON.parse(stored)
   
-  // 3. Track which session index was last active
-  const storedIdx = localStorage.getItem('banana_current_session_index')
-  if (storedIdx !== null) {
-    currentSessionIndex.value = JSON.parse(storedIdx)
+  const activeId = localStorage.getItem('banana_v4_active_id')
+  if (activeId && savedSessions.value.some(s => s.id === activeId)) {
+    currentSessionId.value = activeId
+  } else if (savedSessions.value.length > 0) {
+    currentSessionId.value = savedSessions.value[0].id
+  } else {
+    createNewSession()
   }
-
-  // 4. Restore the current working summary state
-  const storedSummary = localStorage.getItem('banana_current_summary')
-  if (storedSummary) {
-    currentSummary.value = storedSummary
-  }
-
   scrollWindowToBottom()
 })
 
-
-// --- AUTO-SAVE HOOKS (WATCHERS) ---
-// Watch for changes to the chat history array and auto-save
-watch(chatHistory, (newHistory) => {
-  localStorage.setItem('banana_chat_history', JSON.stringify(newHistory))
-}, { deep: true })
-
-// Watch for changes to the session list array and auto-save
-watch(savedSessions, (newSessions) => {
-  localStorage.setItem('banana_saved_sessions', JSON.stringify(newSessions))
-}, { deep: true })
-
-// Watch the active active session index
-watch(currentSessionIndex, (newIdx) => {
-  localStorage.setItem('banana_current_session_index', JSON.stringify(newIdx))
+watch(savedSessions, (newVal) => localStorage.setItem('banana_v4_sessions', JSON.stringify(newVal)), { deep: true })
+watch(currentSessionId, (newId) => {
+  if (newId) localStorage.setItem('banana_v4_active_id', newId)
+  scrollWindowToBottom()
 })
-
-// Watch the working AI background summary memory layer
-watch(currentSummary, (newSummary) => {
-  localStorage.setItem('banana_current_summary', newSummary)
-})
-
-
-const handleAction = (actionType) => {
-  isMenuOpen.value = false
-  alert(`Action chosen: ${actionType}`)
-}
 
 const scrollWindowToBottom = async () => {
   await nextTick()
-  if (chatWindow.value) {
-    chatWindow.value.scrollTop = chatWindow.value.scrollHeight
+  if (chatWindow.value) chatWindow.value.scrollTop = chatWindow.value.scrollHeight
+}
+
+const createNewSession = () => {
+  const newId = 'session_' + Date.now()
+  savedSessions.value.unshift({
+    id: newId,
+    title: 'New Chat Workspace',
+    history: defaultHistory(),
+    summary: '',
+    updatedAt: Date.now()
+  })
+  currentSessionId.value = newId
+  isSidebarOpen.value = false
+}
+
+const switchSession = (id) => {
+  currentSessionId.value = id
+  isSidebarOpen.value = false
+}
+
+const deleteSession = (id) => {
+  const idx = savedSessions.value.findIndex(s => s.id === id)
+  if (idx !== -1) {
+    savedSessions.value.splice(idx, 1)
+    if (currentSessionId.value === id) {
+      if (savedSessions.value.length > 0) currentSessionId.value = savedSessions.value[0].id
+      else createNewSession()
+    }
   }
 }
 
-
-// --- MESSAGES SUBMISSION INTERACTION PIPELINE (MEMORY SAFE) ---
-const submitMessage = async () => {
-  const cleanInput = userInput.value.trim()
+const submitMessage = async (text) => {
+  const cleanInput = text?.trim()
   if (!cleanInput || isLoading.value) return
 
-  // 1. Instantly append request block to the visual screen history
-  chatHistory.value.push({ role: 'user', content: cleanInput })
-  userInput.value = ''
+  if (!currentSessionId.value) createNewSession()
+  const activeChat = savedSessions.value.find(s => s.id === currentSessionId.value)
+  if (!activeChat) return
+
+  activeChat.history.push({ role: 'user', content: cleanInput })
+  activeChat.updatedAt = Date.now()
   isLoading.value = true
-  isMenuOpen.value = false // close menu if open
   await scrollWindowToBottom()
 
-  // 2. Provision Abort Controller logic handler to track active HTTP streams
+  if (activeChat.title === 'New Chat Workspace') {
+    activeChat.title = cleanInput.length > 28 ? cleanInput.substring(0, 28) + '...' : cleanInput
+  }
+
   currentAbortController = new AbortController()
 
   try {
-    // 🍌 BANANA Core Full-Memory Pass-Through:
-    const finalAiReply = await runAgent1Core({
-      messages: chatHistory.value,
-      existingSummary: currentSummary.value
+    const data = await runAgent1Core({
+      messages: activeChat.history,
+      model: selectedModel.value,
+      existingSummary: activeChat.summary
     })
     
-    // Safety verification check ensures state wasn't cleared out or aborted early
     if (isLoading.value) {
-      chatHistory.value.push({ 
-        role: 'assistant', 
-        content: finalAiReply.content 
-      })
-
-      // 💡 Save the brand new incremental text summary passed back from Groq
-      if (finalAiReply.updatedSummary) {
-        currentSummary.value = finalAiReply.updatedSummary
-      }
-
-      // ✅ FIXED: Automatically generates name/saves session data right here!
-      updateSidebarTracking()
+      activeChat.history.push({ role: 'assistant', content: data.content })
+      if (data.updatedSummary) activeChat.summary = data.updatedSummary
+      isServerOnline.value = data.provider !== 'error'
+      activeChat.updatedAt = Date.now()
     }
-
-  } catch (error) {
-    console.error("Transmission breakdown handled:", error)
+  } catch {
     if (isLoading.value) {
-      chatHistory.value.push({ 
+      isServerOnline.value = false
+      activeChat.history.push({ 
         role: 'assistant', 
-        content: 'Connection Error: BANANA core limits exceeded. Please wait a minute or clear history.' 
+        content: '<thinking>Network terminal request failed.</thinking>⚠️ HIGH DEMAND [COMPUTER NOT ON]: Offline or cloud queues blocked.' 
       })
     }
   } finally {
@@ -271,495 +274,13 @@ const submitMessage = async () => {
   }
 }
 
-/**
- * Handles the '@stop' event emitted from ChatInput when clicked mid-generation
- */
 const handleAbortTransmission = () => {
-  if (currentAbortController) {
-    currentAbortController.abort() // Cancel network fetch loop
-  }
+  if (currentAbortController) currentAbortController.abort()
   isLoading.value = false 
-  chatHistory.value.push({ 
-    role: 'assistant', 
-    content: '_Generation stopped by Banana Admin._' 
-  })
-  updateSidebarTracking() // Save the aborted state log to history tracking
-}
-
-
-// --- INTERACTION FUNCTIONS TO PASTE/UPDATE ---
-
-// Replaces your old startNewChat to clear layout state cleanly
-const startNewChat = () => {
-  chatHistory.value = [defaultSystemMessage]
-  currentSummary.value = ''
-  currentSessionIndex.value = null
-  localStorage.removeItem('banana_chat_history')
-  localStorage.removeItem('banana_current_summary')
-  localStorage.removeItem('banana_current_session_index')
-  isMenuOpen.value = false
-}
-
-// Loads a past conversation tree when clicked from the sidebar list
-const loadPastChat = (index) => {
-  const selectedChat = savedSessions.value[index]
-  if (selectedChat && selectedChat.history) {
-    chatHistory.value = [...selectedChat.history]
-    currentSummary.value = selectedChat.summary || ''
-    currentSessionIndex.value = index
-  }
-  scrollWindowToBottom()
-}
-
-// Automatically syncs titles, message history states, and context summaries per session
-const updateSidebarTracking = () => {
-  const firstUserMsg = chatHistory.value.find(msg => msg.role === 'user')?.content || 'New Chat'
-  // Auto Chat Name Generation Logic: Grab the beginning of the prompt cleanly
-  const cleanTitle = firstUserMsg.length > 25 ? firstUserMsg.substring(0, 25) + '...' : firstUserMsg
-
-  if (currentSessionIndex.value !== null && savedSessions.value[currentSessionIndex.value]) {
-    // Update existing chat parameters
-    savedSessions.value[currentSessionIndex.value].history = [...chatHistory.value]
-    savedSessions.value[currentSessionIndex.value].summary = currentSummary.value
-    savedSessions.value[currentSessionIndex.value].updatedAt = Date.now()
-  } else {
-    // Initialize an entirely fresh structural chat container row
-    const newChatSession = {
-      title: cleanTitle,
-      history: [...chatHistory.value],
-      summary: currentSummary.value,
-      updatedAt: Date.now()
-    }
-    
-    savedSessions.value.unshift(newChatSession)
-    currentSessionIndex.value = 0 // Snap focus cursor directly onto the new row element
+  const activeChat = savedSessions.value.find(s => s.id === currentSessionId.value)
+  if (activeChat) {
+    activeChat.history.push({ role: 'assistant', content: '<thinking>Generation process aborted by operator override.</thinking>_Generation stopped by Banana Admin._' })
+    activeChat.updatedAt = Date.now()
   }
 }
-
-// --- SORTED CHRONOLOGICAL RECENT CORES FILTER ---
-const sortedAndFilteredChats = computed(() => {
-  const mappedSessions = savedSessions.value.map((chat, idx) => ({
-    ...chat,
-    originalIndex: idx,
-    updatedAt: chat.updatedAt || Date.now() - idx
-  }));
-
-  // Sort them in descending order: most recent timeline arrays move to top
-  const sorted = mappedSessions.sort((a, b) => b.updatedAt - a.updatedAt);
-
-  if (!searchQuery.value.trim()) return sorted;
-  
-  return sorted.filter(chat => 
-    chat.title.toLowerCase().includes(searchQuery.value.toLowerCase())
-  );
-});
-
 </script>
-
-<style scoped>
-/* --- STRUCTURAL BLUEPRINTS --- */
-.app-container {
-  display: flex;
-  height: 100vh;
-  font-family: Söhne, system-ui, -apple-system, sans-serif;
-  color: #ececec;
-  background-color: #212121; /* ChatGPT-style main background */
-  overflow: hidden;
-}
-
-/* --- SIDEBAR --- */
-.sidebar {
-  width: 260px;
-  background-color: #171717; /* Darker sidebar */
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 1rem 0.75rem;
-  box-sizing: border-box;
-  border-right: 1px solid #333;
-}
-
-.new-chat-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.75rem 1rem;
-  background-color: transparent;
-  color: #ececec;
-  border: 1px solid #444;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.new-chat-btn:hover {
-  background-color: #2a2a2a;
-}
-
-.user-profile {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.user-profile:hover {
-  background-color: #2a2a2a;
-}
-
-.avatar {
-  width: 32px;
-  height: 32px;
-  background-color: #5b62f4;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.85rem;
-  font-weight: bold;
-}
-
-.username {
-  font-size: 0.95rem;
-  font-weight: 500;
-}
-
-/* --- MAIN WORKSPACE --- */
-.main-workspace {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  width: calc(100% - 260px);
-}
-
-.top-header {
-  padding: 1rem 1.5rem;
-  display: flex;
-  align-items: center;
-}
-
-.platform-title {
-  font-size: 1.25rem !important;
-  font-weight: 600;
-  color: #b4b4b4;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.version-tag {
-  font-size: 0.75rem;
-  background: #333;
-  padding: 0.15rem 0.5rem;
-  border-radius: 12px;
-}
-
-/* --- CHAT LOG --- */
-.chat-log-window {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1rem 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.message-list {
-  max-width: 850px;
-  margin: 0 auto;
-  width: 100%;
-  padding: 0 1.5rem;
-}
-
-.empty-state-hero {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.empty-state-hero h2 {
-  font-size: 2.25rem !important;
-  font-weight: 600;
-  color: #ececec;
-  letter-spacing: -0.01em;
-}
-
-.message-card {
-  margin-bottom: 2rem;
-  width: 100%;
-}
-
-.sender-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #ececec;
-  margin-bottom: 0.5rem;
-}
-
-.avatar-small {
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: bold;
-}
-
-.user-avatar { background-color: #5b62f4; }
-.ai-avatar { background-color: #10a37f; font-size: 0.9rem; }
-
-.response-text-block {
-  font-size: 1.15rem !important;
-  line-height: 1.6;
-  color: #d1d5db;
-  padding-left: 2rem; /* Indent under avatar */
-}
-
-.response-text-block p {
-  margin: 0 0 1rem 0;
-}
-
-.status {
-  color: #888;
-  font-style: italic;
-}
-
-/* --- INPUT CONTAINER SYSTEM --- */
-.footer-input-tray {
-  padding: 1rem 1.5rem 2rem 1.5rem;
-  max-width: 850px;
-  margin: 0 auto;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.chat-input-container {
-  display: flex;
-  align-items: center;
-  background-color: #2f2f2f;
-  border-radius: 28px;
-  padding: 0.5rem 1rem;
-  position: relative;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  border: 1px solid #444;
-}
-
-.menu-wrapper {
-  display: flex;
-  align-items: center;
-  position: relative;
-}
-
-.action-toggle-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: none;
-  background-color: #444;
-  color: #ececec;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.2s ease, background-color 0.2s ease;
-  padding: 0;
-}
-
-.action-toggle-btn:hover {
-  background-color: #555;
-}
-
-.action-toggle-btn.active {
-  transform: rotate(45deg);
-}
-
-.plus-icon {
-  font-size: 1.25rem;
-  line-height: 1;
-}
-
-/* Dropdown Menu */
-.actions-dropdown {
-  position: absolute;
-  bottom: 55px;
-  left: 0;
-  background-color: #232323;
-  border: 1px solid #383838;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-  list-style: none;
-  padding: 0.5rem;
-  margin: 0;
-  width: 200px;
-  z-index: 999;
-}
-
-.actions-dropdown li {
-  padding: 0.75rem 1rem;
-  cursor: pointer;
-  font-size: 1rem;
-  color: #cdcdcd;
-  border-radius: 6px;
-  transition: background-color 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.actions-dropdown li:hover {
-  background-color: #2f2f2f;
-  color: #ececec;
-}
-
-.large-chat-input {
-  flex: 1;
-  font-size: 1.15rem;
-  padding: 0.5rem 1rem;
-  background: transparent;
-  border: none;
-  color: #ececec;
-  outline: none;
-}
-
-.large-chat-input::placeholder {
-  color: #888;
-}
-
-/* Animations */
-.dropdown-enter-active, .dropdown-leave-active {
-  transition: opacity 0.15s, transform 0.15s;
-}
-.dropdown-enter-from, .dropdown-leave-to {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
-/* --- SIDEBAR TOGGLE TRANSITIONS & COLLAPSE --- */
-.sidebar {
-  transition: width 0.25s ease !important;
-}
-.sidebar-collapsed {
-  width: 0px !important;
-  border-right: none !important;
-}
-
-/* --- THE HOVER CSS TOOLTIP PATTERN --- */
-.tooltip-btn {
-  position: relative;
-}
-.tooltip {
-  position: absolute;
-  bottom: -35px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: #000000;
-  color: #ffffff;
-  font-size: 0.75rem;
-  padding: 0.4rem 0.6rem;
-  border-radius: 6px;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-  z-index: 9999;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-}
-.tooltip-btn:hover .tooltip {
-  opacity: 1;
-  transform: translateX(-50%) translateY(4px);
-}
-
-/* --- CHAT FILTER BOX & SEARCH INPUT --- */
-.search-box {
-  display: flex;
-  align-items: center;
-  background-color: #202020;
-  border-radius: 8px;
-  padding: 0.4rem 0.6rem;
-  margin: 0.5rem 0;
-  border: 1px solid #303030;
-}
-.search-input {
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #fff;
-  font-size: 0.85rem;
-  margin-left: 0.5rem;
-  width: 100%;
-}
-
-/* --- CUSTOM CHAT RECENT LIST SCROLLBAR TRACKS --- */
-.recents-scrollbar-container {
-  overflow-y: auto;
-  max-height: 350px;
-}
-.recents-scrollbar-container::-webkit-scrollbar {
-  width: 6px;
-}
-.recents-scrollbar-container::-webkit-scrollbar-track {
-  background: transparent;
-}
-.recents-scrollbar-container::-webkit-scrollbar-thumb {
-  background-color: #383838;
-  border-radius: 10px;
-}
-.recents-scrollbar-container::-webkit-scrollbar-thumb:hover {
-  background-color: #4b4b4b;
-}
-
-/* --- COMPONENT ITEMS --- */
-.chat-list { list-style: none; padding: 0; margin: 0; }
-.chat-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: #c5c5c5;
-}
-.chat-item:hover { background-color: #212121; color: #fff; }
-.no-chats-found { font-size: 0.8rem; color: #555; padding: 0.5rem; text-align: center; }
-.floating-open-btn { position: absolute; top: 12px; left: 12px; background-color: #171717; border: 1px solid #333; color: #fff; padding: 0.5rem; border-radius: 8px; z-index: 999; }
-
-/* 🧼 CLEANED UP: Removes duplicate background/border tray pill styling */
-.chat-input-container {
-  display: flex;
-  flex-direction: column;
-  background-color: transparent !important;
-  border-radius: 0px !important;
-  padding: 0px !important;
-  box-shadow: none !important;
-  border: none !important;
-}
-
-/* 📁 UN-SQUEEZE SIDEBAR: Prevents sidebar buttons from being cut off */
-.sidebar {
-  width: 260px !important;
-  min-width: 260px !important; 
-}
-
-/* Maintain zero dimensions only when explicitly collapsed */
-.sidebar-collapsed {
-  width: 0px !important;
-  min-width: 0px !important;
-  padding: 1rem 0px !important;
-  border-right: none !important;
-  overflow: hidden;
-}
-
-</style>

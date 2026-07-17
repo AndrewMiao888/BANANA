@@ -16,16 +16,16 @@ export interface AgentPayload {
 }
 
 /**
- * Dispatches current conversation histories to the backend endpoint router.
+ * Dispatches thread array states safely to the centralized application backend router.
  */
 export async function runAgent1Core(payload: AgentPayload): Promise<ChatResponse> {
   const response = await fetch('/api/chat', {
     method: 'POST',
-    headers: { 
+    headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
     },
-    body: JSON.stringify({ 
+    body: JSON.stringify({
       messages: payload.messages,
       model: payload.model || 'Instant-Nana',
       existingSummary: payload.existingSummary || ''
@@ -33,7 +33,7 @@ export async function runAgent1Core(payload: AgentPayload): Promise<ChatResponse
   });
 
   if (!response.ok) {
-    throw new Error(`Server connection failure with status: ${response.status}`);
+    throw new Error(`Server endpoint synchronization breakdown with code: ${response.status}`);
   }
 
   return await response.json();
