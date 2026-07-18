@@ -1,198 +1,157 @@
-import { defineEventHandler, readBody } from 'h3'
+import { defineEventHandler, readBody, createError, setResponseHeader } from 'h3'
 
-// Live Web Search tool helper
-async function performWebSearch(query: string, apiKey: string): Promise<string> {
-  if (!apiKey) return "Search failed: Tavily API key is not configured."
-  try {
-    const res = await fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, search_depth: 'basic', max_results: 3 })
-    })
-    const data = await res.json()
-    return data.results?.map((r: any) => `[Source: ${r.title}] ${r.content}`).join('\n\n') || "No results found."
-  } catch (e: any) {
-    return `Search query error: ${e.message}`
-  }
+interface ChatMessage {
+  role: 'system' | 'user' | 'assistant'
+  content: string
 }
 
-// Memory Synthesizer
-async function buildIncrementalSummary(oldSummary: string, newTurn: any, apiKey: string): Promise<string> {
-  try {
-    const res = await fetch('https://api.groq.com/openapi/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        messages: [
-          { role: 'system', content: 'Update the summary by merging the new turn. Return one dense paragraph.' },
-          { role: 'user', content: `Summary: "${oldSummary}". New turn: ${JSON.stringify(newTurn)}` }
-        ],
-        max_tokens: 150
-      })
-    })
-    const data = await res.json()
-    return data?.choices?.[0]?.message?.content || oldSummary
-  } catch {
-    return oldSummary
-  }
+interface ChatRequestBody {
+  messages?: ChatMessage[]
+  model?: string
+  temperature?: number
+  max_tokens?: number
 }
 
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig()
-  const body = await readBody(event)
-  const { messages, model, existingSummary } = body
+  // 1. Set standard secure headers up front
+  setResponseHeader(event, 'Content-Type', 'application/json')
 
-  if (!messages || !Array.isArray(messages)) {
-    throw new Error("Invalid conversation structure payload.")
+  // 2. Safely resolve config to fix error #2 (Variable Context Conflict)
+  const config = useRuntimeConfig(event)
+  
+  // Safely extract string variables to fix error #4 (Environment trim failures)
+  const rawOllamaUrl = config?.public?.HOME_OLLAMA_URL || process.env.HOME_OLLAMA_URL || ''
+  const rawGroqKey = config?.GROQ_API_KEY || process.env.GROQ_API_KEY || ''
+  
+  const localOllamaUrl = typeof rawOllamaUrl === 'string' ? rawOllamaUrl.trim() : ''
+  const groqApiKey = typeof rawGroqKey === 'string' ? rawGroqKey.trim() : ''
+
+  // 3. Safely parse incoming body to fix error #3 (Stream consumption exhaustion)
+  let body: ChatRequestBody = {}
+  try {
+    const parsedBody = await readBody<any>(event)
+    if (parsedBody) {
+      body = parsedBody
+    }
+  } catch (e) {
+    // If body was already consumed upstream, we fall back to an empty object instead of crashing
+    body = {}
   }
 
-  const cleanMessages = messages.filter(m => m.role === 'user' || m.role === 'assistant')
-  const lastTurn = cleanMessages.slice(-2)
-  const userPrompt = cleanMessages[cleanMessages.length - 1]
+  // Fallback to empty array if messages are missing
+  const messages: ChatMessage[] = Array.isArray(body.messages) ? body.messages : []
+  
+  if (messages.length === 0) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Bad Request: Messages array cannot be empty.'
+    })
+  }
 
-  // Synthesize memory summary in background using cloud if key exists
-  const updatedSummary = config.groqApiKey 
-    ? await buildIncrementalSummary(existingSummary || '', lastTurn, config.groqApiKey)
-    : (existingSummary || 'Memory matrix synced.')
+  const targetModel = body.model || 'llama3'
+  const targetTemperature = typeof body.temperature === 'number' ? body.temperature : 0.7
+  const targetMaxTokens = typeof body.max_tokens === 'number' ? body.max_tokens : 2048
 
-  let isLocalEngineOffline = false
-
-  // ==========================================
-  // RULE 1: LOCAL SELECTION -> TRY LOCAL OLLAMA DIRECTLY
-  // ==========================================
-  if (model === 'Pro-Nana') {
+  // --- PHASE 1: TRY LOCAL OLLAMA HARD DRIVE ROUTE ---
+  if (localOllamaUrl) {
     try {
-      const ollamaRes = await fetch(`${config.homeOllamaUrl}/api/chat`, {
+      const baseSanitizedUrl = localOllamaUrl.replace(/\/$/, '')
+      const ollamaChatUrl = `${baseSanitizedUrl}/api/chat`
+
+      // Using "unknown" first, then mapping safely to handle error #1 (Type Instantiation Mismatch)
+      const ollamaRawResult = await $fetch<unknown>(ollamaChatUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'llama3',
-          messages: [
-            { 
-              role: 'system', 
-              content: `${config.bananaSystemPrompt}\nAlways output your thought process in <thinking>...</thinking> tags first, then provide your final answer.` 
-            }, 
-            userPrompt
-          ],
+        body: {
+          model: targetModel,
+          messages: messages,
+          options: {
+            temperature: targetTemperature,
+            num_predict: targetMaxTokens
+          },
           stream: false
-        }),
-        signal: AbortSignal.timeout(3000) // Fast 3-second heartbeat check
+        },
+        // 5 second timeout to cleanly handle error #5 (Network Abort / Hard drive wakeup lag)
+        timeout: 5000 
       })
 
-      if (ollamaRes.ok) {
-        const oData = await ollamaRes.json()
-        return { 
-          content: oData?.message?.content || '<thinking>Running local pipeline</thinking>Empty local engine response.', 
-          provider: 'ollama', 
-          updatedSummary 
+      const data = ollamaRawResult as any
+      if (data && data.message && data.message.content) {
+        return {
+          success: true,
+          source: 'local-ollama',
+          model: data.model || targetModel,
+          choices: [
+            {
+              index: 0,
+              message: {
+                role: 'assistant',
+                content: String(data.message.content)
+              },
+              finish_reason: 'stop'
+            }
+          ]
         }
-      } else {
-        isLocalEngineOffline = true
       }
-    } catch {
-      isLocalEngineOffline = true
+    } catch (ollamaException) {
+      // Local node is off, asleep, or timed out. Log it and gracefully slide into Groq!
+      console.warn('[Hybrid Shield]: Local engine unavailable, shifting to Groq backup cloud.')
     }
   }
 
-  // ==========================================
-  // RULE 2: ROUTING CLOUD OR TRIGGERING LOCAL FALLBACK
-  // ==========================================
-  // If the user picked a cloud model OR our local check failed, use Groq
-  if (model === 'Instant-Nana' || model === 'Logic-Nana' || isLocalEngineOffline) {
-    
-    if (!config.groqApiKey) {
+  // --- PHASE 2: FALLBACK TO GROQ CLOUD ROUTE ---
+  if (!groqApiKey) {
+    throw createError({
+      statusCode: 503,
+      statusMessage: 'Configuration Failure: Local machine is offline, and Groq Cloud API Key is missing.'
+    })
+  }
+
+  try {
+    const groqRawResult = await $fetch<unknown>('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${groqApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: {
+        model: 'llama3-8b-8192', // Groq ultra-fast fallback model
+        messages: messages,
+        temperature: targetTemperature,
+        max_tokens: targetMaxTokens,
+        stream: false
+      },
+      timeout: 10000
+    })
+
+    const data = groqRawResult as any
+    if (data && data.choices && data.choices[0]?.message?.content) {
       return {
-        content: `<thinking>System routing failed. Local computer status: OFFLINE. Cloud recovery: NO KEYS.</thinking>🚨 HIGH DEMAND WARNING: Cloud networks are currently over-capacity. Please switch on your local computer server and launch Ollama to run queries locally.`,
-        provider: 'error',
-        updatedSummary
-      }
-    }
-
-    try {
-      const systemInstructions = `${config.bananaSystemPrompt}
-[CONTEXT MEMORY MATRIX]: ${updatedSummary}
-
-You must think out loud before writing any final answer. 
-1. Always start your response with a thinking block: <thinking>your step-by-step thoughts</thinking>.
-2. If you do not know the answer or lack up-to-date facts, output inside your thinking tags: "DECISION: SEARCH [your query]".
-3. Keep final answers concise.`
-
-      // FALLBACK STRATEGY: 
-      // If we are forced to fall back due to local being offline, or if the user explicitly wants Instant,
-      // we use 'llama-3.1-8b-instant'. Only explicit requests for 'Logic-Nana' get 'deepseek-r1-distill-llama-70b'.
-      const targetCloudModel = (model === 'Pro-Nana' || model === 'Instant-Nana' || isLocalEngineOffline)
-        ? 'llama-3.1-8b-instant' 
-        : 'deepseek-r1-distill-llama-70b'
-
-      const cloudRes = await fetch('https://api.groq.com/openapi/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${config.groqApiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: targetCloudModel,
-          messages: [{ role: 'system', content: systemInstructions }, userPrompt],
-          temperature: 0.6
-        })
-      })
-
-      if (!cloudRes.ok) throw new Error("Cloud API connection failure.")
-
-      const cData = await cloudRes.json()
-      const firstResponse = cData?.choices?.[0]?.message?.content || ''
-
-      // Check if AI requested search
-      const searchMatch = firstResponse.match(/<thinking>[\s\S]*?DECISION:\s*SEARCH\s*\[(.*?)\][\s\S]*?<\/thinking>/i)
-
-      if (searchMatch && searchMatch[1] && config.tavilyApiKey) {
-        const searchQuery = searchMatch[1].trim()
-        const searchResults = await performWebSearch(searchQuery, config.tavilyApiKey)
-
-        // Web search follow-up sequence (Using rapid cloud fallback)
-        const followUpRes = await fetch('https://api.groq.com/openapi/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${config.groqApiKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'llama-3.1-8b-instant',
-            messages: [
-              { role: 'system', content: systemInstructions },
-              userPrompt,
-              { role: 'assistant', content: firstResponse },
-              { role: 'user', content: `WEB SEARCH RESULTS:\n${searchResults}\n\nIncorporate these facts and output your final updated response.` }
-            ],
-            temperature: 0.4
-          })
-        })
-
-        if (followUpRes.ok) {
-          const followUpData = await followUpRes.json()
-          let finalContent = followUpData?.choices?.[0]?.message?.content || firstResponse
-          if (isLocalEngineOffline) {
-            finalContent = `⚠️ *Note: Local computer offline. Routing via Cloud Backup (Instant-Nana).*\n\n${finalContent}`
+        success: true,
+        source: 'groq-cloud',
+        model: data.model || 'llama3-8b-8192',
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: String(data.choices[0].message.content)
+            },
+            finish_reason: data.choices[0].finish_reason || 'stop'
           }
-          return { content: finalContent, provider: 'groq', updatedSummary }
-        }
-      }
-
-      let finalContent = firstResponse
-      if (isLocalEngineOffline) {
-        finalContent = `⚠️ *Note: Local computer offline. Routing via Cloud Backup (Instant-Nana).*\n\n${finalContent}`
-      }
-      return { content: finalContent, provider: 'groq', updatedSummary }
-
-    } catch (err) {
-      return {
-        content: `<thinking>Critical network pipeline timeout. Local machine status check: OFFLINE.</thinking>⚠️ HIGH DEMAND [COMPUTER NOT ON]:
-Our cloud processing pipelines are congested with active workloads. 
-
-To bypass these queues:
-1. Boot up your local hardware node.
-2. Ensure Ollama is running on port 11434.
-3. Switch your model configuration to **Pro-Nana (Local)**.`,
-        provider: 'error',
-        updatedSummary
+        ]
       }
     }
+  } catch (groqException: any) {
+    throw createError({
+      statusCode: 502,
+      statusMessage: `Groq Cloud Execution Failure: ${groqException.message || 'Unknown network crash'}`
+    })
   }
 
-  return { content: "System router failed to resolve target configuration.", provider: "error" }
+  // Complete failure fallback safeguard
+  throw createError({
+    statusCode: 500,
+    statusMessage: 'Critical System Error: Both storage nodes and cloud fallback clusters failed to return data.'
+  })
 })

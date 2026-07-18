@@ -7,9 +7,10 @@ export default defineNuxtConfig({
     compatibilityVersion: 4
   },
 
-  // Declare global styles containing Tailwind v4 directives
+  // Global styles configuration for Tailwind v4
   css: ['~/assets/css/main.css'],
 
+  // Direct Vercel environment mapping
   runtimeConfig: {
     groqApiKey: process.env.GROQ_API_KEY || '',
     tavilyApiKey: process.env.TAVILY_API_KEY || '',
@@ -19,7 +20,6 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2026-07-17',
 
-  // Use the Vite integration for Tailwind v4 (removes legacy PostCSS compilation issues)
   vite: {
     plugins: [
       tailwindcss()
