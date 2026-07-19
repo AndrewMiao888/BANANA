@@ -48,6 +48,8 @@ const AVAILABLE_MODELS = [
   { id: "tinyllama:latest", name: "Nano-NANA", provider: "local", tier: "Instant", description: "Minimal computational framework requirement" }
 ];
 
+const TAILSCALE_MACHINE_IP = "100.124.137.97";
+const OLLAMA_TAILSCALE_ENDPOINT = `http://${TAILSCALE_MACHINE_IP}:11434/api/chat`;
 async function executeWebSearchQuery(query) {
   try {
     const searchData = await $fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
@@ -69,34 +71,39 @@ const chat_post = defineEventHandler(async (event) => {
   var _a, _b, _c, _d, _e, _f, _g, _h;
   try {
     const body = await readBody(event);
-    const { messages, selectedModelId } = body;
+    const { messages, selectedModelId, summaryContext } = body;
     if (!messages || !Array.isArray(messages)) {
-      throw createError({ statusCode: 400, statusMessage: "Malformed text array." });
+      throw createError({ statusCode: 400, statusMessage: "Malformed text history structure." });
     }
     const modelConfig = AVAILABLE_MODELS.find((m) => m.id === selectedModelId) || AVAILABLE_MODELS[0];
-    let incomingUserPrompt = ((_a = messages[messages.length - 1]) == null ? void 0 : _a.content) || "";
+    const incomingUserPrompt = ((_a = messages[messages.length - 1]) == null ? void 0 : _a.content) || "";
+    const comprehensiveSystemPrompt = `${systemPrompts.chatAgent}
+
+[HIDDEN CURRENT CORE KNOWLEDGE PACKET]:
+${summaryContext || "No historical data compiled."}`;
     const baseContextMessages = [
-      { role: "system", content: systemPrompts.chatAgent },
+      { role: "system", content: comprehensiveSystemPrompt },
       ...messages.map((m) => ({ role: m.role, content: m.content }))
     ];
     let finalResponseText = "";
-    let activeExecutionSource = `${modelConfig.name} (Local Hardware)`;
+    let activeExecutionSource = `${modelConfig.name} (Tailscale Node)`;
     if (modelConfig.provider === "local") {
       try {
-        const ollamaRes = await $fetch("http://127.0.0.1:11434/api/chat", {
+        const ollamaRes = await $fetch(OLLAMA_TAILSCALE_ENDPOINT, {
           method: "POST",
           body: { model: modelConfig.id, messages: baseContextMessages, stream: false },
-          timeout: 4e3
+          timeout: 4500
+          // 4.5s connection threshold across network tunnel mesh
         });
         finalResponseText = ((_b = ollamaRes == null ? void 0 : ollamaRes.message) == null ? void 0 : _b.content) || "";
       } catch (localErr) {
-        console.warn("Local engine offline, dropping parameters over to Cloud Framework...");
+        console.warn(`Tailscale endpoint node [${TAILSCALE_MACHINE_IP}] busy or offline. Shunting parameters over to Cloud Core...`);
       }
     }
     if (!finalResponseText) {
       const config = useRuntimeConfig();
       const targetCloudModel = modelConfig.provider === "groq" ? modelConfig.id : "llama3-8b-8192";
-      activeExecutionSource = modelConfig.provider === "groq" ? `${modelConfig.name} (Cloud)` : "Instant-NANA (Cloud Fallback)";
+      activeExecutionSource = modelConfig.provider === "groq" ? `${modelConfig.name} (Cloud Target)` : "Instant-NANA (Cloud Fallback Overdrive)";
       const groqRes = await $fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: { "Authorization": `Bearer ${config.groqApiKey}`, "Content-Type": "application/json" },
@@ -119,10 +126,10 @@ const chat_post = defineEventHandler(async (event) => {
       (trigger) => finalResponseText.toLowerCase().includes(trigger)
     );
     if (requiresWebTelemetry) {
-      console.log(`\u{1F310} Autonomous routing: Model hit verification boundaries. Initializing network data telemetry search...`);
+      console.log(`\u{1F310} Mesh Redirect: Model hit validation limits. Initializing live network search parameters...`);
       const networkTelemetryData = await executeWebSearchQuery(incomingUserPrompt);
       const patchedSearchContext = [
-        { role: "system", content: `${systemPrompts.chatAgent}
+        { role: "system", content: `${comprehensiveSystemPrompt}
 
 [LIVE SEARCH TELEMETRY DATA]:
 ${networkTelemetryData}
@@ -137,7 +144,7 @@ Integrate this data payload directly into your response parameters.` },
         body: { model: "llama3-8b-8192", messages: patchedSearchContext }
       });
       finalResponseText = ((_h = (_g = (_f = searchGroqRes == null ? void 0 : searchGroqRes.choices) == null ? void 0 : _f[0]) == null ? void 0 : _g.message) == null ? void 0 : _h.content) || finalResponseText;
-      activeExecutionSource += " + Autonomous Web Search Network";
+      activeExecutionSource += " + Autonomous Web Search";
     }
     return {
       success: true,
