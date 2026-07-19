@@ -287,7 +287,7 @@ async function executeTransmissionDirective() {
       ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
       : ''
 
-    const apiResponse = await $fetch('/server/api/chat.post', {
+const apiResponse = await $fetch('/api/chat', {
       method: 'POST',
       body: {
         messages: messages.value,
