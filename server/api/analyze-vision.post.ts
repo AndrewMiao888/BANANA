@@ -1,75 +1,73 @@
-import { defineEventHandler, readBody } from 'h3';
-import { pipeline, env } from '@huggingface/transformers';
-
-// Configuration: Allow downloading fresh weights from Hugging Face Hub if not cached locally
-env.allowLocalModels = false;
-
-let visionPipeline: any = null;
-
-/**
- * Singleton factory to ensure the AI model weights are only loaded 
- * into your computer's RAM memory once.
- */
-async function getVisionPipeline() {
-  if (!visionPipeline) {
-    console.log("\n==================================================");
-    console.log("⚡ BANANA AI CORE: Initializing Vision Pipeline...");
-    console.log("📦 Model: Xenova/vit-gpt2-image-captioning");
-    console.log("🔄 If this is your first run, downloading weights now...");
-    console.log("==================================================\n");
-    
-    // Loads the lightweight image captioning model engine
-    visionPipeline = await pipeline('image-to-text', 'Xenova/vit-gpt2-image-captioning');
-    
-    console.log("\n✅ BANANA AI CORE: Brain weights successfully loaded into memory!");
-  }
-  return visionPipeline;
-}
-
+// server/api/analyze-vision.post.ts
 export default defineEventHandler(async (event) => {
+  const body = await readBody(event)
+  const { prompt, imageBase64 } = body // imageBase64 should be format: data:image/jpeg;base64,...
+
+  // Extract base64 clean data string for Ollama layout array
+  const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '')
+
+  // 1. TRY LOCAL VISION FIRST
   try {
-    const body = await readBody(event);
-    const { imageBase64 } = body;
-
-    if (!imageBase64) {
-      return { 
-        success: false, 
-        error: "Missing image data payload. Please provide a base64 encoded image string." 
-      };
-    }
-
-    // Clean up base64 prefixes if passed from a standard HTML canvas or file reader input
-    const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
-    
-    // Convert the raw text data back into a valid binary buffer that the AI engine can look at
-    const imageBuffer = Buffer.from(cleanBase64, 'base64');
-
-    // Initialize/Get our local AI model
-    const pfn = await getVisionPipeline();
-
-    console.log("🧠 BANANA AI CORE: Processing local image buffer analysis matrices...");
-    const startTime = Date.now();
-
-    // Pass the image buffer straight to your computer's CPU/GPU processing threads
-    const result = await pfn(imageBuffer);
-    
-    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`✨ BANANA AI CORE: Generation complete in ${duration}s! Result: "${result[0]?.generated_text}"\n`);
+    const ollamaVisionResponse = await $fetch<any>('http://127.0.0.1:11434/api/generate', {
+      method: 'POST',
+      body: {
+        model: 'llava', // Standard local vision model
+        prompt: prompt,
+        images: [cleanBase64],
+        stream: false
+      },
+      timeout: 4000 // Slightly longer timeout given image processing sizes
+    })
 
     return {
       success: true,
-      engine: 'BANANA-Vision-Local-Matrix',
-      analysis: result[0]?.generated_text || "Image analyzed, but no valid token tags were extracted.",
-      computationTimeSeconds: parseFloat(duration),
-      timestamp: new Date().toISOString()
-    };
+      source: 'local-llava',
+      analysis: ollamaVisionResponse.response
+    }
 
-  } catch (error: any) {
-    console.error("❌ BANANA AI PIPELINE ERROR:", error);
-    return { 
-      success: false, 
-      error: 'Vision processing engine pipeline failure.', 
-      details: error.message 
-    };
+  } catch (localError) {
+    console.warn('Local Vision offline. Falling back to Groq Multimodal Pipeline...')
+
+    const config = useRuntimeConfig()
+    const apiKey = config.groqApiKey
+
+    if (!apiKey) {
+      throw createError({ statusCode: 503, statusMessage: 'Missing Groq API Key.' })
+    }
+
+    // 2. CLOUD VISION FALLBACK (Groq Llama-3.2 Vision)
+    try {
+      const groqVisionResponse = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: {
+          model: 'llama-3.2-11b-vision-preview', 
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: prompt },
+                { type: 'image_url', image_url: { url: imageBase64 } } // Groq handles data URIs cleanly
+              ]
+            }
+          ]
+        }
+      })
+
+      return {
+        success: true,
+        source: 'groq-vision',
+        analysis: groqVisionResponse.choices[0].message.content
+      }
+
+    } catch (cloudError: any) {
+      throw createError({
+        statusCode: cloudError.statusCode || 500,
+        statusMessage: `Cloud Vision Analysis Failed: ${cloudError.message}`
+      })
+    }
   }
-});
+})

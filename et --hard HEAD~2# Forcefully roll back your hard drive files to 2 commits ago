@@ -1,0 +1,73 @@
+[33m41c3101[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mupdates[m[33m)[m HEAD@{0}: reset: moving to HEAD~21
+[33m5e5f515[m HEAD@{1}: reset: moving to HEAD~21
+[33maa232a7[m[33m ([m[1;31morigin/updates[m[33m)[m HEAD@{2}: reset: moving to HEAD
+[33maa232a7[m[33m ([m[1;31morigin/updates[m[33m)[m HEAD@{3}: commit: Production update: 2026-07-18 12:41:50
+[33m54e1e36[m HEAD@{4}: commit: tailwind install
+[33m189870f[m HEAD@{5}: commit: fix
+[33m21655ff[m HEAD@{6}: commit: just ry it not safe try revive
+[33m60965ef[m HEAD@{7}: commit: layout and css fix not safe
+[33m11be68a[m HEAD@{8}: commit: full 7 file check and rewrite
+[33m8f313e2[m HEAD@{9}: commit: just try it
+[33m69b4101[m HEAD@{10}: commit: nuxt config fix
+[33m472f98e[m HEAD@{11}: commit: not safe do not return
+[33m80fabc3[m HEAD@{12}: commit: final features check should be safe !!!
+[33mda1e716[m HEAD@{13}: pull --tags origin updates: Fast-forward
+[33m5677fb5[m HEAD@{14}: reset: moving to HEAD~1
+[33mda1e716[m HEAD@{15}: pull --tags origin updates: Fast-forward
+[33m5e5f515[m HEAD@{16}: reset: moving to HEAD~11
+[33mda1e716[m HEAD@{17}: commit: try it out <script setup lang="ts">
+[33m5677fb5[m HEAD@{18}: commit: ygwaefouahduksjdfD?F?
+[33m968650d[m HEAD@{19}: commit: package-lock.json change automatic
+[33mc78f971[m HEAD@{20}: commit: chatgpt like
+[33mf9cfaa0[m HEAD@{21}: commit: cgpt like
+[33ma458b9e[m HEAD@{22}: commit: update urgetn
+[33mb648910[m HEAD@{23}: commit: chatgpt verfication features adding on
+[33m328370b[m HEAD@{24}: commit: update the logic gate logic 1+@$%)!
+[33medbb956[m HEAD@{25}: commit: update ui and the loacl smart system
+[33mf18074c[m HEAD@{26}: commit: override css
+[33m12f1749[m HEAD@{27}: commit: commit change see if not need to npx vercel
+[33m5e5f515[m HEAD@{28}: commit: final dev change
+[33mc90ec05[m HEAD@{29}: commit: ui and ux imrove ment safe but not EXACTLY THAT safe
+[33mfea373c[m HEAD@{30}: commit: go to post not agents
+[33m23ad9e0[m HEAD@{31}: commit: full one reverse 2 commits to get ht e safest version
+[33m60304a7[m HEAD@{32}: commit: index.vue update ux and ui
+[33m3334ad5[m HEAD@{33}: commit: remove hardcoded key
+[33m3b1a6b8[m[33m ([m[1;32mmain[m[33m)[m HEAD@{34}: checkout: moving from main to updates
+[33m3b1a6b8[m[33m ([m[1;32mmain[m[33m)[m HEAD@{35}: commit: update ux and ui and buttons
+[33mc3bf11a[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{36}: commit: prompt change self change no approval
+[33m83ae468[m HEAD@{37}: commit: agents.ts change url critical change takling
+[33mab0088a[m HEAD@{38}: commit: ollama
+[33ma100691[m HEAD@{39}: commit: AGENT IF WORK???????
+[33m514170a[m HEAD@{40}: commit: index culprit check npm vercel error try again later
+[33m5bb49af[m HEAD@{41}: commit: VERCEL IGNORE CREATE
+[33m48b5e15[m HEAD@{42}: commit: show synquara digital boss
+[33ma111464[m HEAD@{43}: commit: time to start it up!
+[33ma2ddfa9[m HEAD@{44}: commit: chatgpt gemini both say yes
+[33m871461e[m HEAD@{45}: commit: agents fix chatgpt not gem
+[33m71d77a9[m HEAD@{46}: commit: delete comment
+[33mb6993c4[m HEAD@{47}: commit: trying again with clear instructions
+[33mf6866b3[m HEAD@{48}: commit: reverse temporary
+[33m26902ef[m HEAD@{49}: commit: hello mister check 2 the index.vue file had too many redeclares
+[33m41c3101[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mupdates[m[33m)[m HEAD@{50}: commit: the one before was completely safe not sure about this one
+[33md9f48c3[m HEAD@{51}: commit: insdane 313 length test hugging
+[33m33c0d03[m HEAD@{52}: commit: not safe for now can try
+[33mf448abf[m HEAD@{53}: pull --tags origin main: Fast-forward
+[33m39e194e[m HEAD@{54}: reset: moving to 39e194e
+[33mf448abf[m HEAD@{55}: pull --tags origin main: Fast-forward
+[33mdb03672[m HEAD@{56}: reset: moving to db03672
+[33mf448abf[m HEAD@{57}: commit: i tried
+[33m4dbbf10[m HEAD@{58}: commit: just see n ?
+[33mbb8c692[m HEAD@{59}: commit: 7!?
+[33m4293931[m HEAD@{60}: commit: attempt 6 so angry be like
+[33md1d67f5[m HEAD@{61}: commit: let's go! (attempt 5)
+[33md73d6fc[m HEAD@{62}: reset: moving to d73d6fc
+[33m0c6fbd9[m HEAD@{63}: reset: moving to HEAD~2
+[33md73d6fc[m HEAD@{64}: commit: style: lock chat box position and fix scroll overflow UX
+[33mf98edf9[m HEAD@{65}: commit: style: lock chat box position and fix scroll overflow UX
+[33m0c6fbd9[m HEAD@{66}: commit: style: lock chat box position and fix scroll overflow UX
+[33mdb03672[m HEAD@{67}: commit: style: lock chat box position and fix scroll overflow UX
+[33m39e194e[m HEAD@{68}: commit: delete ??
+[33m24233a0[m HEAD@{69}: commit: More AI-ish
+[33m78f00a6[m HEAD@{70}: commit: feat: complete standalone local hugging face vision api endpoint
+[33mf5f627e[m HEAD@{71}: commit: feat: integrate local vision-language processing pipeline
+[33m68c106b[m HEAD@{72}: commit (initial): first commit
