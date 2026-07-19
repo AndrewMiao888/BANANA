@@ -2,108 +2,121 @@
 import { systemPrompts } from '~~/src/agents'
 import { AVAILABLE_MODELS } from '~~/src/models'
 
+// Simple server-side search framework to retrieve missing background context
+async function executeWebSearchQuery(query: string): Promise<string> {
+  try {
+    const searchData = await $fetch<any>(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+    })
+    
+    // Extract readable context blocks out of raw web segments securely
+    const snippets: string[] = []
+    const matchReg = /<a class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g
+    let match;
+    while ((match = matchReg.exec(searchData)) !== null && snippets.length < 4) {
+      snippets.push(match[1].replace(/<[^>]*>/g, '').trim())
+    }
+    
+    return snippets.join('\n\n')
+  } catch (err) {
+    console.error('Search Engine Tunnel dropped packet query:', err)
+    return 'No additional network telemetry found.'
+  }
+}
+
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
     const { messages, selectedModelId } = body
 
     if (!messages || !Array.isArray(messages)) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Bad Request: Conversation history matrix is missing or malformed.'
-      })
+      throw createError({ statusCode: 400, statusMessage: 'Malformed text array.' })
     }
 
-    // Match the target configuration or drop back to Instant-NANA core baseline
     const modelConfig = AVAILABLE_MODELS.find(m => m.id === selectedModelId) || AVAILABLE_MODELS[0]
+    let incomingUserPrompt = messages[messages.length - 1]?.content || ''
 
-    // Inject system persona parameters directly into structural execution path
-    const fullyContextualMessages = [
+    const baseContextMessages = [
       { role: 'system', content: systemPrompts.chatAgent },
       ...messages.map(m => ({ role: m.role, content: m.content }))
     ]
 
-    // ─── PIPELINE 1: ATTEMPT LOCAL MACHINE COMPUTATION ───────────────────
+    let finalResponseText = ''
+    let activeExecutionSource = `${modelConfig.name} (Local Hardware)`
+
+    // ─── STAGE 1: COMPUTE STRATEGY SELECTION ─────────────────────────────
     if (modelConfig.provider === 'local') {
       try {
-        const ollamaResponse = await $fetch<any>('http://127.0.0.1:11434/api/chat', {
+        const ollamaRes = await $fetch<any>('http://127.0.0.1:11434/api/chat', {
           method: 'POST',
-          body: {
-            model: modelConfig.id,
-            messages: fullyContextualMessages,
-            stream: false
-          },
-          timeout: 4000 // 4 second connection breaker limit for quick re-routing
+          body: { model: modelConfig.id, messages: baseContextMessages, stream: false },
+          timeout: 4000
         })
-
-        if (ollamaResponse?.message) {
-          return {
-            success: true,
-            source: `${modelConfig.name} (Local Hardware)`,
-            message: {
-              role: 'assistant',
-              content: ollamaResponse.message.content
-            }
-          }
-        }
-      } catch (localError) {
-        console.warn(`Local channel [${modelConfig.name}] timed out or offline. Shunting traffic to Cloud Core...`)
+        finalResponseText = ollamaRes?.message?.content || ''
+      } catch (localErr) {
+        console.warn('Local engine offline, dropping parameters over to Cloud Framework...')
       }
     }
 
-    // ─── PIPELINE 2: EMERGENCY/DEFAULT CLOUD FALLBACK (GROQ) ───────────
-    const config = useRuntimeConfig()
-    const apiKey = config.groqApiKey
+    // If local was offline or empty, resolve directly via Groq baseline
+    if (!finalResponseText) {
+      const config = useRuntimeConfig()
+      const targetCloudModel = modelConfig.provider === 'groq' ? modelConfig.id : 'llama3-8b-8192'
+      activeExecutionSource = modelConfig.provider === 'groq' ? `${modelConfig.name} (Cloud)` : 'Instant-NANA (Cloud Fallback)'
 
-    if (!apiKey) {
-      throw createError({
-        statusCode: 503,
-        statusMessage: 'Cloud Framework Failure: Runtime verification token missing.'
-      })
-    }
-
-    // Route to the specifically chosen Cloud engine, or use the high-availability backup
-    const targetCloudModel = modelConfig.provider === 'groq' ? modelConfig.id : 'llama3-8b-8192'
-
-    try {
-      const groqResponse = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
+      const groqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: {
-          model: targetCloudModel,
-          messages: fullyContextualMessages
-        }
+        headers: { 'Authorization': `Bearer ${config.groqApiKey}`, 'Content-Type': 'application/json' },
+        body: { model: targetCloudModel, messages: baseContextMessages }
       })
-
-      if (groqResponse?.choices?.[0]?.message) {
-        return {
-          success: true,
-          source: modelConfig.provider === 'groq' 
-            ? `${modelConfig.name} (Direct Cloud)` 
-            : 'Instant-NANA (Cloud Fallback Overdrive)',
-          message: {
-            role: 'assistant',
-            content: groqResponse.choices[0].message.content
-          }
-        }
-      }
-      
-      throw new Error('Upstream buffer empty.')
-
-    } catch (cloudError: any) {
-      throw createError({
-        statusCode: cloudError.statusCode || 500,
-        statusMessage: `All computational networks exhausted: ${cloudError.message}`
-      })
+      finalResponseText = groqRes?.choices?.[0]?.message?.content || ''
     }
 
-  } catch (globalError: any) {
+    // ─── STAGE 2: AUTONOMOUS REAL-TIME SEARCH ENGINE CHECK ──────────────
+    const searchTriggers = [
+      "i don't know", "i do not know", "don't have real-time", "unknown context", 
+      "need to search", "information cut-off", "current data is unavailable", 
+      "cannot verify", "well, i don't know the answer"
+    ]
+
+    const requiresWebTelemetry = searchTriggers.some(trigger => 
+      finalResponseText.toLowerCase().includes(trigger)
+    )
+
+    if (requiresWebTelemetry) {
+      console.log(`🌐 Autonomous routing: Model hit verification boundaries. Initializing network data telemetry search...`)
+      
+      // Auto-extract query strings or pass the active conversation statement directly
+      const networkTelemetryData = await executeWebSearchQuery(incomingUserPrompt)
+      
+      // Inject network updates to build a revised contextual logic path
+      const patchedSearchContext = [
+        { role: 'system', content: `${systemPrompts.chatAgent}\n\n[LIVE SEARCH TELEMETRY DATA]:\n${networkTelemetryData}\n\nIntegrate this data payload directly into your response parameters.` },
+        ...messages.map(m => ({ role: m.role, content: m.content }))
+      ]
+
+      const config = useRuntimeConfig()
+      const searchGroqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${config.groqApiKey}`, 'Content-Type': 'application/json' },
+        body: { model: 'llama3-8b-8192', messages: patchedSearchContext }
+      })
+
+      finalResponseText = searchGroqRes?.choices?.[0]?.message?.content || finalResponseText
+      activeExecutionSource += ' + Autonomous Web Search Network'
+    }
+
+    // ─── STAGE 3: RETURN FINAL RESPONSE DATA ─────────────────────────────
+    return {
+      success: true,
+      source: activeExecutionSource,
+      message: { role: 'assistant', content: finalResponseText }
+    }
+
+  } catch (err: any) {
     throw createError({
-      statusCode: globalError.statusCode || 500,
-      statusMessage: `Core Orchestrator Interrupted: ${globalError.statusMessage || globalError.message}`
+      statusCode: 500,
+      statusMessage: `Orchestrator failed to allocate model matrices: ${err.message}`
     })
   }
 })
