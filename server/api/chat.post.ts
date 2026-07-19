@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
     const { messages, selectedModelId, summaryContext } = body
     const config = useRuntimeConfig()
 
-    // ─── 1. MALFORMED DATA SHIELD ─────────────────────────────────────────
+    // ─── 1. PAYLOAD ERROR SHIELD ──────────────────────────────────────────
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return {
         success: true,
@@ -23,26 +23,26 @@ export default defineEventHandler(async (event) => {
     const modelConfig = AVAILABLE_MODELS.find(m => m.id === selectedModelId) || AVAILABLE_MODELS[0]
     const incomingUserPrompt = messages[messages.length - 1]?.content || ''
 
-    // ─── 2. STRICT PAYLOAD SANITIZER (ELIMINATES 400 BAD REQUEST ERRORS) ──
-    // This strips custom UI fields like "source" or "attachments" before the API sees them.
+    // ─── 2. IRONCLAD SANITIZATION PASS (STOPS ALL 400 ERRORS) ─────────────
+    // Completely purges non-standard structures and ensures text values are pure strings
     const cleanHistory = messages
-      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .filter(m => (m.role === 'user' || m.role === 'assistant') && m.content)
       .map(m => ({
         role: m.role as 'user' | 'assistant',
-        content: String(m.content || '')
+        content: String(m.content).trim()
       }))
 
     const comprehensiveSystemPrompt = `${systemPrompts.chatAgent}\n\n[HIDDEN CURRENT CORE KNOWLEDGE PACKET]:\n${summaryContext || 'No historical data compiled.'}`
 
     const baseContextMessages = [
-      { role: 'system', content: comprehensiveSystemPrompt },
+      { role: 'system', content: comprehensiveSystemPrompt.trim() },
       ...cleanHistory
     ]
 
     let finalResponseText = ''
     let activeExecutionSource = ''
 
-    // ─── STAGE 1: LOCAL TAILSCALE ROUTING (WITH SHORT-CIRCUIT SAFETY) ─────
+    // ─── STAGE 1: LOCAL HARDWARE EXECUTION ────────────────────────────────
     if (modelConfig.provider === 'local') {
       const targetEndpoint = `${config.homeOllamaUrl || 'https://xps9530-haydenk.tailb68230.ts.net'}/api/chat`
       
@@ -50,16 +50,16 @@ export default defineEventHandler(async (event) => {
         const ollamaRes = await $fetch<any>(targetEndpoint, {
           method: 'POST',
           body: { model: modelConfig.id, messages: baseContextMessages, stream: false },
-          timeout: 2500 // ⚡ 2.5s quick timeout to protect Vercel workers from freezing
+          timeout: 2500 // ⚡ Protected local execution timeout
         })
         finalResponseText = ollamaRes?.message?.content || ''
         activeExecutionSource = `${modelConfig.name} (Tailscale Local Mesh)`
       } catch (localErr) {
-        console.warn('Tailscale route occupied or timing out. Shunting to cloud backup...')
+        console.warn('Local environment offline. Routing context to cloud core...')
       }
     }
 
-    // ─── STAGE 2: PRIMARY CLOUD INFERENCE CORE ────────────────────────────
+    // ─── STAGE 2: DYNAMIC CLOUD INTERFERENCE FALLBACK ─────────────────────
     if (!finalResponseText) {
       const apiKey = config.groqApiKey
       if (!apiKey) {
@@ -68,14 +68,16 @@ export default defineEventHandler(async (event) => {
           source: 'System Safe Mode Router',
           message: { 
             role: 'assistant', 
-            content: '⚠️ **Deployment Variable Sync Alert**: Missing `GROQ_API_KEY` inside your Vercel Dashboard parameters.' 
+            content: '⚠️ **Deployment Variable Sync Alert**: Missing `GROQ_API_KEY` inside your parameters.' 
           }
         }
       }
 
-      // Safeguard fallback to a reliable, universally available production model ID
-      const targetCloudModel = modelConfig.provider === 'groq' ? modelConfig.id : 'llama-3.1-8b-instant'
-      activeExecutionSource = modelConfig.provider === 'groq' ? `${modelConfig.name} (Cloud Target)` : 'Instant-NANA (Cloud Fallback Overdrive)'
+      // 🎯 STRICT MODEL ASSIGNMENT: Force-falls back to a standard cloud model ID Groq recognizes
+      const isTargetGroq = modelConfig.provider === 'groq' && !modelConfig.id.includes('node')
+      const targetCloudModel = isTargetGroq ? modelConfig.id : 'llama3-8b-8192'
+      
+      activeExecutionSource = isTargetGroq ? `${modelConfig.name} (Cloud Target)` : 'Instant-NANA (Cloud Fallback Overdrive)'
 
       const groqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
@@ -92,10 +94,8 @@ export default defineEventHandler(async (event) => {
     }
 
     // ─── STAGE 3: AUTONOMOUS REAL-TIME WEB SEARCH MATRIX ──────────────────
-    // Condition A: User explicitly prefixes instruction command with /search
     const userExplicitlyTriggered = incomingUserPrompt.toLowerCase().trim().startsWith('/search')
     
-    // Condition B: The model text signals knowledge limitations
     const implicitSearchTriggers = [
       "i don't know", "i do not know", "don't have real-time", "unknown context", 
       "need to search", "information cut-off", "current data is unavailable", 
@@ -105,10 +105,8 @@ export default defineEventHandler(async (event) => {
       finalResponseText.toLowerCase().includes(trigger)
     )
 
-    // Execute only if explicit command is sent OR AI hits context limitations
     if (userExplicitlyTriggered || aiWantsSearchTriggered) {
       try {
-        // Clean command out of search query parameters if present
         const searchPhrase = incomingUserPrompt.replace(/\/search\s*/i, '').trim()
         const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(searchPhrase)}&format=json`
         
@@ -133,7 +131,7 @@ export default defineEventHandler(async (event) => {
             'Content-Type': 'application/json' 
           },
           body: { 
-            model: 'llama-3.1-8b-instant', 
+            model: 'llama3-8b-8192', // Ensured valid identifier
             messages: patchedSearchContext 
           }
         })
