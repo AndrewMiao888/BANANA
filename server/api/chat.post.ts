@@ -60,7 +60,7 @@ export default defineEventHandler(async (event) => {
           source: 'System Safe Mode Router',
           message: { 
             role: 'assistant', 
-            content: '⚠️ **Deployment Variable Sync Alert**: Missing `GROQ_API_KEY` inside your Vercel Dashboard parameters. Please check your cloud configuration settings.' 
+            content: '⚠️ **Deployment Variable Sync Alert**: Missing `GROQ_API_KEY` inside your Vercel Dashboard parameters.' 
           }
         }
       }
@@ -68,13 +68,28 @@ export default defineEventHandler(async (event) => {
       const targetCloudModel = modelConfig.provider === 'groq' ? modelConfig.id : 'llama3-8b-8192'
       activeExecutionSource = modelConfig.provider === 'groq' ? `${modelConfig.name} (Cloud Target)` : 'Instant-NANA (Cloud Fallback Overdrive)'
 
+      // 🧼 SANITIZATION MATRIX: Strips UI-specific variables (attachments, source) 
+      // and ensures roles are purely 'system', 'user', or 'assistant'
+      const sanitizedGroqMessages = [
+        { role: 'system', content: comprehensiveSystemPrompt },
+        ...messages
+          .filter(m => m.role === 'user' || m.role === 'assistant')
+          .map(m => ({
+            role: m.role,
+            content: m.content || ''
+          }))
+      ]
+
       const groqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${apiKey}`, 
           'Content-Type': 'application/json' 
         },
-        body: { model: targetCloudModel, messages: baseContextMessages }
+        body: { 
+          model: targetCloudModel, 
+          messages: sanitizedGroqMessages // Use the cleaned array here!
+        }
       })
       finalResponseText = groqRes?.choices?.[0]?.message?.content || ''
     }
