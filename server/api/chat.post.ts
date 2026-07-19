@@ -2,7 +2,7 @@
 import { systemPrompts } from '~~/src/agents'
 import { AVAILABLE_MODELS } from '~~/src/models'
 
-// 🎛️ CONFIGURATION PARAMETER: Your permanent, unlimited Tailscale Funnel gateway
+// 🎛️ CONFIGURATION PARAMETER: Central Tailscale public network funnel gateway
 const OLLAMA_TAILSCALE_ENDPOINT = 'https://xps9530-haydenk.tailb68230.ts.net/api/chat'
 
 async function executeWebSearchQuery(query: string): Promise<string> {
@@ -28,7 +28,7 @@ async function executeWebSearchQuery(query: string): Promise<string> {
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
-    // 🧠 FIXED: Pulled summaryContext cleanly from your incoming message body payload
+    // 🧠 Grab hidden running memory state alongside dialogue arrays
     const { messages, selectedModelId, summaryContext } = body
 
     if (!messages || !Array.isArray(messages)) {
@@ -55,11 +55,11 @@ export default defineEventHandler(async (event) => {
         const ollamaRes = await $fetch<any>(OLLAMA_TAILSCALE_ENDPOINT, {
           method: 'POST',
           body: { model: modelConfig.id, messages: baseContextMessages, stream: false },
-          timeout: 7000 // 7s threshold to allow cloud to tunnel smoothly down to local hardware
+          timeout: 9000 // Extended network response window threshold
         })
         finalResponseText = ollamaRes?.message?.content || ''
       } catch (localErr) {
-        console.warn('Tailscale Funnel node busy or adjusting routing rules. Shunting parameters over to Cloud Core...')
+        console.warn('Tailscale Funnel connection route deferred. Shunting parameters over to Cloud Core...')
       }
     }
 
@@ -89,7 +89,7 @@ export default defineEventHandler(async (event) => {
     )
 
     if (requiresWebTelemetry) {
-      console.log(`🌐 Mesh Redirect: Model hit validation limits. Initializing live network search parameters...`)
+      console.log(`🌐 Mesh Redirect: Initializing live network search parameters...`)
       
       const networkTelemetryData = await executeWebSearchQuery(incomingUserPrompt)
       

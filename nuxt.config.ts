@@ -24,5 +24,16 @@ export default defineNuxtConfig({
     plugins: [
       tailwindcss()
     ]
-  }
+  },
+
+  // 🚀 Nitro Engine Tuning Layer added on without altering your top configurations
+  ...({
+    nitro: {
+      vercel: {
+        functions: {
+          maxDuration: 60
+        }
+      }
+    }
+  } as any)
 })
