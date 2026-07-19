@@ -2,9 +2,8 @@
 import { systemPrompts } from '~~/src/agents'
 import { AVAILABLE_MODELS } from '~~/src/models'
 
-// 🎛️ CONFIGURATION PARAMETER: Central Tailscale private network mesh routing map
-const TAILSCALE_MACHINE_IP = '100.124.137.97'
-const OLLAMA_TAILSCALE_ENDPOINT = `http://${TAILSCALE_MACHINE_IP}:11434/api/chat`
+// 🎛️ CONFIGURATION PARAMETER: Your permanent, unlimited Tailscale Funnel gateway
+const OLLAMA_TAILSCALE_ENDPOINT = 'https://xps9530-haydenk.tailb68230.ts.net/api/chat'
 
 async function executeWebSearchQuery(query: string): Promise<string> {
   try {
@@ -29,6 +28,7 @@ async function executeWebSearchQuery(query: string): Promise<string> {
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
+    // 🧠 FIXED: Pulled summaryContext cleanly from your incoming message body payload
     const { messages, selectedModelId, summaryContext } = body
 
     if (!messages || !Array.isArray(messages)) {
@@ -49,17 +49,17 @@ export default defineEventHandler(async (event) => {
     let finalResponseText = ''
     let activeExecutionSource = `${modelConfig.name} (Tailscale Node)`
 
-    // ─── STAGE 1: COMPUTE STRATEGY VIA TAILSCALE LOOP ──────────────────
+    // ─── STAGE 1: COMPUTE STRATEGY VIA TAILSCALE FUNNEL ──────────────────
     if (modelConfig.provider === 'local') {
       try {
         const ollamaRes = await $fetch<any>(OLLAMA_TAILSCALE_ENDPOINT, {
           method: 'POST',
           body: { model: modelConfig.id, messages: baseContextMessages, stream: false },
-          timeout: 4500 // 4.5s connection threshold across network tunnel mesh
+          timeout: 7000 // 7s threshold to allow cloud to tunnel smoothly down to local hardware
         })
         finalResponseText = ollamaRes?.message?.content || ''
       } catch (localErr) {
-        console.warn(`Tailscale endpoint node [${TAILSCALE_MACHINE_IP}] busy or offline. Shunting parameters over to Cloud Core...`)
+        console.warn('Tailscale Funnel node busy or adjusting routing rules. Shunting parameters over to Cloud Core...')
       }
     }
 

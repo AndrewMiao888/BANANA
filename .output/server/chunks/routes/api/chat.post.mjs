@@ -48,8 +48,7 @@ const AVAILABLE_MODELS = [
   { id: "tinyllama:latest", name: "Nano-NANA", provider: "local", tier: "Instant", description: "Minimal computational framework requirement" }
 ];
 
-const TAILSCALE_MACHINE_IP = "100.124.137.97";
-const OLLAMA_TAILSCALE_ENDPOINT = `http://${TAILSCALE_MACHINE_IP}:11434/api/chat`;
+const OLLAMA_TAILSCALE_ENDPOINT = "https://xps9530-haydenk.tailb68230.ts.net/api/chat";
 async function executeWebSearchQuery(query) {
   try {
     const searchData = await $fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
@@ -92,12 +91,12 @@ ${summaryContext || "No historical data compiled."}`;
         const ollamaRes = await $fetch(OLLAMA_TAILSCALE_ENDPOINT, {
           method: "POST",
           body: { model: modelConfig.id, messages: baseContextMessages, stream: false },
-          timeout: 4500
-          // 4.5s connection threshold across network tunnel mesh
+          timeout: 7e3
+          // 7s threshold to allow cloud to tunnel smoothly down to local hardware
         });
         finalResponseText = ((_b = ollamaRes == null ? void 0 : ollamaRes.message) == null ? void 0 : _b.content) || "";
       } catch (localErr) {
-        console.warn(`Tailscale endpoint node [${TAILSCALE_MACHINE_IP}] busy or offline. Shunting parameters over to Cloud Core...`);
+        console.warn("Tailscale Funnel node busy or adjusting routing rules. Shunting parameters over to Cloud Core...");
       }
     }
     if (!finalResponseText) {
