@@ -23,8 +23,7 @@ export default defineEventHandler(async (event) => {
     const modelConfig = AVAILABLE_MODELS.find(m => m.id === selectedModelId) || AVAILABLE_MODELS[0]
     const incomingUserPrompt = messages[messages.length - 1]?.content || ''
 
-    // ─── 2. IRONCLAD SANITIZATION PASS (STOPS ALL 400 ERRORS) ─────────────
-    // Completely purges non-standard structures and ensures text values are pure strings
+    // ─── 2. SANITIZATION PASS (STOPS ALL 400 EMPTY-VALUE SCHEMA BLOCKS) ───
     const cleanHistory = messages
       .filter(m => (m.role === 'user' || m.role === 'assistant') && m.content)
       .map(m => ({
@@ -43,14 +42,14 @@ export default defineEventHandler(async (event) => {
     let activeExecutionSource = ''
 
     // ─── STAGE 1: LOCAL HARDWARE EXECUTION ────────────────────────────────
-    if (modelConfig.provider === 'local') {
+    if (modelConfig && modelConfig.provider === 'local') {
       const targetEndpoint = `${config.homeOllamaUrl || 'https://xps9530-haydenk.tailb68230.ts.net'}/api/chat`
       
       try {
         const ollamaRes = await $fetch<any>(targetEndpoint, {
           method: 'POST',
           body: { model: modelConfig.id, messages: baseContextMessages, stream: false },
-          timeout: 2500 // ⚡ Protected local execution timeout
+          timeout: 2500 
         })
         finalResponseText = ollamaRes?.message?.content || ''
         activeExecutionSource = `${modelConfig.name} (Tailscale Local Mesh)`
@@ -59,7 +58,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // ─── STAGE 2: DYNAMIC CLOUD INTERFERENCE FALLBACK ─────────────────────
+    // ─── STAGE 2: CLOUD OVERDRIVE PLATFORM CHANNELS ───────────────────────
     if (!finalResponseText) {
       const apiKey = config.groqApiKey
       if (!apiKey) {
@@ -73,9 +72,9 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-      // 🎯 STRICT MODEL ASSIGNMENT: Force-falls back to a standard cloud model ID Groq recognizes
-      const isTargetGroq = modelConfig.provider === 'groq' && !modelConfig.id.includes('node')
-      const targetCloudModel = isTargetGroq ? modelConfig.id : 'llama3-8b-8192'
+      // 🎯 MODERATION CHECK: Route strictly away from deprecated IDs using active 2026 strings
+      const isTargetGroq = modelConfig && modelConfig.provider === 'groq' && !modelConfig.id.includes('node')
+      const targetCloudModel = isTargetGroq ? modelConfig.id : 'openai/gpt-oss-20b'
       
       activeExecutionSource = isTargetGroq ? `${modelConfig.name} (Cloud Target)` : 'Instant-NANA (Cloud Fallback Overdrive)'
 
@@ -99,7 +98,7 @@ export default defineEventHandler(async (event) => {
     const implicitSearchTriggers = [
       "i don't know", "i do not know", "don't have real-time", "unknown context", 
       "need to search", "information cut-off", "current data is unavailable", 
-      "cannot verify", "well, i don't know the answer"
+      "cannot verify", "well, i don't know the answer", "latest weather", "currently in tokyo"
     ]
     const aiWantsSearchTriggered = implicitSearchTriggers.some(trigger => 
       finalResponseText.toLowerCase().includes(trigger)
@@ -131,7 +130,7 @@ export default defineEventHandler(async (event) => {
             'Content-Type': 'application/json' 
           },
           body: { 
-            model: 'llama3-8b-8192', // Ensured valid identifier
+            model: 'openai/gpt-oss-20b', 
             messages: patchedSearchContext 
           }
         })
