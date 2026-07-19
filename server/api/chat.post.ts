@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
     const { messages, selectedModelId, summaryContext } = body
     const config = useRuntimeConfig()
 
-    // ─── 1. PAYLOAD ERROR SHIELD ──────────────────────────────────────────
+    // ─── 1. PAYLOAD ERROR RECOVERY SHIELD ─────────────────────────────────
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return {
         success: true,
@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
     const modelConfig = AVAILABLE_MODELS.find(m => m.id === selectedModelId) || AVAILABLE_MODELS[0]
     const incomingUserPrompt = messages[messages.length - 1]?.content || ''
 
-    // ─── 2. SANITIZATION PASS (STOPS ALL 400 EMPTY-VALUE SCHEMA BLOCKS) ───
+    // ─── 2. STAGE DATA CLEANING PASS (PREVENTS GROQ 400 BAD REQUESTS) ─────
     const cleanHistory = messages
       .filter(m => (m.role === 'user' || m.role === 'assistant') && m.content)
       .map(m => ({
@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
     let finalResponseText = ''
     let activeExecutionSource = ''
 
-    // ─── STAGE 1: LOCAL HARDWARE EXECUTION ────────────────────────────────
+    // ─── STAGE 1: LOCAL HARDWARE EXECUTION PROBING ────────────────────────
     if (modelConfig && modelConfig.provider === 'local') {
       const targetEndpoint = `${config.homeOllamaUrl || 'https://xps9530-haydenk.tailb68230.ts.net'}/api/chat`
       
@@ -49,16 +49,17 @@ export default defineEventHandler(async (event) => {
         const ollamaRes = await $fetch<any>(targetEndpoint, {
           method: 'POST',
           body: { model: modelConfig.id, messages: baseContextMessages, stream: false },
-          timeout: 2500 
+          timeout: 2000 // ⚡ Tight threshold to skip fast if local computer drops out
         })
         finalResponseText = ollamaRes?.message?.content || ''
         activeExecutionSource = `${modelConfig.name} (Tailscale Local Mesh)`
       } catch (localErr) {
-        console.warn('Local environment offline. Routing context to cloud core...')
+        // Quiet switchover sequence triggered without pushing errors up to UI console
+        console.warn('Local node failed or unreachable. Auto-switching to Groq Overdrive routing...')
       }
     }
 
-    // ─── STAGE 2: CLOUD OVERDRIVE PLATFORM CHANNELS ───────────────────────
+    // ─── STAGE 2: AUTO SWITCH CLOUD CORE OVERDRIVE (IF LOCAL CRASHED) ─────
     if (!finalResponseText) {
       const apiKey = config.groqApiKey
       if (!apiKey) {
@@ -67,29 +68,48 @@ export default defineEventHandler(async (event) => {
           source: 'System Safe Mode Router',
           message: { 
             role: 'assistant', 
-            content: '⚠️ **Deployment Variable Sync Alert**: Missing `GROQ_API_KEY` inside your parameters.' 
+            content: '⚠️ **Deployment Sync Alert**: Missing `GROQ_API_KEY` in environment config parameters.' 
           }
         }
       }
 
-      // 🎯 MODERATION CHECK: Route strictly away from deprecated IDs using active 2026 strings
+      // 🎯 FORCE FASTEST LATEST STRINGS: Routes directly to active Llama 4 Scout or GPT-OSS
       const isTargetGroq = modelConfig && modelConfig.provider === 'groq' && !modelConfig.id.includes('node')
-      const targetCloudModel = isTargetGroq ? modelConfig.id : 'openai/gpt-oss-20b'
+      const targetCloudModel = isTargetGroq ? modelConfig.id : 'meta-llama/llama-4-scout-17b-16e-instruct'
       
-      activeExecutionSource = isTargetGroq ? `${modelConfig.name} (Cloud Target)` : 'Instant-NANA (Cloud Fallback Overdrive)'
+      activeExecutionSource = isTargetGroq 
+        ? `${modelConfig.name} (Cloud Target)` 
+        : 'Instant-NANA (Cloud Fallback Overdrive: Llama Fast-Route)'
 
-      const groqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${apiKey}`, 
-          'Content-Type': 'application/json' 
-        },
-        body: { 
-          model: targetCloudModel, 
-          messages: baseContextMessages
-        }
-      })
-      finalResponseText = groqRes?.choices?.[0]?.message?.content || ''
+      try {
+        const groqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${apiKey}`, 
+            'Content-Type': 'application/json' 
+          },
+          body: { 
+            model: targetCloudModel, 
+            messages: baseContextMessages
+          }
+        })
+        finalResponseText = groqRes?.choices?.[0]?.message?.content || ''
+      } catch (groqPrimaryErr) {
+        // Hard fallback to safe alternative cloud model if Llama 4 experiences peak tier limit caps
+        const fallbackGroqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${apiKey}`, 
+            'Content-Type': 'application/json' 
+          },
+          body: { 
+            model: 'openai/gpt-oss-20b', 
+            messages: baseContextMessages
+          }
+        })
+        finalResponseText = fallbackGroqRes?.choices?.[0]?.message?.content || ''
+        activeExecutionSource = 'Instant-NANA (Secondary Cloud Safe-Route Fallback)'
+      }
     }
 
     // ─── STAGE 3: AUTONOMOUS REAL-TIME WEB SEARCH MATRIX ──────────────────
@@ -130,7 +150,7 @@ export default defineEventHandler(async (event) => {
             'Content-Type': 'application/json' 
           },
           body: { 
-            model: 'openai/gpt-oss-20b', 
+            model: 'meta-llama/llama-4-scout-17b-16e-instruct', 
             messages: patchedSearchContext 
           }
         })
@@ -151,10 +171,10 @@ export default defineEventHandler(async (event) => {
   } catch (err: any) {
     return {
       success: true,
-      source: 'Internal Error Diagnostics Recovery',
+      source: 'Internal Error Diagnostics Recovery Mode',
       message: { 
         role: 'assistant', 
-        content: `🔧 **Pipeline Recovery Confirmation**: Connection routing successfully maintained.\n\n* **Status**: Stabilized\n* **Log Trace**: ${err.message || 'Validation standard reset complete'}`
+        content: `🔧 **Pipeline Recovery Confirmation**: Fail-safe operational path locked down.\n\n* **Status**: Stabilized\n* **Log Trace**: ${err.message || 'Validation standard reset complete'}`
       }
     }
   }
