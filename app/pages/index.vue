@@ -1,357 +1,356 @@
-<script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
-
-interface Message {
-  role: 'user' | 'assistant' | 'system'
-  content: string
-  source?: string
-  attachments?: string[]
-}
-
-interface ModelOption {
-  id: string
-  name: string
-  provider: 'local' | 'groq'
-  tier: string
-  description: string
-}
-
-// UI Window & State Anchors
-const isSidebarOpen = ref(true)
-const messages = ref<Message[]>([])
-const inputMessage = ref('')
-const isLoading = ref(false)
-const networkStatus = ref<'ONLINE' | 'OFFLINE' | 'CHECKING...'>('CHECKING...')
-const scrollContainer = ref<HTMLElement | null>(null)
-
-// 🧠 Hidden Internal Knowledge Matrix (Passed to AI Core, Hidden from UI Chat Stream)
-const runningSummary = ref<string>('No historical knowledge captured yet.')
-const longTermMemories = ref<string[]>([])
-
-// Telemetry Asset Attachments
-const isRecording = ref(false)
-const selectedFiles = ref<{ name: string; base64: string }[]>([])
-const fileInputRef = ref<HTMLInputElement | null>(null)
-
-// Model Processing Pools
-const availableModels = ref<ModelOption[]>([])
-const selectedModelId = ref('llama3-8b-8192')
-
-let activeAbortController: AbortController | null = null
-
-const autoScrollToBottom = async () => {
-  await nextTick()
-  if (scrollContainer.value) {
-    scrollContainer.value.scrollTop = scrollContainer.value.scrollHeight
-  }
-}
-
-// 📡 Sync hardware models and verify connection structure
-const syncNetworkHardware = async () => {
-  try {
-    const data = await $fetch<{ localComputerStatus: 'ONLINE' | 'OFFLINE'; models: ModelOption[] }>('/api/models')
-    networkStatus.value = data.localComputerStatus
-    availableModels.value = data.models
-    
-    const isValidSelection = data.models.some(m => m.id === selectedModelId.value)
-    if (!isValidSelection && data.models[0]) {
-      selectedModelId.value = data.models[0].id
-    }
-
-    await updateSystemSummaryState()
-  } catch (err) {
-    console.error('Tailscale Network Discovery Failure:', err)
-    networkStatus.value = 'OFFLINE'
-  }
-}
-
-// 🧠 Background Memory Aggregation Core
-const updateSystemSummaryState = async () => {
-  try {
-    const data = await $fetch<any>('/api/memory-sync', {
-      method: 'POST',
-      body: {
-        messages: messages.value,
-        isLocalComputerOn: networkStatus.value === 'ONLINE',
-        currentSummary: runningSummary.value
-      }
-    })
-    if (data.success) {
-      runningSummary.value = data.summary
-      if (data.extractedMemories) {
-        longTermMemories.value = [...longTermMemories.value, ...data.extractedMemories]
-      }
-    }
-  } catch (e) {
-    console.warn('Memory telemetry system sync deferred.', e)
-  }
-}
-
-// 📁 Asset Drop Logic
-const handleFileTrigger = () => {
-  fileInputRef.value?.click()
-}
-
-const onFileChange = (e: Event) => {
-  const target = e.target as HTMLInputElement
-  if (!target.files) return
-
-  Array.from(target.files).forEach(file => {
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        selectedFiles.value.push({
-          name: file.name,
-          base64: event.target.result as string
-        })
-      }
-    }
-    reader.readAsDataURL(file)
-  })
-}
-
-const removeFile = (index: number) => {
-  selectedFiles.value.splice(index, 1)
-}
-
-// 🎙️ Voice Core Simulation
-const toggleMicrophone = () => {
-  if (isRecording.value) {
-    isRecording.value = false
-    inputMessage.value += (inputMessage.value ? ' ' : '') + '[Transcribed Tailscale Audio Packet]'
-  } else {
-    isRecording.value = true
-  }
-}
-
-// 🛑 Break Generation Cycle
-const stopGenerationPipeline = () => {
-  if (activeAbortController) {
-    activeAbortController.abort()
-    activeAbortController = null
-    isLoading.value = false
-    messages.value.push({
-      role: 'system',
-      content: '🔧 OPERATOR OVERRIDE: Execution pipeline forced termination.'
-    })
-    autoScrollToBottom()
-  }
-}
-
-// 🔍 Structural Parser Framework: Resolves Code blocks, Markdown, and KaTeX styles properly
-const parseRichContent = (text: string) => {
-  if (!text) return ''
-  
-  let formatted = text
-    .replace(/\$\$(.*?)\$\$/gs, '<div class="my-3 p-3 bg-slate-950 rounded border border-slate-800 text-center font-serif text-emerald-300 overflow-x-auto">$$1</div>')
-    .replace(/\\\[(.*?)\\\]/gs, '<div class="my-3 p-3 bg-slate-950 rounded border border-slate-800 text-center font-serif text-emerald-300 overflow-x-auto">$$1</div>')
-    .replace(/\$(.*?)\$/g, '<span class="px-1 py-0.5 bg-slate-950 text-emerald-300 font-serif rounded">$1</span>')
-    .replace(/\\\((.*?)\\\)/g, '<span class="px-1 py-0.5 bg-slate-950 text-emerald-300 font-serif rounded">$1</span>')
-    .replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
-      return `<div class="my-4 bg-slate-950 rounded border border-slate-800 overflow-hidden font-mono text-left">
-        <div class="bg-slate-900 px-4 py-1.5 border-b border-slate-800 flex justify-between text-[10px] text-slate-400 select-none uppercase tracking-wider">
-          <span>${lang || 'CODE_BLOCK'}</span>
-          <span class="text-emerald-500/50">RENDERED_SUCCESS</span>
-        </div>
-        <pre class="p-4 overflow-x-auto text-slate-200 text-xs select-text"><code>${code.trim()}</code></pre>
-      </div>`
-    })
-    .replace(/`([^`\n]+)`/g, '<code class="px-1.5 py-0.5 bg-slate-950 border border-slate-800 text-rose-400 font-mono rounded select-text">$1</code>')
-    .replace(/^### (.*$)/gim, '<h3 class="text-slate-100 font-bold text-sm mt-4 mb-2 tracking-wide font-sans">■ $1</h3>')
-    .replace(/^## (.*$)/gim, '<h2 class="text-emerald-400 font-black text-base mt-5 mb-2.5 tracking-wider font-sans">⚡ $1</h2>')
-    .replace(/^# (.*$)/gim, '<h1 class="text-emerald-400 font-black text-lg mt-6 mb-3 border-b border-slate-800 pb-1 tracking-widest font-sans">$1</h1>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-emerald-400 font-bold">$1</strong>')
-
-  return formatted
-}
-
-// 🚀 Core Processing Signal Dispatch
-const handleExecutePipeline = async () => {
-  const sanitizedPrompt = inputMessage.value.trim()
-  if (!sanitizedPrompt && selectedFiles.value.length === 0 || isLoading.value) return
-
-  const attachments = selectedFiles.value.map(f => f.name)
-  const base64Payload = selectedFiles.value[0]?.base64 || null
-
-  messages.value.push({ 
-    role: 'user', 
-    content: sanitizedPrompt || `[Telemetry Asset Sent: ${attachments.join(', ')}]`,
-    attachments: attachments.length > 0 ? attachments : undefined
-  })
-
-  inputMessage.value = ''
-  selectedFiles.value = []
-  isLoading.value = true
-  await autoScrollToBottom()
-
-  activeAbortController = new AbortController()
-
-  try {
-    const targetEndpoint = base64Payload ? '/api/analyze-vision' : '/api/chat'
-    
-    // Inject current summary base seamlessly alongside historical array maps
-    const payloadBody = base64Payload 
-      ? { prompt: sanitizedPrompt || 'Analyze image matrices.', imageBase64: base64Payload }
-      : { 
-          messages: messages.value.map(m => ({ role: m.role, content: m.content })), 
-          selectedModelId: selectedModelId.value,
-          summaryContext: runningSummary.value,
-          memories: longTermMemories.value
-        }
-
-    const data = await $fetch<any>(targetEndpoint, {
-      method: 'POST',
-      signal: activeAbortController.signal,
-      body: payloadBody
-    })
-
-    if (data.success) {
-      messages.value.push({
-        role: 'assistant',
-        content: data.message?.content || data.analysis || 'Execution completed.',
-        source: data.source
-      })
-      
-      await updateSystemSummaryState()
-    }
-  } catch (error: any) {
-    if (error.name !== 'AbortError') {
-      messages.value.push({
-        role: 'system',
-        content: `PIPELINE EXHAUSTION ERROR: ${error.statusMessage || 'The cloud router rejected the context packet.'}`
-      })
-    }
-  } finally {
-    isLoading.value = false
-    activeAbortController = null
-    await autoScrollToBottom()
-  }
-}
-
-onMounted(() => {
-  syncNetworkHardware()
-})
-</script>
-
 <template>
-  <div class="flex h-screen bg-slate-950 font-mono text-xs select-none antialiased text-slate-200 overflow-hidden">
+  <div class="flex h-screen bg-zinc-950 text-zinc-200 font-sans overflow-hidden selection:bg-yellow-500/30 selection:text-yellow-200">
     
-    <aside 
-      :class="['bg-slate-900 border-r border-slate-800 flex flex-col transition-all duration-300 ease-in-out z-20 shrink-0 h-full',
-        isSidebarOpen ? 'w-64' : 'w-0 border-r-0 overflow-hidden']"
-    >
-      <div class="p-4 border-b border-slate-800 flex items-center justify-between">
-        <span class="text-emerald-400 font-black tracking-widest text-[10px]">INTERNAL KNOWLEDGE</span>
-        <span class="bg-slate-950 px-1 text-slate-500 rounded text-[9px] border border-slate-800">HIDDEN BLOCK</span>
+    <aside class="w-64 bg-zinc-900/90 border-r border-zinc-800/80 flex flex-col h-full shrink-0">
+      
+      <div class="p-3.5">
+        <button 
+          @click="startNewChatSession"
+          class="w-full py-2 px-4 bg-zinc-800 hover:bg-zinc-700/80 text-zinc-300 hover:text-zinc-100 rounded-lg font-mono text-xs font-medium border border-zinc-700/60 transition-all duration-150 flex items-center justify-start gap-3 shadow-sm active:scale-[0.99]"
+        >
+          <span class="text-base text-yellow-400 font-bold">+</span>
+          <span>New chat</span>
+        </button>
       </div>
 
-      <div class="flex-1 p-3 space-y-4 overflow-y-auto text-slate-400">
-        <div class="space-y-1.5">
-          <div class="text-[9px] text-emerald-500/70 uppercase font-bold tracking-wider">💾 Active AI Knowledge Base:</div>
-          <div class="p-2.5 bg-slate-950 border border-slate-850 rounded text-slate-300 text-[10px] leading-relaxed font-sans max-h-40 overflow-y-auto select-text">
-            {{ runningSummary }}
+      <div class="flex-1 overflow-y-auto px-2 space-y-0.5 custom-scrollbar">
+        <div class="px-3 py-2 text-[10px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
+          Recent
+        </div>
+
+        <div v-if="chatHistoryList.length === 0" class="px-3 py-4 text-xs text-zinc-600 italic font-mono">
+          No active nodes indexed.
+        </div>
+        
+        <div 
+          v-for="session in chatHistoryList" 
+          :key="session.id"
+          @click="switchActiveSession(session.id)"
+          :class="[
+            'group relative px-3 py-2 rounded-lg text-xs font-mono cursor-pointer transition-all duration-150 flex items-center justify-between',
+            activeSessionId === session.id 
+              ? 'bg-zinc-800 text-yellow-400 font-semibold' 
+              : 'text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200'
+          ]"
+        >
+          <div class="flex items-center gap-2.5 truncate pr-5">
+            <span class="text-zinc-500 group-hover:text-yellow-400/80 transition-colors">💬</span>
+            <span class="truncate">{{ session.title }}</span>
           </div>
-          <p class="text-[9px] text-slate-600 italic">This variable is dynamically bound to the background orchestrator and remains completely hidden from standard client dialog timelines.</p>
+
+          <button 
+            @click.stop="purgeSession(session.id)"
+            class="text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity duration-100 p-0.5 text-[10px]"
+          >
+            ✕
+          </button>
         </div>
       </div>
 
-      <div class="p-3 border-t border-slate-800 bg-slate-950 text-[10px] space-y-1 text-slate-500">
-        <div class="truncate">NODE: xps9530-haydenk</div>
-        <div>STRATEGY: {{ networkStatus === 'ONLINE' ? 'LOCAL_FULL_READ' : 'CLOUD_INCREMENTAL' }}</div>
+      <div class="p-3 border-t border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
+        <div class="flex items-center gap-2.5 truncate">
+          <div class="w-7 h-7 rounded-full bg-yellow-500 text-zinc-950 font-mono font-bold text-xs flex items-center justify-center shadow-inner shrink-0">
+            🍌
+          </div>
+          <span class="text-xs font-mono font-semibold text-zinc-300 truncate">Andrew / BANANA</span>
+        </div>
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow shadow-emerald-500/50"></span>
       </div>
     </aside>
 
-    <div class="flex-1 flex flex-col h-full bg-slate-950 relative overflow-hidden">
+    <main class="flex-1 flex flex-col h-full bg-zinc-950 relative">
       
-      <header class="h-14 border-b border-slate-800 flex items-center justify-between px-4 bg-slate-900 shrink-0">
-        <div class="flex items-center gap-3">
-          <button @click="isSidebarOpen = !isSidebarOpen" class="p-1.5 bg-slate-950 border border-slate-800 text-slate-400 hover:text-emerald-400 rounded transition">
-            {{ isSidebarOpen ? '◀' : '▶' }}
-          </button>
-          <div class="flex items-center gap-1.5">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span class="font-bold tracking-wider text-slate-100">NANA_INTELLIGENCE_CORE</span>
-          </div>
+      <header class="h-14 border-b border-zinc-800/60 px-6 flex items-center justify-between bg-zinc-950/40 backdrop-blur-md z-20">
+        <div class="flex items-center gap-3 font-mono text-[11px]">
+          <span class="text-zinc-600">PIPELINE MONITOR:</span>
+          <span class="px-2 py-0.5 bg-zinc-900 border border-zinc-800 text-yellow-400 font-semibold rounded">
+            {{ activeRoutingSource || 'Idle Waiting State' }}
+          </span>
         </div>
 
-        <div class="flex items-center gap-4">
-          <div class="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 border border-slate-800 rounded">
-            <span class="text-slate-500 text-[10px]">MESH NET:</span>
-            <span :class="['font-bold text-[10px]', networkStatus === 'ONLINE' ? 'text-emerald-400' : 'text-rose-400']">
-              {{ networkStatus === 'ONLINE' ? 'TAILSCALE_LINK' : 'OFFLINE_SHIELD' }}
-            </span>
-          </div>
-
-          <select v-model="selectedModelId" class="bg-slate-950 border border-slate-850 text-slate-300 text-[11px] rounded p-1 focus:outline-none focus:border-emerald-500 font-mono cursor-pointer transition">
-            <option v-for="model in availableModels" :key="model.id" :value="model.id">
-              {{ model.name }} [{{ model.tier }}]
+        <div class="flex items-center gap-2 font-mono text-[11px]">
+          <span class="text-zinc-500">ENGINE:</span>
+          <select 
+            v-model="selectedModelId"
+            class="bg-zinc-900 border border-zinc-800 text-zinc-300 rounded px-2.5 py-1 focus:outline-none focus:border-yellow-500/40 cursor-pointer text-[11px]"
+          >
+            <option v-for="model in AVAILABLE_MODELS" :key="model.id" :value="model.id">
+              {{ model.name }}
             </option>
           </select>
-
-          <button @click="syncNetworkHardware" class="p-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-850 text-slate-300 rounded transition">🔄</button>
         </div>
       </header>
 
-      <main ref="scrollContainer" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 scroll-smooth">
-        <div v-if="messages.length === 0" class="h-full flex flex-col items-center justify-center text-center text-slate-600">
-          <span class="text-3xl mb-2 text-slate-800">⚙️</span>
-          <p class="max-w-xs leading-normal">Tailscale domain matrix online. Transmission channels confirmed. Input prompts to compute.</p>
+      <div 
+        ref="feedScrollContainer"
+        @scroll="handleUserScrollDetection"
+        @wheel="handleUserScrollDetection"
+        @touchmove="handleUserScrollDetection"
+        class="flex-1 overflow-y-auto px-6 py-8 space-y-6 custom-scrollbar bg-zinc-950"
+      >
+        <div v-if="messages.length === 0" class="h-full flex flex-col items-center justify-center max-w-xl mx-auto text-center space-y-3 pb-12">
+          <div class="text-4xl animate-bounce duration-1000">🍌</div>
+          <h1 class="text-xl font-mono font-bold tracking-tight text-yellow-400">BANANA Core Orchestrator</h1>
+          <p class="text-xs text-zinc-500 font-mono leading-relaxed">
+            Ready to receive system operational parameters. Prepend requests with <span class="text-yellow-500/80">/search</span> to directly trigger automated real-time web telemetry routines.
+          </p>
         </div>
 
         <div 
           v-for="(msg, index) in messages" 
           :key="index"
-          :class="['p-3.5 rounded border text-[11px] max-w-[85%] relative transition-all duration-150',
-            msg.role === 'user' ? 'bg-slate-900 border-slate-800 ml-auto text-slate-100' :
-            msg.role === 'system' ? 'bg-rose-950/20 border-rose-900/40 text-rose-300 mx-auto w-full max-w-full text-center font-bold' :
-            'bg-slate-900/30 border-slate-850/80 text-slate-300 mr-auto']"
+          :class="[
+            'max-w-2xl mx-auto flex gap-4 p-1 transition-all duration-150',
+            msg.role === 'user' ? 'justify-end' : 'justify-start'
+          ]"
         >
-          <div class="flex items-center gap-2 mb-1.5 opacity-40 text-[9px] uppercase tracking-wider select-none font-black">
-            <span>{{ msg.role === 'user' ? '► OP_INPUT' : msg.role === 'system' ? '⚠️ BROADCAST' : '⚡ NANA_RESPONSE' }}</span>
-            <span v-if="msg.source" class="text-[8px] bg-slate-950 px-1 border border-slate-800 text-emerald-400">{{ msg.source }}</span>
+          <div v-if="msg.role === 'assistant'" class="w-6 h-6 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-xs flex items-center justify-center shrink-0">
+            🍌
           </div>
-          
-          <div v-if="msg.attachments" class="mb-2 p-1.5 bg-slate-950 border border-slate-850 rounded text-slate-400 space-y-0.5">
-            <div v-for="(file, fIdx) in msg.attachments" :key="fIdx" class="truncate flex items-center gap-1">
-              📎 <span>{{ file }}</span>
+
+          <div class="flex flex-col gap-1 max-w-[88%]">
+            <div class="font-mono text-[10px] uppercase tracking-wider text-zinc-600 flex items-center gap-2">
+              <span>{{ msg.role === 'user' ? 'Client Directive' : 'BANANA Intelligence response' }}</span>
+              <span v-if="msg.source" class="text-[9px] px-1 bg-zinc-900 border border-zinc-800 rounded text-zinc-500 lowercase">
+                ({{ msg.source }})
+              </span>
+            </div>
+            
+            <div 
+              :class="[
+                'text-sm leading-relaxed whitespace-pre-wrap',
+                msg.role === 'user' 
+                  ? 'bg-zinc-900 text-zinc-200 border border-zinc-800 px-4 py-2.5 rounded-2xl rounded-tr-none' 
+                  : 'text-zinc-300 pt-0.5'
+              ]"
+            >
+              {{ msg.content }}
             </div>
           </div>
-
-          <div v-html="parseRichContent(msg.content)" class="prose prose-invert max-w-none space-y-2 select-text"></div>
         </div>
 
-        <div v-if="isLoading" class="p-3 bg-slate-900 border border-emerald-950 text-[11px] w-fit rounded flex items-center gap-4 animate-pulse">
-          <div class="flex items-center gap-2">
-            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-            <span class="text-slate-400">Processing mesh core computation...</span>
+        <div v-if="isProcessingPipeline" class="max-w-2xl mx-auto flex gap-4 p-1">
+          <div class="w-6 h-6 rounded-full bg-yellow-500/10 border border-dashed border-yellow-500/40 flex items-center justify-center shrink-0 animate-spin text-[10px]">
+            ⚙️
           </div>
-          <button @click="stopGenerationPipeline" class="px-2 py-0.5 bg-rose-950 border border-rose-800 text-rose-400 rounded text-[9px] hover:bg-rose-900/60 transition font-black">🛑 DISCONNECT</button>
-        </div>
-      </main>
-
-      <footer class="p-4 border-t border-slate-800 bg-slate-900 shrink-0">
-        <div v-if="selectedFiles.length > 0" class="flex flex-wrap gap-2 mb-3 p-2 bg-slate-950 border border-slate-850 rounded">
-          <div v-for="(file, idx) in selectedFiles" :key="idx" class="bg-slate-900 border border-slate-800 pl-2 pr-1 py-1 rounded flex items-center gap-2 max-w-[200px]">
-            <span class="truncate text-slate-400 font-sans text-[10px]">📁 {{ file.name }}</span>
-            <button type="button" @click="removeFile(idx)" class="text-rose-400 hover:bg-rose-950/40 w-4 h-4 rounded text-center leading-none">×</button>
+          <div class="text-xs text-zinc-500 font-mono italic flex items-center gap-2 animate-pulse pt-0.5">
+            Streaming network pipeline computation matrices...
           </div>
         </div>
+      </div>
 
-        <form @submit.prevent="handleExecutePipeline" class="flex gap-2">
-          <input type="file" ref="fileInputRef" class="hidden" multiple accept="image/*" @change="onFileChange" />
-
-          <div class="flex gap-1">
-            <button type="button" @click="handleFileTrigger" class="px-3 bg-slate-950 hover:bg-slate-800 border border-slate-850 text-slate-400 hover:text-emerald-400 rounded transition" :disabled="isLoading">📁</button>
-            <button type="button" @click="toggleMicrophone" :class="['px-3 border rounded transition font-bold', isRecording ? 'bg-rose-950 border-rose-800 text-rose-400 animate-pulse' : 'bg-slate-950 border-slate-850 text-slate-400 hover:text-emerald-400']" :disabled="isLoading">
-              {{ isRecording ? '🎙️ ON' : '🎙️' }}
-            </button>
-          </div>
-
-          <input v-model="inputMessage" type="text" placeholder="Awaiting code logic, text inputs, or image diagnostics..." class="flex-1 bg-slate-950 border border-slate-850 focus:border-emerald-500 text-[11px] rounded px-3 text-slate-100 placeholder-slate-600 focus:outline-none font-mono transition" :disabled="isLoading" autocomplete="off" />
-          <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-950 disabled:border-slate-850 disabled:text-slate-700 text-slate-950 px-5 rounded font-black border border-emerald-600 transition tracking-wider" :disabled="isLoading || (!inputMessage.trim() && selectedFiles.length === 0)">EXECUTE</button>
+      <footer class="p-4 border-t border-zinc-900/60 bg-zinc-950">
+        <form @submit.prevent="executeTransmissionDirective" class="max-w-2xl mx-auto relative flex items-center">
+          <input 
+            v-model="inputFieldPrompt"
+            type="text"
+            placeholder="Type your instruction or execution trace here..."
+            :disabled="isProcessingPipeline"
+            class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3.5 pr-24 text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none focus:border-yellow-500/40 transition-all disabled:opacity-40 font-sans"
+          />
+          <button 
+            type="submit"
+            :disabled="isProcessingPipeline || !inputFieldPrompt.trim()"
+            class="absolute right-2 px-3.5 py-1.5 bg-yellow-500 text-zinc-950 font-mono font-bold rounded-lg text-xs tracking-wider hover:bg-yellow-400 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          >
+            EXECUTE
+          </button>
         </form>
       </footer>
-
-    </div>
+    </main>
   </div>
 </template>
+
+<script setup>
+import { ref, onMounted, nextTick } from 'vue'
+import { AVAILABLE_MODELS } from '~~/src/models'
+
+// ─── STATE ARRAYS AND UI VALUES ───────────────────────────────────────
+const chatHistoryList = ref([])
+const activeSessionId = ref('')
+const messages = ref([])
+const inputFieldPrompt = ref('')
+const selectedModelId = ref(AVAILABLE_MODELS[0]?.id || '')
+const isProcessingPipeline = ref(false)
+const activeRoutingSource = ref('')
+const feedScrollContainer = ref(null)
+
+// 🔍 SMART SCROLL SYSTEM VALS
+const userHasScrolledUpManually = ref(false)
+
+// ─── USER INTERACTION ACCIDENTAL SCROLL PROTECTOR ─────────────────────
+function handleUserScrollDetection() {
+  const container = feedScrollContainer.value
+  if (!container) return
+
+  const bottomThresholdPadding = 45
+  const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+  
+  // If the user's focus is higher up, turn off the script's snap auto-scrolling
+  userHasScrolledUpManually.value = distanceFromBottom > bottomThresholdPadding
+}
+
+async function triggerSystemEnforcedAutoScroll(force = false) {
+  await nextTick()
+  const container = feedScrollContainer.value
+  if (!container) return
+
+  // Only scroll down if the user isn't reading old logs, OR if a fresh prompt was just sent
+  if (!userHasScrolledUpManually.value || force) {
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: 'smooth'
+    })
+  }
+}
+
+// ─── CACHE LOCAL STORAGE PIPELINES ────────────────────────────────────
+function syncSessionsToLocalStorage() {
+  localStorage.setItem('banana_core_sessions', JSON.stringify(chatHistoryList.value))
+}
+
+function loadSessionsFromLocalStorage() {
+  const data = localStorage.getItem('banana_core_sessions')
+  if (data) {
+    try {
+      chatHistoryList.value = JSON.parse(data)
+      if (chatHistoryList.value.length > 0) {
+        switchActiveSession(chatHistoryList.value[0].id)
+      } else {
+        startNewChatSession()
+      }
+    } catch (e) {
+      startNewChatSession()
+    }
+  } else {
+    startNewChatSession()
+  }
+}
+
+// ─── NODE LIFECYCLE MANAGERS ──────────────────────────────────────────
+function startNewChatSession() {
+  const targetId = `node_${Date.now()}`
+  const initialNewSession = {
+    id: targetId,
+    title: 'New chat',
+    messages: []
+  }
+  
+  chatHistoryList.value.unshift(initialNewSession)
+  activeSessionId.value = targetId
+  messages.value = []
+  activeRoutingSource.value = 'Initialized Clean Vector'
+  userHasScrolledUpManually.value = false
+  syncSessionsToLocalStorage()
+}
+
+function switchActiveSession(id) {
+  const matchedNode = chatHistoryList.value.find(s => s.id === id)
+  if (matchedNode) {
+    activeSessionId.value = id
+    messages.value = [...matchedNode.messages]
+    activeRoutingSource.value = messages.value.length > 0 ? 'Restored Frame Data' : 'Clean Vector State'
+    userHasScrolledUpManually.value = false
+    triggerSystemEnforcedAutoScroll(true) // Force scroll to bottom on switch
+  }
+}
+
+function purgeSession(id) {
+  chatHistoryList.value = chatHistoryList.value.filter(s => s.id !== id)
+  syncSessionsToLocalStorage()
+  
+  if (activeSessionId.value === id) {
+    if (chatHistoryList.value.length > 0) {
+      switchActiveSession(chatHistoryList.value[0].id)
+    } else {
+      startNewChatSession()
+    }
+  }
+}
+
+// ─── DIRECTIVE EXECUTION LAYER ────────────────────────────────────────
+async function executeTransmissionDirective() {
+  const currentPayload = inputFieldPrompt.value.trim()
+  if (!currentPayload || isProcessingPipeline.value) return
+
+  // Add the message to the view
+  messages.value.push({ role: 'user', content: currentPayload })
+  inputFieldPrompt.value = ''
+  isProcessingPipeline.value = true
+  
+  // Force screen focus down to bottom right after user submits prompt
+  userHasScrolledUpManually.value = false
+  await triggerSystemEnforcedAutoScroll(true)
+
+  try {
+    const calculatedContext = messages.value[0]?.content 
+      ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
+      : ''
+
+    const apiResponse = await $fetch('/server/api/chat.post', {
+      method: 'POST',
+      body: {
+        messages: messages.value,
+        selectedModelId: selectedModelId.value,
+        summaryContext: calculatedContext
+      }
+    })
+
+    if (apiResponse && apiResponse.message) {
+      messages.value.push({
+        role: 'assistant',
+        content: apiResponse.message.content || 'Blank packet allocated.',
+        source: apiResponse.source || 'Cloud Inference Network'
+      })
+      activeRoutingSource.value = apiResponse.source || 'Completed Routing Frame'
+    } else {
+      throw new Error('API down-channel schema error encountered.')
+    }
+
+  } catch (err) {
+    messages.value.push({
+      role: 'assistant',
+      content: `⚠️ **Pipeline Terminal Failure**: Cloud matrix route interrupted.\n\n* **Diagnostics**: ${err.message || 'Serverless deployment frame drop'}`,
+      source: 'Internal Error Diagnostic Layer'
+    })
+    activeRoutingSource.value = 'Fault Safe Mode Redirect'
+  } finally {
+    isProcessingPipeline.value = false
+    
+    // Auto-update Sidebar Title string if it remains unassigned
+    const targetSession = chatHistoryList.value.find(s => s.id === activeSessionId.value)
+    if (targetSession) {
+      targetSession.messages = [...messages.value]
+      
+      if (targetSession.title === 'New chat' && messages.value[0]?.content) {
+        const titleSanitized = messages.value[0].content.replace(/\/search\s*/i, '').trim()
+        targetSession.title = titleSanitized.length > 24 ? titleSanitized.slice(0, 24) + '...' : titleSanitized
+      }
+    }
+    
+    syncSessionsToLocalStorage()
+    await triggerSystemEnforcedAutoScroll() // Smart check: handles scrolling unless reading logs
+  }
+}
+
+// Core initializer layout lifecycle binding hook
+onMounted(() => {
+  loadSessionsFromLocalStorage()
+})
+</script>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+</style>
