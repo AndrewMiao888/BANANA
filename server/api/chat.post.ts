@@ -2,14 +2,16 @@
 import { systemPrompts } from '~~/src/agents'
 import { AVAILABLE_MODELS } from '~~/src/models'
 
-// Simple server-side search framework to retrieve missing background context
+// 🎛️ CONFIGURATION PARAMETER: Central Tailscale private network mesh routing map
+const TAILSCALE_MACHINE_IP = '100.124.137.97'
+const OLLAMA_TAILSCALE_ENDPOINT = `http://${TAILSCALE_MACHINE_IP}:11434/api/chat`
+
 async function executeWebSearchQuery(query: string): Promise<string> {
   try {
     const searchData = await $fetch<any>(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
     })
     
-    // Extract readable context blocks out of raw web segments securely
     const snippets: string[] = []
     const matchReg = /<a class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g
     let match;
@@ -27,42 +29,45 @@ async function executeWebSearchQuery(query: string): Promise<string> {
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
-    const { messages, selectedModelId } = body
+    const { messages, selectedModelId, summaryContext } = body
 
     if (!messages || !Array.isArray(messages)) {
-      throw createError({ statusCode: 400, statusMessage: 'Malformed text array.' })
+      throw createError({ statusCode: 400, statusMessage: 'Malformed text history structure.' })
     }
 
     const modelConfig = AVAILABLE_MODELS.find(m => m.id === selectedModelId) || AVAILABLE_MODELS[0]
-    let incomingUserPrompt = messages[messages.length - 1]?.content || ''
+    const incomingUserPrompt = messages[messages.length - 1]?.content || ''
+
+    // 🧠 INJECT MEMORY KNOWLEDGE BASE AS A SYSTEM DIRECTIVE HIDING IT FROM USER VIEWS
+    const comprehensiveSystemPrompt = `${systemPrompts.chatAgent}\n\n[HIDDEN CURRENT CORE KNOWLEDGE PACKET]:\n${summaryContext || 'No historical data compiled.'}`
 
     const baseContextMessages = [
-      { role: 'system', content: systemPrompts.chatAgent },
+      { role: 'system', content: comprehensiveSystemPrompt },
       ...messages.map(m => ({ role: m.role, content: m.content }))
     ]
 
     let finalResponseText = ''
-    let activeExecutionSource = `${modelConfig.name} (Local Hardware)`
+    let activeExecutionSource = `${modelConfig.name} (Tailscale Node)`
 
-    // ─── STAGE 1: COMPUTE STRATEGY SELECTION ─────────────────────────────
+    // ─── STAGE 1: COMPUTE STRATEGY VIA TAILSCALE LOOP ──────────────────
     if (modelConfig.provider === 'local') {
       try {
-        const ollamaRes = await $fetch<any>('http://127.0.0.1:11434/api/chat', {
+        const ollamaRes = await $fetch<any>(OLLAMA_TAILSCALE_ENDPOINT, {
           method: 'POST',
           body: { model: modelConfig.id, messages: baseContextMessages, stream: false },
-          timeout: 4000
+          timeout: 4500 // 4.5s connection threshold across network tunnel mesh
         })
         finalResponseText = ollamaRes?.message?.content || ''
       } catch (localErr) {
-        console.warn('Local engine offline, dropping parameters over to Cloud Framework...')
+        console.warn(`Tailscale endpoint node [${TAILSCALE_MACHINE_IP}] busy or offline. Shunting parameters over to Cloud Core...`)
       }
     }
 
-    // If local was offline or empty, resolve directly via Groq baseline
+    // Direct Cloud Route Fallback Execution Block
     if (!finalResponseText) {
       const config = useRuntimeConfig()
       const targetCloudModel = modelConfig.provider === 'groq' ? modelConfig.id : 'llama3-8b-8192'
-      activeExecutionSource = modelConfig.provider === 'groq' ? `${modelConfig.name} (Cloud)` : 'Instant-NANA (Cloud Fallback)'
+      activeExecutionSource = modelConfig.provider === 'groq' ? `${modelConfig.name} (Cloud Target)` : 'Instant-NANA (Cloud Fallback Overdrive)'
 
       const groqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
@@ -72,7 +77,7 @@ export default defineEventHandler(async (event) => {
       finalResponseText = groqRes?.choices?.[0]?.message?.content || ''
     }
 
-    // ─── STAGE 2: AUTONOMOUS REAL-TIME SEARCH ENGINE CHECK ──────────────
+    // ─── STAGE 2: AUTONOMOUS AUTOMATED SEARCH TELEMETRY ──────────────
     const searchTriggers = [
       "i don't know", "i do not know", "don't have real-time", "unknown context", 
       "need to search", "information cut-off", "current data is unavailable", 
@@ -84,14 +89,12 @@ export default defineEventHandler(async (event) => {
     )
 
     if (requiresWebTelemetry) {
-      console.log(`🌐 Autonomous routing: Model hit verification boundaries. Initializing network data telemetry search...`)
+      console.log(`🌐 Mesh Redirect: Model hit validation limits. Initializing live network search parameters...`)
       
-      // Auto-extract query strings or pass the active conversation statement directly
       const networkTelemetryData = await executeWebSearchQuery(incomingUserPrompt)
       
-      // Inject network updates to build a revised contextual logic path
       const patchedSearchContext = [
-        { role: 'system', content: `${systemPrompts.chatAgent}\n\n[LIVE SEARCH TELEMETRY DATA]:\n${networkTelemetryData}\n\nIntegrate this data payload directly into your response parameters.` },
+        { role: 'system', content: `${comprehensiveSystemPrompt}\n\n[LIVE SEARCH TELEMETRY DATA]:\n${networkTelemetryData}\n\nIntegrate this data payload directly into your response parameters.` },
         ...messages.map(m => ({ role: m.role, content: m.content }))
       ]
 
@@ -103,10 +106,9 @@ export default defineEventHandler(async (event) => {
       })
 
       finalResponseText = searchGroqRes?.choices?.[0]?.message?.content || finalResponseText
-      activeExecutionSource += ' + Autonomous Web Search Network'
+      activeExecutionSource += ' + Autonomous Web Search'
     }
 
-    // ─── STAGE 3: RETURN FINAL RESPONSE DATA ─────────────────────────────
     return {
       success: true,
       source: activeExecutionSource,
