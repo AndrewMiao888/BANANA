@@ -1,56 +1,67 @@
 // server/api/analyze-vision.post.ts
 export default defineEventHandler(async (event) => {
-  const body = await readBody(event)
-  const { prompt, imageBase64 } = body // imageBase64 should be format: data:image/jpeg;base64,...
-
-  // Extract base64 clean data string for Ollama layout array
-  const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '')
-
-  // 1. TRY LOCAL VISION FIRST
   try {
-    const ollamaVisionResponse = await $fetch<any>('http://127.0.0.1:11434/api/generate', {
-      method: 'POST',
-      body: {
-        model: 'llava', // Standard local vision model
-        prompt: prompt,
-        images: [cleanBase64],
-        stream: false
-      },
-      timeout: 4000 // Slightly longer timeout given image processing sizes
-    })
+    const body = await readBody(event)
+    const { prompt, imageBase64 } = body
 
-    return {
-      success: true,
-      source: 'local-llava',
-      analysis: ollamaVisionResponse.response
+    if (!imageBase64) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Bad Request: Image payload matrix is required.'
+      })
     }
 
-  } catch (localError) {
-    console.warn('Local Vision offline. Falling back to Groq Multimodal Pipeline...')
+    // Clean base64 metadata header if present to accommodate local parsing array layout
+    const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '')
+    const executionPrompt = prompt || 'Analyze this image context.'
 
-    const config = useRuntimeConfig()
-    const apiKey = config.groqApiKey
-
-    if (!apiKey) {
-      throw createError({ statusCode: 503, statusMessage: 'Missing Groq API Key.' })
-    }
-
-    // 2. CLOUD VISION FALLBACK (Groq Llama-3.2 Vision)
+    // 1. TRY LOCAL COMPUTER VISION PIPELINE (LLaVA)
     try {
-      const groqVisionResponse = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
+      const ollamaVision = await $fetch<any>('http://127.0.0.1:11434/api/generate', {
+        method: 'POST',
+        body: {
+          model: 'llava',
+          prompt: executionPrompt,
+          images: [cleanBase64],
+          stream: false
+        },
+        timeout: 5000 // 5 second visual hardware breaker limits
+      })
+
+      return {
+        success: true,
+        source: 'Local-NANA (Vision)',
+        analysis: ollamaVision.response
+      }
+
+    } catch (localError) {
+      console.warn('Local visual hardware offline. Moving execution string to Groq Multi-Modal Core...')
+
+      // 2. RUN CLOUD FALLBACK GATEWAY (Groq Llama Vision)
+      const config = useRuntimeConfig()
+      const apiKey = config.groqApiKey
+
+      if (!apiKey) {
+        throw createError({
+          statusCode: 503,
+          statusMessage: 'Cloud Authorization Error: Missing runtime validation tokens.'
+        })
+      }
+
+      const groqVision = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json'
         },
         body: {
-          model: 'llama-3.2-11b-vision-preview', 
+          model: 'llama-3.2-11b-vision-preview',
           messages: [
             {
               role: 'user',
               content: [
-                { type: 'text', text: prompt },
-                { type: 'image_url', image_url: { url: imageBase64 } } // Groq handles data URIs cleanly
+                { type: 'text', text: executionPrompt },
+                { type: 'image_url', image_url: { url: imageBase64 } } // Groq safely accepts intact Data URIs
               ]
             }
           ]
@@ -59,15 +70,15 @@ export default defineEventHandler(async (event) => {
 
       return {
         success: true,
-        source: 'groq-vision',
-        analysis: groqVisionResponse.choices[0].message.content
+        source: 'Instant-NANA (Cloud Vision)',
+        analysis: groqVision.choices[0].message.content
       }
-
-    } catch (cloudError: any) {
-      throw createError({
-        statusCode: cloudError.statusCode || 500,
-        statusMessage: `Cloud Vision Analysis Failed: ${cloudError.message}`
-      })
     }
+
+  } catch (error: any) {
+    throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: `Vision Pipeline Interrupted: ${error.statusMessage || error.message}`
+    })
   }
 })
