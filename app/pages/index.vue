@@ -138,14 +138,13 @@
             
            <div 
               :class="[
-                'text-sm leading-relaxed max-w-none',
+                'text-sm leading-relaxed max-w-none w-full overflow-hidden',
                 msg.role === 'user' 
                   ? 'bg-zinc-900 text-zinc-200 border border-zinc-800 px-4 py-2.5 rounded-2xl rounded-tr-none whitespace-pre-wrap' 
-                  : 'text-zinc-300 pt-0.5 prose prose-invert prose-zinc prose-sm \
+                  : 'text-zinc-300 pt-0.5 prose prose-invert prose-zinc prose-sm max-w-none \
                      prose-headings:text-yellow-400 prose-headings:font-mono prose-headings:my-2 \
                      prose-table:border prose-table:border-zinc-800 prose-th:bg-zinc-900 prose-th:p-2 prose-td:p-2 prose-td:border-b prose-td:border-zinc-800 \
                      prose-code:text-yellow-500 prose-code:bg-zinc-900 prose-code:px-1 prose-code:py-0.5 prose-code:rounded \
-                     prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-800 prose-pre:p-4 prose-pre:rounded-xl \
                      prose-blockquote:border-l-2 prose-blockquote:border-yellow-500 prose-blockquote:pl-4 prose-blockquote:italic'
               ]"
             >
@@ -193,12 +192,47 @@ import { AVAILABLE_MODELS } from '~~/src/models'
 import MarkdownIt from 'markdown-it'
 import markdownItKatex from 'markdown-it-katex'
 
-// Initialize the rendering processor
+// Custom renderer to format code blocks with language labels and copy buttons
 const mdProcessor = new MarkdownIt({
   html: true,
   linkify: true,
   typographer: true
 }).use(markdownItKatex)
+
+// Override fence renderer for code block containers
+// Override fence renderer for code block containers
+mdProcessor.renderer.rules.fence = (tokens, idx) => {
+  const token = tokens[idx]
+  const rawCode = token.content
+  const lang = token.info.trim() || 'PlainText'
+  
+  // Format display label
+  const formattedLang = lang.toUpperCase()
+
+  // Safe base64 encoding to prevent quotes, backticks, or newlines from breaking the inline onclick handler
+  const base64Code = btoa(unescape(encodeURIComponent(rawCode)))
+  
+  // Escape HTML entities to safely render inside <code> tags
+  const escapedCode = rawCode
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+
+  return `
+    <div class="my-4 rounded-xl border border-zinc-800 bg-zinc-900/90 overflow-hidden text-xs font-mono shadow-md">
+      <div class="flex items-center justify-between bg-zinc-900 px-4 py-2 border-b border-zinc-800/80 text-zinc-400 select-none">
+        <span class="font-bold text-yellow-400/90 text-[11px] tracking-wider">${formattedLang}</span>
+        <button 
+          onclick="window.copyCodeToClipboard(event, '${base64Code}')"
+          class="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-[10px] font-sans font-medium transition-all active:scale-95 cursor-pointer border border-zinc-700/50"
+        >
+          COPY
+        </button>
+      </div>
+      <pre class="p-4 overflow-x-auto text-zinc-200 leading-relaxed custom-scrollbar"><code class="language-${lang}">${escapedCode}</code></pre>
+    </div>
+  `
+}
 
 function renderMarkdownMarkup(rawText) {
   if (!rawText) return ''
@@ -413,6 +447,42 @@ const apiResponse = await $fetch('/api/chat', {
 onMounted(() => {
   loadSessionsFromLocalStorage()
 })
+
+function copyCodeToClipboard(event, base64Text) {
+  const btn = event.currentTarget
+  if (!btn || !base64Text) return
+
+  try {
+    // Decode base64 text safely back into original code block string
+    const decodedText = decodeURIComponent(escape(atob(base64Text)))
+
+    navigator.clipboard.writeText(decodedText).then(() => {
+      const originalText = btn.innerText
+      btn.innerText = 'COPIED!'
+      btn.classList.add('text-yellow-400', 'border-yellow-500/50')
+      
+      setTimeout(() => {
+        btn.innerText = originalText
+        btn.classList.remove('text-yellow-400', 'border-yellow-500/50')
+      }, 2000)
+    }).catch(err => {
+      console.error('Failed to copy text using Clipboard API:', err)
+    })
+  } catch (err) {
+    console.error('Failed to decode base64 code block text:', err)
+  }
+}
+
+// Attach to global window object so rendered markdown inline onclick handlers can trigger it
+if (import.meta.client) {
+  window.copyCodeToClipboard = copyCodeToClipboard
+}
+
+// Attach it globally so the markdown-it rendered HTML can access it
+if (import.meta.client) {
+  window.copyCodeToClipboard = copyCodeToClipboard
+}
+
 </script>
 
 <style scoped>
