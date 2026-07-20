@@ -1,25 +1,37 @@
 <template>
-  <div class="flex h-screen bg-zinc-950 text-zinc-200 font-sans overflow-hidden selection:bg-yellow-500/30 selection:text-yellow-200">
+<div class="flex h-screen bg-zinc-950 text-zinc-200 font-sans overflow-hidden selection:bg-yellow-500/30 selection:text-yellow-200">
     
-    <aside class="w-64 bg-zinc-900/90 border-r border-zinc-800/80 flex flex-col h-full shrink-0">
+    <aside 
+      :class="[
+        'bg-zinc-900/90 border-r border-zinc-800/80 flex flex-col h-full shrink-0 transition-all duration-300 ease-in-out overflow-hidden z-30',
+        isSidebarVisible ? 'w-64 opacity-100' : 'w-0 opacity-0 border-r-0'
+      ]"
+    >
       
-      <div class="p-3.5">
+      <div class="p-3.5 flex items-center gap-2">
         <button 
           @click="startNewChatSession"
-          class="w-full py-2 px-4 bg-zinc-800 hover:bg-zinc-700/80 text-zinc-300 hover:text-zinc-100 rounded-lg font-mono text-xs font-medium border border-zinc-700/60 transition-all duration-150 flex items-center justify-start gap-3 shadow-sm active:scale-[0.99]"
+          class="flex-1 py-2 px-4 bg-zinc-800 hover:bg-zinc-700/80 text-zinc-300 hover:text-zinc-100 rounded-lg font-mono text-xs font-medium border border-zinc-700/60 transition-all duration-150 flex items-center justify-start gap-3 shadow-sm active:scale-[0.99]"
         >
           <span class="text-base text-yellow-400 font-bold">+</span>
           <span>New chat</span>
+        </button>
+        <button 
+          @click="isSidebarVisible = false"
+          class="p-2 bg-zinc-800 hover:bg-zinc-700/80 text-zinc-400 hover:text-zinc-200 border border-zinc-700/60 rounded-lg text-xs font-mono transition-all"
+          title="Collapse Sidebar"
+        >
+          ◀
         </button>
       </div>
 
       <div class="flex-1 overflow-y-auto px-2 space-y-0.5 custom-scrollbar">
         <div class="px-3 py-2 text-[10px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
-          Recent
+          Recents
         </div>
 
         <div v-if="chatHistoryList.length === 0" class="px-3 py-4 text-xs text-zinc-600 italic font-mono">
-          No active nodes indexed.
+          No chat sessions found.
         </div>
         
         <div 
@@ -62,6 +74,14 @@
       
       <header class="h-14 border-b border-zinc-800/60 px-6 flex items-center justify-between bg-zinc-950/40 backdrop-blur-md z-20">
         <div class="flex items-center gap-3 font-mono text-[11px]">
+          <button 
+            v-if="!isSidebarVisible"
+            @click="isSidebarVisible = true"
+            class="mr-2 px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-yellow-400 rounded transition-all font-bold"
+            title="Expand Sidebar"
+          >
+            ▶ Open Sidebar
+          </button>
           <span class="text-zinc-600">PIPELINE MONITOR:</span>
           <span class="px-2 py-0.5 bg-zinc-900 border border-zinc-800 text-yellow-400 font-semibold rounded">
             {{ activeRoutingSource || 'Idle Waiting State' }}
@@ -116,15 +136,21 @@
               </span>
             </div>
             
-            <div 
+           <div 
               :class="[
-                'text-sm leading-relaxed whitespace-pre-wrap',
+                'text-sm leading-relaxed max-w-none',
                 msg.role === 'user' 
-                  ? 'bg-zinc-900 text-zinc-200 border border-zinc-800 px-4 py-2.5 rounded-2xl rounded-tr-none' 
-                  : 'text-zinc-300 pt-0.5'
+                  ? 'bg-zinc-900 text-zinc-200 border border-zinc-800 px-4 py-2.5 rounded-2xl rounded-tr-none whitespace-pre-wrap' 
+                  : 'text-zinc-300 pt-0.5 prose prose-invert prose-zinc prose-sm \
+                     prose-headings:text-yellow-400 prose-headings:font-mono prose-headings:my-2 \
+                     prose-table:border prose-table:border-zinc-800 prose-th:bg-zinc-900 prose-th:p-2 prose-td:p-2 prose-td:border-b prose-td:border-zinc-800 \
+                     prose-code:text-yellow-500 prose-code:bg-zinc-900 prose-code:px-1 prose-code:py-0.5 prose-code:rounded \
+                     prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-800 prose-pre:p-4 prose-pre:rounded-xl \
+                     prose-blockquote:border-l-2 prose-blockquote:border-yellow-500 prose-blockquote:pl-4 prose-blockquote:italic'
               ]"
             >
-              {{ msg.content }}
+              <div v-if="msg.role === 'user'">{{ msg.content }}</div>
+              <div v-else v-html="renderMarkdownMarkup(msg.content)"></div>
             </div>
           </div>
         </div>
@@ -164,8 +190,24 @@
 <script setup>
 import { ref, onMounted, nextTick } from 'vue'
 import { AVAILABLE_MODELS } from '~~/src/models'
+import MarkdownIt from 'markdown-it'
+import markdownItKatex from 'markdown-it-katex'
+
+// Initialize the rendering processor
+const mdProcessor = new MarkdownIt({
+  html: true,
+  linkify: true,
+  typographer: true
+}).use(markdownItKatex)
+
+function renderMarkdownMarkup(rawText) {
+  if (!rawText) return ''
+  let preparedString = String(rawText).replace(/%@FRAC\|/g, '\\frac')
+  return mdProcessor.render(preparedString)
+}
 
 // ─── STATE ARRAYS AND UI VALUES ───────────────────────────────────────
+const isSidebarVisible = ref(true)
 const chatHistoryList = ref([])
 const activeSessionId = ref('')
 const messages = ref([])
@@ -268,10 +310,44 @@ function purgeSession(id) {
   }
 }
 
+async function triggerBackgroundChatNamingSummary(userPromptText, responseText) {
+  const currentSession = chatHistoryList.value.find(s => s.id === activeSessionId.value)
+  if (!currentSession || currentSession.title !== 'New chat') return
+
+  try {
+    const summaryPayload = [
+      { role: 'user', content: `Context content to condense:\nUser: ${userPromptText}\nAI: ${responseText}\n\nGENERATE_SHORT_TITLE_SUMMARY_DIRECTIVE` }
+    ]
+
+    const summaryResponse = await $fetch('/api/chat', {
+      method: 'POST',
+      body: {
+        messages: summaryPayload,
+        selectedModelId: selectedModelId.value,
+        summaryContext: 'Title generation sub-routing pass.'
+      }
+    })
+
+    const generatedTitle = summaryResponse?.message?.content?.replace(/["'‘“.]/g, '').trim()
+    if (generatedTitle && generatedTitle.length > 2 && !generatedTitle.includes('⚠️')) {
+      currentSession.title = generatedTitle.length > 26 ? generatedTitle.slice(0, 26) + '...' : generatedTitle
+      syncSessionsToLocalStorage()
+    }
+  } catch (err) {
+    console.warn('Background core title generation fallback sequence handled.', err)
+    const fallbackTitle = userPromptText.replace(/\/search\s*/i, '').trim()
+    currentSession.title = fallbackTitle.length > 24 ? fallbackTitle.slice(0, 24) + '...' : fallbackTitle
+    syncSessionsToLocalStorage()
+  }
+}
+
 // ─── DIRECTIVE EXECUTION LAYER ────────────────────────────────────────
 async function executeTransmissionDirective() {
   const currentPayload = inputFieldPrompt.value.trim()
   if (!currentPayload || isProcessingPipeline.value) return
+
+  const isFirstMessage = messages.value.length === 0
+  let finalAiResponseContent = ''
 
   // Add the message to the view
   messages.value.push({ role: 'user', content: currentPayload })
@@ -297,9 +373,10 @@ const apiResponse = await $fetch('/api/chat', {
     })
 
     if (apiResponse && apiResponse.message) {
+      finalAiResponseContent = apiResponse.message.content || 'Blank packet allocated.'
       messages.value.push({
         role: 'assistant',
-        content: apiResponse.message.content || 'Blank packet allocated.',
+        content: finalAiResponseContent,
         source: apiResponse.source || 'Cloud Inference Network'
       })
       activeRoutingSource.value = apiResponse.source || 'Completed Routing Frame'
@@ -317,19 +394,18 @@ const apiResponse = await $fetch('/api/chat', {
   } finally {
     isProcessingPipeline.value = false
     
-    // Auto-update Sidebar Title string if it remains unassigned
     const targetSession = chatHistoryList.value.find(s => s.id === activeSessionId.value)
     if (targetSession) {
       targetSession.messages = [...messages.value]
-      
-      if (targetSession.title === 'New chat' && messages.value[0]?.content) {
-        const titleSanitized = messages.value[0].content.replace(/\/search\s*/i, '').trim()
-        targetSession.title = titleSanitized.length > 24 ? titleSanitized.slice(0, 24) + '...' : titleSanitized
-      }
     }
     
     syncSessionsToLocalStorage()
-    await triggerSystemEnforcedAutoScroll() // Smart check: handles scrolling unless reading logs
+    await triggerSystemEnforcedAutoScroll()
+
+    // Triggers the asynchronous AI title generation call if it's the first message exchange
+    if (isFirstMessage && finalAiResponseContent) {
+      triggerBackgroundChatNamingSummary(currentPayload, finalAiResponseContent)
+    }
   }
 }
 

@@ -112,6 +112,14 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    // Inside server/api/chat.post.ts where you compile your prompts:
+const incomingUserPrompt = messages[messages.length - 1]?.content || ''
+const isSummaryRequest = incomingUserPrompt.includes("GENERATE_SHORT_TITLE_SUMMARY_DIRECTIVE")
+
+const comprehensiveSystemPrompt = isSummaryRequest 
+  ? "You are a title generator. Respond with EXACTLY a 2 to 4 word summary of the user topic. No punctuation, no quotes, no markdown, no filler."
+  : `${systemPrompts.chatAgent}\n\n[CONTEXT]:\n${summaryContext}`
+
     // ─── STAGE 3: AUTONOMOUS REAL-TIME WEB SEARCH MATRIX ──────────────────
     const userExplicitlyTriggered = incomingUserPrompt.toLowerCase().trim().startsWith('/search')
     
