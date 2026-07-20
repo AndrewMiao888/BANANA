@@ -1,4 +1,3 @@
-// server/api/chat.post.ts
 import { systemPrompts } from '~~/src/agents'
 import { AVAILABLE_MODELS } from '~~/src/models'
 
@@ -20,12 +19,17 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    const modelConfig = AVAILABLE_MODELS.find(m => m.id === selectedModelId) || AVAILABLE_MODELS[0]
+    const modelConfig = AVAILABLE_MODELS?.find(m => m.id === selectedModelId) || AVAILABLE_MODELS?.[0] || {
+      id: selectedModelId || 'Enterprise-NANA',
+      name: 'Enterprise-NANA',
+      provider: 'groq'
+    }
+    
     const incomingUserPrompt = messages[messages.length - 1]?.content || ''
 
     // ─── 2. STAGE DATA CLEANING PASS (PREVENTS GROQ 400 BAD REQUESTS) ─────
     const cleanHistory = messages
-      .filter(m => (m.role === 'user' || m.role === 'assistant') && m.content)
+      .filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.content)
       .map(m => ({
         role: m.role as 'user' | 'assistant',
         content: String(m.content).trim()
@@ -33,14 +37,11 @@ export default defineEventHandler(async (event) => {
 
     // ─── 3. SYSTEM PROMPT & SUMMARY DIRECTIVE EVALUATION ──────────────────
     const isSummaryRequest = incomingUserPrompt.includes("GENERATE_SHORT_TITLE_SUMMARY_DIRECTIVE")
+    const currentModelName = modelConfig.name || selectedModelId || 'Enterprise-NANA'
 
-    // 1. Resolve active model identifier (defaults to Enterprise-NANA if not provided)
-const currentModelName = selectedModelId || 'Enterprise-NANA'
-
-// 2. Build the system prompt with explicit identity enforcement
-const comprehensiveSystemPrompt = isSummaryRequest 
-  ? "You are a title generator. Respond with EXACTLY a 2 to 4 word summary of the user topic. No punctuation, no quotes, no markdown, no filler."
-  : `System Identity: You are BANANA Intelligence running on the model "${currentModelName}". If asked which model, engine, or AI agent you are, state truthfully that you are running on ${currentModelName}.\n\n${systemPrompts.chatAgent}\n\n[HIDDEN CURRENT CORE KNOWLEDGE PACKET]:\n${summaryContext || 'No historical data compiled.'}`
+    const comprehensiveSystemPrompt = isSummaryRequest 
+      ? "You are a title generator. Respond with EXACTLY a 2 to 4 word summary of the user topic. No punctuation, no quotes, no markdown, no filler."
+      : `System Identity: You are BANANA Intelligence running on the model "${currentModelName}". If asked which model, engine, or AI agent you are, state truthfully that you are running on ${currentModelName}.\n\n${systemPrompts?.chatAgent || ''}\n\n[HIDDEN CURRENT CORE KNOWLEDGE PACKET]:\n${summaryContext || 'No historical data compiled.'}`
 
     const baseContextMessages = [
       { role: 'system', content: comprehensiveSystemPrompt.trim() },
@@ -50,45 +51,73 @@ const comprehensiveSystemPrompt = isSummaryRequest
     let finalResponseText = ''
     let activeExecutionSource = ''
 
-    // ─── STAGE 1: LOCAL HARDWARE EXECUTION PROBING ────────────────────────
-    if (modelConfig && modelConfig.provider === 'local') {
-      const targetEndpoint = `${config.homeOllamaUrl || 'https://xps9530-haydenk.tailb68230.ts.net'}/api/chat`
-      
+    // ─── 4. SMART LOCAL HARDWARE EXECUTION PROBING ────────────────────────
+    const localBaseUrl = config.homeOllamaUrl || process.env.HOME_OLLAMA_URL || 'https://xps9530-haydenk.tailb68230.ts.net'
+    const targetLocalEndpoint = `${localBaseUrl.replace(/\/$/, '')}/api/chat`
+    let isLocalComputerOnline = false
+
+    // Health probe to verify if local Ollama node is reachable
+    try {
+      const probeUrl = `${localBaseUrl.replace(/\/$/, '')}/api/tags`
+      const healthCheck = await $fetch<any>(probeUrl, { method: 'GET', timeout: 1200 })
+      isLocalComputerOnline = !!healthCheck
+    } catch {
+      isLocalComputerOnline = false
+    }
+
+    const isExplicitLocalModel = modelConfig?.provider === 'local' || (selectedModelId && String(selectedModelId).startsWith('local:'))
+    const isInstantModel = (selectedModelId && String(selectedModelId).includes('instant')) || selectedModelId === 'instant-nana'
+
+    // Route to Local Computer IF computer is ON and (model is explicitly local OR non-instant)
+    if (isLocalComputerOnline && (isExplicitLocalModel || !isInstantModel)) {
       try {
-        const ollamaRes = await $fetch<any>(targetEndpoint, {
+        const localModelId = isExplicitLocalModel ? modelConfig.id : 'llama3'
+        const ollamaRes = await $fetch<any>(targetLocalEndpoint, {
           method: 'POST',
-          body: { model: modelConfig.id, messages: baseContextMessages, stream: false },
-          timeout: 2000 // ⚡ Tight threshold to skip fast if local computer drops out
+          body: { model: localModelId, messages: baseContextMessages, stream: false },
+          timeout: 5000 
         })
         finalResponseText = ollamaRes?.message?.content || ''
-        activeExecutionSource = `${modelConfig.name} (Tailscale Local Mesh)`
+        activeExecutionSource = `${modelConfig.name || localModelId} (Tailscale Local Mesh)`
       } catch (localErr) {
-        // Quiet switchover sequence triggered without pushing errors up to UI console
-        console.warn('Local node failed or unreachable. Auto-switching to Groq Overdrive routing...')
+        console.warn('Local node failed or unreachable. Switching to cloud fail-safe...')
       }
     }
 
-    // ─── STAGE 2: AUTO SWITCH CLOUD CORE OVERDRIVE (IF LOCAL CRASHED) ─────
+    // ─── 5. HIGH DEMAND GUARD & GROQ CLOUD OVERDRIVE ──────────────────────
     if (!finalResponseText) {
-      const apiKey = config.groqApiKey
+      const apiKey = config.groqApiKey || process.env.GROQ_API_KEY
+      
       if (!apiKey) {
         return {
           success: true,
           source: 'System Safe Mode Router',
           message: { 
             role: 'assistant', 
-            content: '⚠️ **Deployment Sync Alert**: Missing `GROQ_API_KEY` in environment config parameters.' 
+            content: '⚠️ **Deployment Sync Alert**: Missing `GROQ_API_KEY` in environment configuration.' 
           }
         }
       }
 
-      // 🎯 FORCE FASTEST LATEST STRINGS: Routes directly to active Llama 4 Scout or GPT-OSS
-      const isTargetGroq = modelConfig && modelConfig.provider === 'groq' && !modelConfig.id.includes('node')
-      const targetCloudModel = isTargetGroq ? modelConfig.id : 'meta-llama/llama-4-scout-17b-16e-instruct'
+      // HIGH DEMAND GUARD: Heavy non-instant model requested while local machine is OFFLINE
+      if (!isInstantModel && !isLocalComputerOnline) {
+        return {
+          success: true,
+          source: 'System Traffic Controller [High Demand Guard]',
+          message: {
+            role: 'assistant',
+            content: `⚠️ **ENGINE HIGH DEMAND**: The cloud pipeline for **${currentModelName}** is currently experiencing high demand capacity limits.\n\n* **Option 1**: Switch your engine dropdown to **Instant-NANA** for immediate cloud response.\n* **Option 2**: Turn on your local computer engine (Ollama) to route requests locally.`
+          }
+        }
+      }
+
+      // Valid active production Groq models
+      const isTargetGroq = modelConfig && modelConfig.provider === 'groq'
+      const targetCloudModel = isTargetGroq ? modelConfig.id : 'llama-3.3-70b-versatile'
       
       activeExecutionSource = isTargetGroq 
-        ? `${modelConfig.name} (Cloud Target)` 
-        : 'Instant-NANA (Cloud Fallback Overdrive: Llama Fast-Route)'
+        ? `${modelConfig.name} (Groq Cloud)` 
+        : 'Instant-NANA (Groq Cloud Fast-Route)'
 
       try {
         const groqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
@@ -103,25 +132,31 @@ const comprehensiveSystemPrompt = isSummaryRequest
           }
         })
         finalResponseText = groqRes?.choices?.[0]?.message?.content || ''
-      } catch (groqPrimaryErr) {
-        // Hard fallback to safe alternative cloud model if Llama 4 experiences peak tier limit caps
-        const fallbackGroqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: { 
-            'Authorization': `Bearer ${apiKey}`, 
-            'Content-Type': 'application/json' 
-          },
-          body: { 
-            model: 'openai/gpt-oss-20b', 
-            messages: baseContextMessages
-          }
-        })
-        finalResponseText = fallbackGroqRes?.choices?.[0]?.message?.content || ''
-        activeExecutionSource = 'Instant-NANA (Secondary Cloud Safe-Route Fallback)'
+      } catch (groqPrimaryErr: any) {
+        console.warn('Primary Groq route failed, trying secondary fallback model...', groqPrimaryErr?.message)
+        
+        try {
+          // Secondary fallback to ultra-fast Groq model
+          const fallbackGroqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 
+              'Authorization': `Bearer ${apiKey}`, 
+              'Content-Type': 'application/json' 
+            },
+            body: { 
+              model: 'llama-3.1-8b-instant', 
+              messages: baseContextMessages
+            }
+          })
+          finalResponseText = fallbackGroqRes?.choices?.[0]?.message?.content || ''
+          activeExecutionSource = 'Instant-NANA (Secondary Cloud Fallback: Llama 8B)'
+        } catch (fallbackErr: any) {
+          console.error('All Groq cloud routes failed:', fallbackErr?.message)
+        }
       }
     }
 
-    // ─── STAGE 3: AUTONOMOUS REAL-TIME WEB SEARCH MATRIX ──────────────────
+    // ─── 6. AUTONOMOUS REAL-TIME WEB SEARCH MATRIX ────────────────────────
     const userExplicitlyTriggered = incomingUserPrompt.toLowerCase().trim().startsWith('/search')
     
     const implicitSearchTriggers = [
@@ -133,43 +168,53 @@ const comprehensiveSystemPrompt = isSummaryRequest
       finalResponseText.toLowerCase().includes(trigger)
     )
 
-    // Bypass search step if it's an internal summary pass
-    if ((userExplicitlyTriggered || aiWantsSearchTriggered) && !isSummaryRequest) {
+    if ((userExplicitlyTriggered || aiWantsSearchTriggered) && !isSummaryRequest && finalResponseText) {
       try {
-        const searchPhrase = incomingUserPrompt.replace(/\/search\s*/i, '').trim()
-        const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(searchPhrase)}&format=json`
-        
-        const searchResults = await $fetch<any>(searchUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
-        })
-        
-        const extractedFact = searchResults?.AbstractText || 'No direct summary packet returned.'
-        
-        const patchedSearchContext = [
-          { 
-            role: 'system', 
-            content: `${comprehensiveSystemPrompt}\n\n[LIVE SEARCH TELEMETRY DATA]:\n${extractedFact}\n\nIntegrate this data payload directly into your response parameters.` 
-          },
-          ...cleanHistory
-        ]
+        const apiKey = config.groqApiKey || process.env.GROQ_API_KEY
+        if (apiKey) {
+          const searchPhrase = incomingUserPrompt.replace(/\/search\s*/i, '').trim()
+          const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(searchPhrase)}&format=json`
+          
+          const searchResults = await $fetch<any>(searchUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+          })
+          
+          const extractedFact = searchResults?.AbstractText || searchResults?.RelatedTopics?.[0]?.Text || 'No direct summary packet returned.'
+          
+          const patchedSearchContext = [
+            { 
+              role: 'system', 
+              content: `${comprehensiveSystemPrompt}\n\n[LIVE SEARCH TELEMETRY DATA]:\n${extractedFact}\n\nIntegrate this data payload directly into your response parameters.` 
+            },
+            ...cleanHistory
+          ]
 
-        const searchGroqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: { 
-            'Authorization': `Bearer ${config.groqApiKey}`, 
-            'Content-Type': 'application/json' 
-          },
-          body: { 
-            model: 'meta-llama/llama-4-scout-17b-16e-instruct', 
-            messages: patchedSearchContext 
+          const searchGroqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 
+              'Authorization': `Bearer ${apiKey}`, 
+              'Content-Type': 'application/json' 
+            },
+            body: { 
+              model: 'llama-3.1-8b-instant', 
+              messages: patchedSearchContext 
+            }
+          })
+
+          if (searchGroqRes?.choices?.[0]?.message?.content) {
+            finalResponseText = searchGroqRes.choices[0].message.content
+            activeExecutionSource += ' + Autonomous Web Search'
           }
-        })
-
-        finalResponseText = searchGroqRes?.choices?.[0]?.message?.content || finalResponseText
-        activeExecutionSource += ' + Autonomous Web Search'
+        }
       } catch (searchErr) {
         console.warn('Network search layers dropped packet.', searchErr)
       }
+    }
+
+    // ─── 7. FINAL RESPONSE GUARANTEE ──────────────────────────────────────
+    if (!finalResponseText) {
+      finalResponseText = '⚠️ **System Operational Alert**: Unable to retrieve response matrix from local node or cloud infrastructure. Please check network status.'
+      activeExecutionSource = 'System Safeguard Fallback'
     }
 
     return {
@@ -184,7 +229,7 @@ const comprehensiveSystemPrompt = isSummaryRequest
       source: 'Internal Error Diagnostics Recovery Mode',
       message: { 
         role: 'assistant', 
-        content: `🔧 **Pipeline Recovery Confirmation**: Fail-safe operational path locked down.\n\n* **Status**: Stabilized\n* **Log Trace**: ${err.message || 'Validation standard reset complete'}`
+        content: `🔧 **Pipeline Recovery Confirmation**: Fail-safe operational path locked down.\n\n* **Status**: Stabilized\n* **Log Trace**: ${err?.message || 'Validation standard reset complete'}`
       }
     }
   }
