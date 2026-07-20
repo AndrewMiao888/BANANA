@@ -51,40 +51,40 @@ export default defineEventHandler(async (event) => {
     let finalResponseText = ''
     let activeExecutionSource = ''
 
-    // ─── 4. SMART LOCAL HARDWARE EXECUTION PROBING ────────────────────────
+    // ─── 4. HARD DRIVE LOCAL HARDWARE PROBING (PRIMARY RUNNER) ─────────────
     const localBaseUrl = config.homeOllamaUrl || process.env.HOME_OLLAMA_URL || 'https://xps9530-haydenk.tailb68230.ts.net'
     const targetLocalEndpoint = `${localBaseUrl.replace(/\/$/, '')}/api/chat`
-    let isLocalComputerOnline = false
+    let isLocalHardwareOnline = false
 
-    // Health probe to verify if local Ollama node is reachable
+    // Fast health probe to verify if your hard drive hardware node is live
     try {
       const probeUrl = `${localBaseUrl.replace(/\/$/, '')}/api/tags`
-      const healthCheck = await $fetch<any>(probeUrl, { method: 'GET', timeout: 1200 })
-      isLocalComputerOnline = !!healthCheck
+      const healthCheck = await $fetch<any>(probeUrl, { method: 'GET', timeout: 1500 })
+      isLocalHardwareOnline = !!healthCheck
     } catch {
-      isLocalComputerOnline = false
+      isLocalHardwareOnline = false
     }
 
-    const isExplicitLocalModel = modelConfig?.provider === 'local' || (selectedModelId && String(selectedModelId).startsWith('local:'))
-    const isInstantModel = (selectedModelId && String(selectedModelId).includes('instant')) || selectedModelId === 'instant-nana'
-
-    // Route to Local Computer IF computer is ON and (model is explicitly local OR non-instant)
-    if (isLocalComputerOnline && (isExplicitLocalModel || !isInstantModel)) {
+    // IF HARD DRIVE HARDWARE IS ONLINE: Run ALL models requested through your hard drive
+    if (isLocalHardwareOnline) {
       try {
-        const localModelId = isExplicitLocalModel ? modelConfig.id : 'llama3'
+        const localModelId = modelConfig.id || selectedModelId || 'llama3'
         const ollamaRes = await $fetch<any>(targetLocalEndpoint, {
           method: 'POST',
           body: { model: localModelId, messages: baseContextMessages, stream: false },
-          timeout: 5000 
+          timeout: 15000 
         })
+        
         finalResponseText = ollamaRes?.message?.content || ''
-        activeExecutionSource = `${modelConfig.name || localModelId} (Tailscale Local Mesh)`
+        if (finalResponseText) {
+          activeExecutionSource = `${currentModelName} (Hard Drive Local Execution)`
+        }
       } catch (localErr) {
-        console.warn('Local node failed or unreachable. Switching to cloud fail-safe...')
+        console.warn('Local hard drive execution dropped. Auto-failing over to Groq cloud...')
       }
     }
 
-    // ─── 5. HIGH DEMAND GUARD & GROQ CLOUD OVERDRIVE ──────────────────────
+    // ─── 5. FALLBACK LAYER 1 & 2: GROQ CLOUD OVERDRIVE ────────────────────
     if (!finalResponseText) {
       const apiKey = config.groqApiKey || process.env.GROQ_API_KEY
       
@@ -94,31 +94,14 @@ export default defineEventHandler(async (event) => {
           source: 'System Safe Mode Router',
           message: { 
             role: 'assistant', 
-            content: '⚠️ **Deployment Sync Alert**: Missing `GROQ_API_KEY` in environment configuration.' 
+            content: '⚠️ **Deployment Sync Alert**: Hard Drive offline and missing `GROQ_API_KEY` in environment config.' 
           }
         }
       }
 
-      // HIGH DEMAND GUARD: Heavy non-instant model requested while local machine is OFFLINE
-      if (!isInstantModel && !isLocalComputerOnline) {
-        return {
-          success: true,
-          source: 'System Traffic Controller [High Demand Guard]',
-          message: {
-            role: 'assistant',
-            content: `⚠️ **ENGINE HIGH DEMAND**: The cloud pipeline for **${currentModelName}** is currently experiencing high demand capacity limits.\n\n* **Option 1**: Switch your engine dropdown to **Instant-NANA** for immediate cloud response.\n* **Option 2**: Turn on your local computer engine (Ollama) to route requests locally.`
-          }
-        }
-      }
-
-      // Valid active production Groq models
-      const isTargetGroq = modelConfig && modelConfig.provider === 'groq'
-      const targetCloudModel = isTargetGroq ? modelConfig.id : 'llama-3.3-70b-versatile'
+      // LEVEL 1 FALLBACK: Strictly force Groq Instant model
+      const primaryCloudModel = 'llama-3.1-8b-instant'
       
-      activeExecutionSource = isTargetGroq 
-        ? `${modelConfig.name} (Groq Cloud)` 
-        : 'Instant-NANA (Groq Cloud Fast-Route)'
-
       try {
         const groqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
@@ -127,16 +110,20 @@ export default defineEventHandler(async (event) => {
             'Content-Type': 'application/json' 
           },
           body: { 
-            model: targetCloudModel, 
+            model: primaryCloudModel, 
             messages: baseContextMessages
           }
         })
         finalResponseText = groqRes?.choices?.[0]?.message?.content || ''
-      } catch (groqPrimaryErr: any) {
-        console.warn('Primary Groq route failed, trying secondary fallback model...', groqPrimaryErr?.message)
+        if (finalResponseText) {
+          activeExecutionSource = 'Instant-NANA (Groq Fallback: Instant 8B)'
+        }
+      } catch (groqInstantErr: any) {
+        console.warn('Groq Instant model failed, escalating to Level 2 Fallback (Versatile 70B)...', groqInstantErr?.message)
         
+        // LEVEL 2 FALLBACK: Degrade to Groq Versatile model
         try {
-          // Secondary fallback to ultra-fast Groq model
+          const secondaryCloudModel = 'llama-3.3-70b-versatile'
           const fallbackGroqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: { 
@@ -144,14 +131,17 @@ export default defineEventHandler(async (event) => {
               'Content-Type': 'application/json' 
             },
             body: { 
-              model: 'llama-3.1-8b-instant', 
+              model: secondaryCloudModel, 
               messages: baseContextMessages
             }
           })
+          
           finalResponseText = fallbackGroqRes?.choices?.[0]?.message?.content || ''
-          activeExecutionSource = 'Instant-NANA (Secondary Cloud Fallback: Llama 8B)'
-        } catch (fallbackErr: any) {
-          console.error('All Groq cloud routes failed:', fallbackErr?.message)
+          if (finalResponseText) {
+            activeExecutionSource = 'Instant-NANA (Groq Secondary Fallback: Versatile 70B)'
+          }
+        } catch (groqVersatileErr: any) {
+          console.error('All Groq cloud execution paths failed:', groqVersatileErr?.message)
         }
       }
     }
@@ -168,27 +158,39 @@ export default defineEventHandler(async (event) => {
       finalResponseText.toLowerCase().includes(trigger)
     )
 
+    // Execute web search if triggered by AI choice OR user explicit /search command
     if ((userExplicitlyTriggered || aiWantsSearchTriggered) && !isSummaryRequest && finalResponseText) {
       try {
         const apiKey = config.groqApiKey || process.env.GROQ_API_KEY
-        if (apiKey) {
-          const searchPhrase = incomingUserPrompt.replace(/\/search\s*/i, '').trim()
-          const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(searchPhrase)}&format=json`
-          
-          const searchResults = await $fetch<any>(searchUrl, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
-          })
-          
-          const extractedFact = searchResults?.AbstractText || searchResults?.RelatedTopics?.[0]?.Text || 'No direct summary packet returned.'
-          
-          const patchedSearchContext = [
-            { 
-              role: 'system', 
-              content: `${comprehensiveSystemPrompt}\n\n[LIVE SEARCH TELEMETRY DATA]:\n${extractedFact}\n\nIntegrate this data payload directly into your response parameters.` 
-            },
-            ...cleanHistory
-          ]
+        const searchPhrase = incomingUserPrompt.replace(/\/search\s*/i, '').trim()
+        const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(searchPhrase)}&format=json`
+        
+        const searchResults = await $fetch<any>(searchUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+        })
+        
+        const extractedFact = searchResults?.AbstractText || searchResults?.RelatedTopics?.[0]?.Text || 'No direct summary packet returned.'
+        
+        const patchedSearchContext = [
+          { 
+            role: 'system', 
+            content: `${comprehensiveSystemPrompt}\n\n[LIVE SEARCH TELEMETRY DATA]:\n${extractedFact}\n\nIntegrate this live telemetry data directly into your answer.` 
+          },
+          ...cleanHistory
+        ]
 
+        // Re-query with updated search telemetry using available active pipeline
+        if (isLocalHardwareOnline) {
+          const localSearchRes = await $fetch<any>(targetLocalEndpoint, {
+            method: 'POST',
+            body: { model: modelConfig.id || 'llama3', messages: patchedSearchContext, stream: false },
+            timeout: 10000
+          })
+          if (localSearchRes?.message?.content) {
+            finalResponseText = localSearchRes.message.content
+            activeExecutionSource += ' + Autonomous Web Search'
+          }
+        } else if (apiKey) {
           const searchGroqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: { 
@@ -213,7 +215,7 @@ export default defineEventHandler(async (event) => {
 
     // ─── 7. FINAL RESPONSE GUARANTEE ──────────────────────────────────────
     if (!finalResponseText) {
-      finalResponseText = '⚠️ **System Operational Alert**: Unable to retrieve response matrix from local node or cloud infrastructure. Please check network status.'
+      finalResponseText = '⚠️ **System Operational Alert**: Unable to retrieve response matrix from local hard drive node or Groq cloud infrastructure. Please check network connections.'
       activeExecutionSource = 'System Safeguard Fallback'
     }
 
