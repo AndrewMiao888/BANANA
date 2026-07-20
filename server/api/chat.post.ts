@@ -31,7 +31,12 @@ export default defineEventHandler(async (event) => {
         content: String(m.content).trim()
       }))
 
-    const comprehensiveSystemPrompt = `${systemPrompts.chatAgent}\n\n[HIDDEN CURRENT CORE KNOWLEDGE PACKET]:\n${summaryContext || 'No historical data compiled.'}`
+    // ─── 3. SYSTEM PROMPT & SUMMARY DIRECTIVE EVALUATION ──────────────────
+    const isSummaryRequest = incomingUserPrompt.includes("GENERATE_SHORT_TITLE_SUMMARY_DIRECTIVE")
+
+    const comprehensiveSystemPrompt = isSummaryRequest 
+      ? "You are a title generator. Respond with EXACTLY a 2 to 4 word summary of the user topic. No punctuation, no quotes, no markdown, no filler."
+      : `${systemPrompts.chatAgent}\n\n[HIDDEN CURRENT CORE KNOWLEDGE PACKET]:\n${summaryContext || 'No historical data compiled.'}`
 
     const baseContextMessages = [
       { role: 'system', content: comprehensiveSystemPrompt.trim() },
@@ -112,14 +117,6 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Inside server/api/chat.post.ts where you compile your prompts:
-const incomingUserPrompt = messages[messages.length - 1]?.content || ''
-const isSummaryRequest = incomingUserPrompt.includes("GENERATE_SHORT_TITLE_SUMMARY_DIRECTIVE")
-
-const comprehensiveSystemPrompt = isSummaryRequest 
-  ? "You are a title generator. Respond with EXACTLY a 2 to 4 word summary of the user topic. No punctuation, no quotes, no markdown, no filler."
-  : `${systemPrompts.chatAgent}\n\n[CONTEXT]:\n${summaryContext}`
-
     // ─── STAGE 3: AUTONOMOUS REAL-TIME WEB SEARCH MATRIX ──────────────────
     const userExplicitlyTriggered = incomingUserPrompt.toLowerCase().trim().startsWith('/search')
     
@@ -132,7 +129,8 @@ const comprehensiveSystemPrompt = isSummaryRequest
       finalResponseText.toLowerCase().includes(trigger)
     )
 
-    if (userExplicitlyTriggered || aiWantsSearchTriggered) {
+    // Bypass search step if it's an internal summary pass
+    if ((userExplicitlyTriggered || aiWantsSearchTriggered) && !isSummaryRequest) {
       try {
         const searchPhrase = incomingUserPrompt.replace(/\/search\s*/i, '').trim()
         const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(searchPhrase)}&format=json`
