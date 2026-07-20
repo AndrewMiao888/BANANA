@@ -34,9 +34,13 @@ export default defineEventHandler(async (event) => {
     // ─── 3. SYSTEM PROMPT & SUMMARY DIRECTIVE EVALUATION ──────────────────
     const isSummaryRequest = incomingUserPrompt.includes("GENERATE_SHORT_TITLE_SUMMARY_DIRECTIVE")
 
-    const comprehensiveSystemPrompt = isSummaryRequest 
-      ? "You are a title generator. Respond with EXACTLY a 2 to 4 word summary of the user topic. No punctuation, no quotes, no markdown, no filler."
-      : `${systemPrompts.chatAgent}\n\n[HIDDEN CURRENT CORE KNOWLEDGE PACKET]:\n${summaryContext || 'No historical data compiled.'}`
+    // 1. Resolve active model identifier (defaults to Enterprise-NANA if not provided)
+const currentModelName = selectedModelId || 'Enterprise-NANA'
+
+// 2. Build the system prompt with explicit identity enforcement
+const comprehensiveSystemPrompt = isSummaryRequest 
+  ? "You are a title generator. Respond with EXACTLY a 2 to 4 word summary of the user topic. No punctuation, no quotes, no markdown, no filler."
+  : `System Identity: You are BANANA Intelligence running on the model "${currentModelName}". If asked which model, engine, or AI agent you are, state truthfully that you are running on ${currentModelName}.\n\n${systemPrompts.chatAgent}\n\n[HIDDEN CURRENT CORE KNOWLEDGE PACKET]:\n${summaryContext || 'No historical data compiled.'}`
 
     const baseContextMessages = [
       { role: 'system', content: comprehensiveSystemPrompt.trim() },

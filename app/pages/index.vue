@@ -1,14 +1,19 @@
 <template>
-<div class="flex h-screen bg-zinc-950 text-zinc-200 font-sans overflow-hidden selection:bg-yellow-500/30 selection:text-yellow-200">
+  <div class="flex h-screen w-screen bg-zinc-950 text-zinc-200 font-sans overflow-hidden selection:bg-yellow-500/30 selection:text-yellow-200">
     
+    <div 
+      v-if="isSidebarVisible" 
+      @click="isSidebarVisible = false"
+      class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden transition-opacity"
+    ></div>
+
     <aside 
       :class="[
-        'bg-zinc-900/90 border-r border-zinc-800/80 flex flex-col h-full shrink-0 transition-all duration-300 ease-in-out overflow-hidden z-30',
-        isSidebarVisible ? 'w-64 opacity-100' : 'w-0 opacity-0 border-r-0'
+        'bg-zinc-900/95 border-r border-zinc-800/80 flex flex-col h-full shrink-0 transition-all duration-300 ease-in-out z-40 fixed md:relative',
+        isSidebarVisible ? 'w-64 translate-x-0 opacity-100' : '-translate-x-full md:translate-x-0 md:w-0 opacity-0 border-r-0'
       ]"
     >
-      
-      <div class="p-3.5 flex items-center gap-2">
+      <div class="p-3.5 flex items-center gap-2 border-b border-zinc-800/40 shrink-0">
         <button 
           @click="startNewChatSession"
           class="flex-1 py-2 px-4 bg-zinc-800 hover:bg-zinc-700/80 text-zinc-300 hover:text-zinc-100 rounded-lg font-mono text-xs font-medium border border-zinc-700/60 transition-all duration-150 flex items-center justify-start gap-3 shadow-sm active:scale-[0.99]"
@@ -25,8 +30,8 @@
         </button>
       </div>
 
-      <div class="flex-1 overflow-y-auto px-2 space-y-0.5 custom-scrollbar">
-        <div class="px-3 py-2 text-[10px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
+      <div class="flex-1 overflow-y-auto px-2 space-y-0.5 custom-scrollbar py-2">
+        <div class="px-3 py-1.5 text-[10px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
           Recents
         </div>
 
@@ -39,7 +44,7 @@
           :key="session.id"
           @click="switchActiveSession(session.id)"
           :class="[
-            'group relative px-3 py-2 rounded-lg text-xs font-mono cursor-pointer transition-all duration-150 flex items-center justify-between',
+            'group relative px-3 py-2.5 rounded-lg text-xs font-mono cursor-pointer transition-all duration-150 flex items-center justify-between',
             activeSessionId === session.id 
               ? 'bg-zinc-800 text-yellow-400 font-semibold' 
               : 'text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200'
@@ -52,14 +57,14 @@
 
           <button 
             @click.stop="purgeSession(session.id)"
-            class="text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity duration-100 p-0.5 text-[10px]"
+            class="text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity duration-100 p-1 text-[11px]"
           >
             ✕
           </button>
         </div>
       </div>
 
-      <div class="p-3 border-t border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
+      <div class="p-3 border-t border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between shrink-0">
         <div class="flex items-center gap-2.5 truncate">
           <div class="w-7 h-7 rounded-full bg-yellow-500 text-zinc-950 font-mono font-bold text-xs flex items-center justify-center shadow-inner shrink-0">
             🍌
@@ -70,26 +75,26 @@
       </div>
     </aside>
 
-    <main class="flex-1 flex flex-col h-full bg-zinc-950 relative">
+    <main class="flex-1 flex flex-col h-full w-full bg-zinc-950 relative overflow-hidden">
       
-      <header class="h-14 border-b border-zinc-800/60 px-6 flex items-center justify-between bg-zinc-950/40 backdrop-blur-md z-20">
-        <div class="flex items-center gap-3 font-mono text-[11px]">
+      <header class="h-14 border-b border-zinc-800/60 px-4 md:px-6 flex items-center justify-between bg-zinc-950/80 backdrop-blur-md z-20 shrink-0">
+        <div class="flex items-center gap-3 font-mono text-[11px] truncate">
           <button 
             v-if="!isSidebarVisible"
             @click="isSidebarVisible = true"
-            class="mr-2 px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-yellow-400 rounded transition-all font-bold"
+            class="mr-1 px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-yellow-400 rounded transition-all font-bold text-xs"
             title="Expand Sidebar"
           >
-            ▶ Open Sidebar
+            ▶
           </button>
-          <span class="text-zinc-600">PIPELINE MONITOR:</span>
-          <span class="px-2 py-0.5 bg-zinc-900 border border-zinc-800 text-yellow-400 font-semibold rounded">
+          <span class="text-zinc-600 hidden sm:inline">PIPELINE:</span>
+          <span class="px-2 py-0.5 bg-zinc-900 border border-zinc-800 text-yellow-400 font-semibold rounded truncate max-w-[150px] sm:max-w-none">
             {{ activeRoutingSource || 'Idle Waiting State' }}
           </span>
         </div>
 
-        <div class="flex items-center gap-2 font-mono text-[11px]">
-          <span class="text-zinc-500">ENGINE:</span>
+        <div class="flex items-center gap-2 font-mono text-[11px] shrink-0">
+          <span class="text-zinc-500 hidden sm:inline">ENGINE:</span>
           <select 
             v-model="selectedModelId"
             class="bg-zinc-900 border border-zinc-800 text-zinc-300 rounded px-2.5 py-1 focus:outline-none focus:border-yellow-500/40 cursor-pointer text-[11px]"
@@ -106,12 +111,12 @@
         @scroll="handleUserScrollDetection"
         @wheel="handleUserScrollDetection"
         @touchmove="handleUserScrollDetection"
-        class="flex-1 overflow-y-auto px-6 py-8 space-y-6 custom-scrollbar bg-zinc-950"
+        class="flex-1 overflow-y-auto px-4 md:px-6 py-6 space-y-6 custom-scrollbar bg-zinc-950"
       >
         <div v-if="messages.length === 0" class="h-full flex flex-col items-center justify-center max-w-xl mx-auto text-center space-y-3 pb-12">
           <div class="text-4xl animate-bounce duration-1000">🍌</div>
           <h1 class="text-xl font-mono font-bold tracking-tight text-yellow-400">BANANA Core Orchestrator</h1>
-          <p class="text-xs text-zinc-500 font-mono leading-relaxed">
+          <p class="text-xs text-zinc-500 font-mono leading-relaxed px-4">
             Ready to receive system operational parameters. Prepend requests with <span class="text-yellow-500/80">/search</span> to directly trigger automated real-time web telemetry routines.
           </p>
         </div>
@@ -120,15 +125,15 @@
           v-for="(msg, index) in messages" 
           :key="index"
           :class="[
-            'max-w-2xl mx-auto flex gap-4 p-1 transition-all duration-150',
+            'max-w-3xl mx-auto flex gap-3.5 p-1 transition-all duration-150',
             msg.role === 'user' ? 'justify-end' : 'justify-start'
           ]"
         >
-          <div v-if="msg.role === 'assistant'" class="w-6 h-6 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-xs flex items-center justify-center shrink-0">
+          <div v-if="msg.role === 'assistant'" class="w-6 h-6 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-xs flex items-center justify-center shrink-0 mt-0.5">
             🍌
           </div>
 
-          <div class="flex flex-col gap-1 max-w-[88%]">
+          <div class="flex flex-col gap-1 max-w-[88%] sm:max-w-[82%]">
             <div class="font-mono text-[10px] uppercase tracking-wider text-zinc-600 flex items-center gap-2">
               <span>{{ msg.role === 'user' ? 'Client Directive' : 'BANANA Intelligence response' }}</span>
               <span v-if="msg.source" class="text-[9px] px-1 bg-zinc-900 border border-zinc-800 rounded text-zinc-500 lowercase">
@@ -136,7 +141,7 @@
               </span>
             </div>
             
-           <div 
+            <div 
               :class="[
                 'text-sm leading-relaxed max-w-none w-full overflow-hidden',
                 msg.role === 'user' 
@@ -154,7 +159,7 @@
           </div>
         </div>
 
-        <div v-if="isProcessingPipeline" class="max-w-2xl mx-auto flex gap-4 p-1">
+        <div v-if="isProcessingPipeline" class="max-w-3xl mx-auto flex gap-3.5 p-1">
           <div class="w-6 h-6 rounded-full bg-yellow-500/10 border border-dashed border-yellow-500/40 flex items-center justify-center shrink-0 animate-spin text-[10px]">
             ⚙️
           </div>
@@ -164,19 +169,22 @@
         </div>
       </div>
 
-      <footer class="p-4 border-t border-zinc-900/60 bg-zinc-950">
-        <form @submit.prevent="executeTransmissionDirective" class="max-w-2xl mx-auto relative flex items-center">
-          <input 
+      <footer class="p-3 md:p-4 border-t border-zinc-900/80 bg-zinc-950 shrink-0">
+        <form @submit.prevent="executeTransmissionDirective" class="max-w-3xl mx-auto relative flex items-end bg-zinc-900 border border-zinc-800 focus-within:border-yellow-500/40 rounded-2xl p-1.5 transition-all shadow-lg">
+          <textarea 
+            ref="inputTextarea"
             v-model="inputFieldPrompt"
-            type="text"
-            placeholder="Type your instruction or execution trace here..."
+            @keydown="handleKeydown"
+            @input="adjustTextareaHeight"
+            rows="1"
+            placeholder="Type your instruction... (Shift + Enter for multi-line)"
             :disabled="isProcessingPipeline"
-            class="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3.5 pr-24 text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none focus:border-yellow-500/40 transition-all disabled:opacity-40 font-sans"
-          />
+            class="w-full bg-transparent text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none resize-none px-3 py-2 custom-scrollbar max-h-36 disabled:opacity-40 font-sans leading-relaxed"
+          ></textarea>
           <button 
             type="submit"
             :disabled="isProcessingPipeline || !inputFieldPrompt.trim()"
-            class="absolute right-2 px-3.5 py-1.5 bg-yellow-500 text-zinc-950 font-mono font-bold rounded-lg text-xs tracking-wider hover:bg-yellow-400 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            class="ml-2 px-4 py-2 bg-yellow-500 text-zinc-950 font-mono font-bold rounded-xl text-xs tracking-wider hover:bg-yellow-400 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 mb-0.5"
           >
             EXECUTE
           </button>
@@ -250,6 +258,25 @@ const selectedModelId = ref(AVAILABLE_MODELS[0]?.id || '')
 const isProcessingPipeline = ref(false)
 const activeRoutingSource = ref('')
 const feedScrollContainer = ref(null)
+const inputTextarea = ref(null) // Added for textarea auto-height
+
+// Dynamic textarea autosize (expands up to max-h-36 / 144px, then scrolls)
+function adjustTextareaHeight() {
+  nextTick(() => {
+    const el = inputTextarea.value
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 144)}px`
+  })
+}
+
+// Enter sends message, Shift + Enter inserts new line
+function handleKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    executeTransmissionDirective()
+  }
+}
 
 // 🔍 SMART SCROLL SYSTEM VALS
 const userHasScrolledUpManually = ref(false)
@@ -383,12 +410,16 @@ async function executeTransmissionDirective() {
   const isFirstMessage = messages.value.length === 0
   let finalAiResponseContent = ''
 
-  // Add the message to the view
+  // 1. Push user prompt to messages array
   messages.value.push({ role: 'user', content: currentPayload })
+  
+  // 2. Clear input and immediately reset textarea height back to 1 row
   inputFieldPrompt.value = ''
+  adjustTextareaHeight()
+  
   isProcessingPipeline.value = true
   
-  // Force screen focus down to bottom right after user submits prompt
+  // 3. Reset scroll anchor so screen auto-scrolls down for the new response
   userHasScrolledUpManually.value = false
   await triggerSystemEnforcedAutoScroll(true)
 
@@ -397,7 +428,7 @@ async function executeTransmissionDirective() {
       ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
       : ''
 
-const apiResponse = await $fetch('/api/chat', {
+    const apiResponse = await $fetch('/api/chat', {
       method: 'POST',
       body: {
         messages: messages.value,
@@ -474,14 +505,12 @@ function copyCodeToClipboard(event, base64Text) {
 }
 
 // Attach to global window object so rendered markdown inline onclick handlers can trigger it
+// Attach it globally so the markdown-it rendered HTML can access it
+
 if (import.meta.client) {
   window.copyCodeToClipboard = copyCodeToClipboard
 }
 
-// Attach it globally so the markdown-it rendered HTML can access it
-if (import.meta.client) {
-  window.copyCodeToClipboard = copyCodeToClipboard
-}
 
 </script>
 
