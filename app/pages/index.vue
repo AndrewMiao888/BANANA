@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-screen w-screen bg-zinc-950 text-zinc-200 font-sans overflow-hidden selection:bg-yellow-500/30 selection:text-yellow-200">
+  <div class="flex h-dscreen h-screen w-screen bg-zinc-950 text-zinc-200 font-sans overflow-hidden selection:bg-yellow-500/30 selection:text-yellow-200 fixed inset-0">
     
     <div 
       v-if="isSidebarVisible" 
@@ -55,12 +55,22 @@
             <span class="truncate">{{ session.title }}</span>
           </div>
 
-          <button 
-            @click.stop="purgeSession(session.id)"
-            class="text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity duration-100 p-1 text-[11px]"
-          >
-            ✕
-          </button>
+          <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-100">
+  <button 
+    @click.stop="renameSession(session.id)"
+    class="text-zinc-500 hover:text-yellow-400 p-1 text-[11px] transition-colors"
+    title="Rename chat"
+  >
+    ✏️
+  </button>
+  <button 
+    @click.stop="purgeSession(session.id)"
+    class="text-zinc-600 hover:text-red-400 p-1 text-[11px] transition-colors"
+    title="Delete chat"
+  >
+    ✕
+  </button>
+</div>
         </div>
       </div>
 
@@ -75,9 +85,9 @@
       </div>
     </aside>
 
-    <main class="flex-1 flex flex-col h-full w-full bg-zinc-950 relative overflow-hidden">
+    <main class="flex-1 flex flex-col h-full w-full bg-zinc-950 relative overflow-hidden min-w-0">
       
-      <header class="h-14 border-b border-zinc-800/60 px-4 md:px-6 flex items-center justify-between bg-zinc-950/80 backdrop-blur-md z-20 shrink-0">
+      <header class="h-14 border-b border-zinc-800/60 px-4 md:px-6 flex items-center justify-between bg-zinc-950/80 backdrop-blur-md z-20 shrink-0 sticky top-0">
         <div class="flex items-center gap-3 font-mono text-[11px] truncate">
           <button 
             v-if="!isSidebarVisible"
@@ -111,7 +121,7 @@
         @scroll="handleUserScrollDetection"
         @wheel="handleUserScrollDetection"
         @touchmove="handleUserScrollDetection"
-        class="flex-1 overflow-y-auto px-4 md:px-6 py-6 space-y-6 custom-scrollbar bg-zinc-950"
+        class="flex-1 overflow-y-auto px-4 md:px-6 py-6 space-y-6 custom-scrollbar bg-zinc-950 min-h-0"
       >
         <div v-if="messages.length === 0" class="h-full flex flex-col items-center justify-center max-w-xl mx-auto text-center space-y-3 pb-12">
           <div class="text-4xl animate-bounce duration-1000">🍌</div>
@@ -133,7 +143,7 @@
             🍌
           </div>
 
-          <div class="flex flex-col gap-1 max-w-[88%] sm:max-w-[82%]">
+          <div class="flex flex-col gap-1 max-w-[88%] sm:max-w-[82%] min-w-0">
             <div class="font-mono text-[10px] uppercase tracking-wider text-zinc-600 flex items-center gap-2">
               <span>{{ msg.role === 'user' ? 'Client Directive' : 'BANANA Intelligence response' }}</span>
               <span v-if="msg.source" class="text-[9px] px-1 bg-zinc-900 border border-zinc-800 rounded text-zinc-500 lowercase">
@@ -143,10 +153,10 @@
             
             <div 
               :class="[
-                'text-sm leading-relaxed max-w-none w-full overflow-hidden',
+                'text-sm leading-relaxed max-w-none w-full overflow-hidden break-words',
                 msg.role === 'user' 
-                  ? 'bg-zinc-900 text-zinc-200 border border-zinc-800 px-4 py-2.5 rounded-2xl rounded-tr-none whitespace-pre-wrap' 
-                  : 'text-zinc-300 pt-0.5 prose prose-invert prose-zinc prose-sm max-w-none \
+                  ? 'bg-zinc-900 text-zinc-200 border border-zinc-800 px-4 py-2.5 rounded-2xl rounded-tr-none whitespace-pre-wrap [word-break:break-word]' 
+                  : 'text-zinc-300 pt-0.5 prose prose-invert prose-zinc prose-sm max-w-none [word-break:break-word] \
                      prose-headings:text-yellow-400 prose-headings:font-mono prose-headings:my-2 \
                      prose-table:border prose-table:border-zinc-800 prose-th:bg-zinc-900 prose-th:p-2 prose-td:p-2 prose-td:border-b prose-td:border-zinc-800 \
                      prose-code:text-yellow-500 prose-code:bg-zinc-900 prose-code:px-1 prose-code:py-0.5 prose-code:rounded \
@@ -169,7 +179,7 @@
         </div>
       </div>
 
-      <footer class="p-3 md:p-4 border-t border-zinc-900/80 bg-zinc-950 shrink-0">
+      <footer class="p-3 md:p-4 border-t border-zinc-900/80 bg-zinc-950 shrink-0 sticky bottom-0 z-20">
         <form @submit.prevent="executeTransmissionDirective" class="max-w-3xl mx-auto relative flex items-end bg-zinc-900 border border-zinc-800 focus-within:border-yellow-500/40 rounded-2xl p-1.5 transition-all shadow-lg">
           <textarea 
             ref="inputTextarea"
@@ -179,7 +189,7 @@
             rows="1"
             placeholder="Type your instruction... (Shift + Enter for multi-line)"
             :disabled="isProcessingPipeline"
-            class="w-full bg-transparent text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none resize-none px-3 py-2 custom-scrollbar max-h-36 disabled:opacity-40 font-sans leading-relaxed"
+            class="w-full bg-transparent text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none resize-none px-3 py-2 custom-scrollbar max-h-48 overflow-y-auto disabled:opacity-40 font-sans leading-relaxed whitespace-pre-wrap [word-break:break-word]"
           ></textarea>
           <button 
             type="submit"
@@ -509,6 +519,17 @@ function copyCodeToClipboard(event, base64Text) {
 
 if (import.meta.client) {
   window.copyCodeToClipboard = copyCodeToClipboard
+}
+
+function renameSession(id) {
+  const session = chatHistoryList.value.find(s => s.id === id)
+  if (!session) return
+
+  const newTitle = prompt('Enter new chat title:', session.title)
+  if (newTitle && newTitle.trim()) {
+    session.title = newTitle.trim()
+    syncSessionsToLocalStorage()
+  }
 }
 
 
