@@ -1,6 +1,5 @@
 <template>
-  <div class="flex h-dscreen h-screen w-screen bg-zinc-950 text-zinc-200 font-sans overflow-hidden selection:bg-yellow-500/30 selection:text-yellow-200 fixed inset-0">
-    
+  <div class="flex h-[100dvh] w-full bg-zinc-950 text-zinc-200 font-sans overflow-hidden selection:bg-yellow-500/30 selection:text-yellow-200 relative">
     <div 
       v-if="isSidebarVisible" 
       @click="isSidebarVisible = false"
@@ -87,8 +86,7 @@
 
     <main class="flex-1 flex flex-col h-full w-full bg-zinc-950 relative overflow-hidden min-w-0">
       
-      <header class="h-14 border-b border-zinc-800/60 px-4 md:px-6 flex items-center justify-between bg-zinc-950/80 backdrop-blur-md z-20 shrink-0 sticky top-0">
-        <div class="flex items-center gap-3 font-mono text-[11px] truncate">
+      <header class="h-14 border-b border-zinc-800/60 px-4 md:px-6 flex items-center justify-between bg-zinc-950/80 backdrop-blur-md z-20 shrink-0">        <div class="flex items-center gap-3 font-mono text-[11px] truncate">
           <button 
             v-if="!isSidebarVisible"
             @click="isSidebarVisible = true"
@@ -179,7 +177,7 @@
         </div>
       </div>
 
-      <footer class="p-3 md:p-4 border-t border-zinc-900/80 bg-zinc-950 shrink-0 sticky bottom-0 z-20">
+      <footer class="p-3 md:p-4 border-t border-zinc-900/80 bg-zinc-950 shrink-0 z-20 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <form @submit.prevent="executeTransmissionDirective" class="max-w-3xl mx-auto relative flex items-end bg-zinc-900 border border-zinc-800 focus-within:border-yellow-500/40 rounded-2xl p-1.5 transition-all shadow-lg">
           <textarea 
             ref="inputTextarea"
@@ -187,7 +185,7 @@
             @keydown="handleKeydown"
             @input="adjustTextareaHeight"
             rows="1"
-            placeholder="Type your instruction... (Shift + Enter for multi-line)"
+            placeholder="Ask BANANA AI anything... (Shift + Enter for new line)"
             :disabled="isProcessingPipeline"
             class="w-full bg-transparent text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none resize-none px-3 py-2 custom-scrollbar max-h-48 overflow-y-auto disabled:opacity-40 font-sans leading-relaxed whitespace-pre-wrap [word-break:break-word]"
           ></textarea>
