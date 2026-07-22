@@ -103,14 +103,17 @@
 
         <div class="flex items-center gap-2 font-mono text-[11px] shrink-0">
           <span class="text-zinc-500 hidden sm:inline">ENGINE:</span>
+          <div class="relative flex items-center">
           <select 
             v-model="selectedModelId"
-            class="bg-zinc-900 border border-zinc-800 text-zinc-300 rounded px-2.5 py-1 focus:outline-none focus:border-yellow-500/40 cursor-pointer text-[11px]"
+            class="appearance-none bg-zinc-900 border border-zinc-800 text-zinc-300 rounded pl-2.5 pr-7 py-1 focus:outline-none focus:border-yellow-500/40 cursor-pointer text-[11px] shadow-sm"
           >
-            <option v-for="model in AVAILABLE_MODELS" :key="model.id" :value="model.id">
+            <option v-for="model in AVAILABLE_MODELS" :key="model.id" :value="model.id" class="bg-zinc-900 text-zinc-200">
               {{ model.name }}
             </option>
           </select>
+          <span class="pointer-events-none absolute right-2 text-[9px] text-zinc-500">▼</span>
+        </div>
         </div>
       </header>
 
