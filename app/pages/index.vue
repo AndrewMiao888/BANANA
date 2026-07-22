@@ -158,7 +158,9 @@
                 msg.role === 'user' 
                   ? 'bg-zinc-900 text-zinc-200 border border-zinc-800 px-4 py-2.5 rounded-2xl rounded-tr-none whitespace-pre-wrap [word-break:break-word]' 
                   : 'text-zinc-300 pt-0.5 prose prose-invert prose-zinc prose-sm max-w-none [word-break:break-word] \
-                     prose-headings:text-yellow-400 prose-headings:font-mono prose-headings:my-2 \
+                     prose-h1:text-xl prose-h1:font-bold prose-h1:text-yellow-400 prose-h1:font-mono prose-h1:mt-5 prose-h1:mb-3 \
+                     prose-h2:text-lg prose-h2:font-bold prose-h2:text-yellow-400/90 prose-h2:font-mono prose-h2:mt-4 prose-h2:mb-2 \
+                     prose-h3:text-base prose-h3:font-semibold prose-h3:text-zinc-100 prose-h3:font-mono prose-h3:mt-3 prose-h3:mb-1.5 \
                      prose-table:border prose-table:border-zinc-800 prose-th:bg-zinc-900 prose-th:p-2 prose-td:p-2 prose-td:border-b prose-td:border-zinc-800 \
                      prose-code:text-yellow-500 prose-code:bg-zinc-900 prose-code:px-1 prose-code:py-0.5 prose-code:rounded \
                      prose-blockquote:border-l-2 prose-blockquote:border-yellow-500 prose-blockquote:pl-4 prose-blockquote:italic'
@@ -210,6 +212,7 @@ import { ref, onMounted, nextTick } from 'vue'
 import { AVAILABLE_MODELS } from '~~/src/models'
 import MarkdownIt from 'markdown-it'
 import markdownItKatex from 'markdown-it-katex'
+import 'katex/dist/katex.min.css' // <-- ADD THIS IMPORT
 
 // Custom renderer to format code blocks with language labels and copy buttons
 const mdProcessor = new MarkdownIt({
@@ -255,8 +258,34 @@ mdProcessor.renderer.rules.fence = (tokens, idx) => {
 
 function renderMarkdownMarkup(rawText) {
   if (!rawText) return ''
-  let preparedString = String(rawText).replace(/%@FRAC\|/g, '\\frac')
-  return mdProcessor.render(preparedString)
+
+  let text = String(rawText)
+
+  // STEP 1: Temporarily stash triple-backtick code blocks so math regex doesn't alter code
+  const codeBlocks = []
+  text = text.replace(/(```[\s\S]*?```|`[^`]+`)/g, (match) => {
+    codeBlocks.push(match)
+    return `___CODE_BLOCK_${codeBlocks.length - 1}___`
+  })
+
+  // STEP 2: Auto-wrap naked LaTeX environments (\begin{align}, \begin{matrix}, etc.)
+  text = text.replace(/(?<!\$\$)\s*\\begin\{(align\*?|equation\*?|gather\*?|matrix|bmatrix|pmatrix|vmatrix|cases|array)\}([\s\S]*?)\\end\{\1\}\s*(?!\$\$)/g, '\n$$\n\\begin{$1}$2\\end{$1}\n$$\n')
+
+  // STEP 3: Convert standard LaTeX delimiters \[...\] and \(...\) to KaTeX syntax
+  text = text.replace(/\\\[([\s\S]*?)\\\]/g, (_m, eq) => `\n$$\n${eq.trim()}\n$$\n`)
+  text = text.replace(/\\\(([\s\S]*?)\\\)/g, (_m, eq) => `$${eq.trim()}$`)
+
+  // STEP 4: Auto-detect naked standalone LaTeX math (e.g., naked \frac{a}{b} or \sqrt{x} not inside $ or $$)
+  // Wraps single standalone math expressions like \frac{1}{2} in $...$
+  text = text.replace(/(?<!\$)\b(\\(?:frac|sqrt|sum|int|lim|prod|alpha|beta|gamma|delta|theta|pi|infty|mathbb|mathbf)\{[^{}]*\}(?:\{[^{}]*\})?)(?!\$)/g, '$$1$')
+
+  // STEP 5: Clean up broken custom tokens
+  text = text.replace(/%@FRAC\|/g, '\\frac')
+
+  // STEP 6: Restore code blocks intact
+  text = text.replace(/___CODE_BLOCK_(\d+)___/g, (_, index) => codeBlocks[Number(index)])
+
+  return mdProcessor.render(text)
 }
 
 // ─── STATE ARRAYS AND UI VALUES ───────────────────────────────────────
