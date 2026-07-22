@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
     
     const incomingUserPrompt = messages[messages.length - 1]?.content || ''
 
-    // ─── 2. STAGE DATA CLEANING PASS (PREVENTS GROQ 400 BAD REQUESTS) ─────
+    // ─── 2. STAGE DATA CLEANING & ROLLING SLIDING WINDOW (PREVENTS GROQ 429) ─────
     const cleanHistory = messages
       .filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.content)
       .map(m => ({
@@ -35,17 +35,36 @@ export default defineEventHandler(async (event) => {
         content: String(m.content).trim()
       }))
 
+    // Cap raw payload turns to recent 10 messages to prevent token ceiling & 429 rate limit spikes
+    // (UI retains 100% full chat history in memory)
+    const MAX_API_CONTEXT_TURNS = 10
+    const recentHistory = cleanHistory.length > MAX_API_CONTEXT_TURNS
+      ? cleanHistory.slice(-MAX_API_CONTEXT_TURNS)
+      : cleanHistory
+
+    // Compress older turns into lightweight background context packet
+    const olderTurns = cleanHistory.length > MAX_API_CONTEXT_TURNS
+      ? cleanHistory.slice(0, cleanHistory.length - MAX_API_CONTEXT_TURNS)
+      : []
+
+    const compiledOlderHistoryContext = olderTurns.length > 0
+      ? `[COMPRESSED BACKGROUND CHAT HISTORY (${olderTurns.length} earlier turns)]:\n` +
+        olderTurns.map(m => `${m.role.toUpperCase()}: ${m.content.slice(0, 120)}${m.content.length > 120 ? '...' : ''}`).join('\n')
+      : ''
+
     // ─── 3. SYSTEM PROMPT & SUMMARY DIRECTIVE EVALUATION ──────────────────
     const isSummaryRequest = incomingUserPrompt.includes("GENERATE_SHORT_TITLE_SUMMARY_DIRECTIVE")
     const currentModelName = modelConfig.name || selectedModelId || 'Enterprise-NANA'
 
+    const mergedKnowledgePacket = [summaryContext, compiledOlderHistoryContext].filter(Boolean).join('\n\n')
+
     const comprehensiveSystemPrompt = isSummaryRequest 
       ? "You are a title generator. Respond with EXACTLY a 2 to 4 word summary of the user topic. No punctuation, no quotes, no markdown, no filler."
-      : `System Identity: You are BANANA Intelligence running on the model "${currentModelName}". If asked which model, engine, or AI agent you are, state truthfully that you are running on ${currentModelName}.\n\n${systemPrompts?.chatAgent || ''}\n\n[HIDDEN CURRENT CORE KNOWLEDGE PACKET]:\n${summaryContext || 'No historical data compiled.'}`
+      : `System Identity: You are BANANA Intelligence running on the model "${currentModelName}". If asked which model, engine, or AI agent you are, state truthfully that you are running on ${currentModelName}.\n\n${systemPrompts?.chatAgent || ''}\n\n[HIDDEN CURRENT CORE KNOWLEDGE PACKET]:\n${mergedKnowledgePacket || 'No historical data compiled.'}`
 
     const baseContextMessages = [
       { role: 'system', content: comprehensiveSystemPrompt.trim() },
-      ...cleanHistory
+      ...recentHistory
     ]
 
     let finalResponseText = ''
@@ -176,7 +195,7 @@ export default defineEventHandler(async (event) => {
             role: 'system', 
             content: `${comprehensiveSystemPrompt}\n\n[LIVE SEARCH TELEMETRY DATA]:\n${extractedFact}\n\nIntegrate this live telemetry data directly into your answer.` 
           },
-          ...cleanHistory
+          ...recentHistory
         ]
 
         // Re-query with updated search telemetry using available active pipeline
