@@ -619,8 +619,8 @@ function renameSession(id) {
 
 /* Force distinct Markdown heading sizes for v-html rendered content */
 :deep(.prose h1) {
-  font-size: 1.35rem !important; /* 21px */
-  line-height: 1.75rem !important;
+  font-size: 2.25rem !important; /* 36px */
+  line-height: 2.5rem !important; /* 40px - prevents line overlaps */
   font-weight: 800 !important;
   color: #facc15 !important; /* bright yellow */
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
@@ -629,8 +629,8 @@ function renameSession(id) {
 }
 
 :deep(.prose h2) {
-  font-size: 1.15rem !important; /* 18px */
-  line-height: 1.5rem !important;
+  font-size: 1.625rem !important; /* 26px */
+  line-height: 2rem !important; /* 32px */
   font-weight: 700 !important;
   color: rgba(250, 204, 21, 0.9) !important; /* soft yellow */
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
@@ -639,15 +639,14 @@ function renameSession(id) {
 }
 
 :deep(.prose h3) {
-  font-size: 1.05rem !important; /* 17px */
-  line-height: 1.375rem !important;
+  font-size: 1.25rem !important; /* 20px - clean standard rem value */
+  line-height: 1.75rem !important; /* 28px */
   font-weight: 700 !important;
   color: #f4f4f5 !important; /* zinc 100 white */
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
   margin-top: 1rem !important;
   margin-bottom: 0.375rem !important;
 }
-
 :deep(.prose h4),
 :deep(.prose h5),
 :deep(.prose h6) {
