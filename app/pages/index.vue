@@ -116,8 +116,7 @@
         </div>
         </div>
       </header>
-
-      <div 
+<div 
         ref="feedScrollContainer"
         @scroll="handleUserScrollDetection"
         @wheel="handleUserScrollDetection"
@@ -144,7 +143,7 @@
             🍌
           </div>
 
-          <div class="flex flex-col gap-1 max-w-[88%] sm:max-w-[82%] min-w-0">
+          <div class="flex flex-col gap-1.5 max-w-[88%] sm:max-w-[82%] min-w-0">
             <div class="font-mono text-[10px] uppercase tracking-wider text-zinc-600 flex items-center gap-2">
               <span>{{ msg.role === 'user' ? 'Client Directive' : 'BANANA Intelligence response' }}</span>
               <span v-if="msg.source" class="text-[9px] px-1 bg-zinc-900 border border-zinc-800 rounded text-zinc-500 lowercase">
@@ -169,38 +168,76 @@
               <div v-if="msg.role === 'user'">{{ msg.content }}</div>
               <div v-else v-html="renderMarkdownMarkup(msg.content)"></div>
             </div>
+
+            <div v-if="msg.role === 'assistant'" class="flex items-center gap-3 pt-0.5 px-1 font-mono text-[10px] text-zinc-500 select-none">
+              <button 
+                @click="navigator.clipboard.writeText(msg.content)" 
+                class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
+                title="Copy response content"
+              >
+                <span>📋</span> Copy
+              </button>
+              <span class="text-zinc-800">•</span>
+              <button 
+                @click="executeTransmissionDirective()" 
+                class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
+                title="Regenerate message"
+              >
+                <span>🔄</span> Regenerate
+              </button>
+            </div>
+              
           </div>
         </div>
 
         <div v-if="isProcessingPipeline" class="max-w-3xl mx-auto flex gap-3.5 p-1">
           <div class="w-6 h-6 rounded-full bg-yellow-500/10 border border-dashed border-yellow-500/40 flex items-center justify-center shrink-0 animate-spin text-[10px]">
-            ⚙️
+            ⏳
           </div>
           <div class="text-xs text-zinc-500 font-mono italic flex items-center gap-2 animate-pulse pt-0.5">
-            Streaming network pipeline computation matrices...
+            Analysing...
           </div>
         </div>
-      </div>
+      </div> <footer class="p-3 md:p-4 border-t border-zinc-900/80 bg-zinc-950 shrink-0 z-20 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <form @submit.prevent="executeTransmissionDirective" class="max-w-3xl mx-auto relative flex flex-col bg-zinc-900 border border-zinc-800 focus-within:border-yellow-500/40 rounded-2xl p-1.5 transition-all shadow-lg">
+          
+          <div class="flex items-center justify-between px-3 pt-1 text-[10px] font-mono text-zinc-500 select-none">
+            <span class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full" :class="isProcessingPipeline ? 'bg-yellow-400 animate-ping' : 'bg-emerald-500'"></span>
+              <span>Model Routing: <strong class="text-zinc-400">{{ selectedModelId || 'Default Core' }}</strong></span>
+            </span>
+            <span v-if="activeRoutingSource" class="hidden sm:inline text-zinc-600 truncate max-w-[200px]">{{ activeRoutingSource }}</span>
+          </div>
 
-      <footer class="p-3 md:p-4 border-t border-zinc-900/80 bg-zinc-950 shrink-0 z-20 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <form @submit.prevent="executeTransmissionDirective" class="max-w-3xl mx-auto relative flex items-end bg-zinc-900 border border-zinc-800 focus-within:border-yellow-500/40 rounded-2xl p-1.5 transition-all shadow-lg">
-          <textarea 
-            ref="inputTextarea"
-            v-model="inputFieldPrompt"
-            @keydown="handleKeydown"
-            @input="adjustTextareaHeight"
-            rows="1"
-            placeholder="Ask BANANA AI anything... (Shift + Enter for new line)"
-            :disabled="isProcessingPipeline"
-            class="w-full bg-transparent text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none resize-none px-3 py-2 custom-scrollbar max-h-48 overflow-y-auto disabled:opacity-40 font-sans leading-relaxed whitespace-pre-wrap [word-break:break-word]"
-          ></textarea>
-          <button 
-            type="submit"
-            :disabled="isProcessingPipeline || !inputFieldPrompt.trim()"
-            class="ml-2 px-4 py-2 bg-yellow-500 text-zinc-950 font-mono font-bold rounded-xl text-xs tracking-wider hover:bg-yellow-400 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 mb-0.5"
-          >
-            EXECUTE
-          </button>
+          <div class="flex items-end mt-1">
+            <textarea 
+              ref="inputTextarea"
+              v-model="inputFieldPrompt"
+              @keydown="handleKeydown"
+              @input="adjustTextareaHeight"
+              rows="1"
+              placeholder="Ask BANANA AI anything... (Shift + Enter for new line)"
+              class="w-full bg-transparent text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none resize-none px-3 py-2 custom-scrollbar max-h-48 overflow-y-auto font-sans leading-relaxed whitespace-pre-wrap [word-break:break-word]"
+            ></textarea>
+            
+            <button 
+              v-if="isProcessingPipeline"
+              type="button"
+              @click="isProcessingPipeline = false"
+              class="ml-2 px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500 hover:text-white font-mono font-bold rounded-xl text-xs tracking-wider transition-all shrink-0 mb-0.5 animate-pulse cursor-pointer"
+            >
+              STOP
+            </button>
+            <button 
+              v-else
+              type="submit"
+              :disabled="!inputFieldPrompt.trim()"
+              class="ml-2 px-4 py-2 bg-yellow-500 text-zinc-950 font-mono font-bold rounded-xl text-xs tracking-wider hover:bg-yellow-400 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 mb-0.5 cursor-pointer"
+            >
+              Send
+            </button>
+          </div>
+
         </form>
       </footer>
     </main>
@@ -261,33 +298,33 @@ function renderMarkdownMarkup(rawText) {
 
   let text = String(rawText)
 
-  // STEP 1: Temporarily stash triple-backtick code blocks so math regex doesn't alter code
+  // 1. Temporarily stash code blocks so regex transformations don't corrupt code
   const codeBlocks = []
   text = text.replace(/(```[\s\S]*?```|`[^`]+`)/g, (match) => {
     codeBlocks.push(match)
     return `___CODE_BLOCK_${codeBlocks.length - 1}___`
   })
 
-  // STEP 2: Auto-wrap naked LaTeX environments (\begin{align}, \begin{matrix}, etc.)
+  // 2. Convert bold lines acting as pseudo-headers (e.g. "**Header:**") into actual Markdown headers (### Header)
+  text = text.replace(/^(\s*)\*\*(.+?):\*\*\s*$/gm, '$1### $2')
+
+  // 3. Auto-wrap naked LaTeX environments (\begin{align}, \begin{matrix}, etc.)
   text = text.replace(/(?<!\$\$)\s*\\begin\{(align\*?|equation\*?|gather\*?|matrix|bmatrix|pmatrix|vmatrix|cases|array)\}([\s\S]*?)\\end\{\1\}\s*(?!\$\$)/g, '\n$$\n\\begin{$1}$2\\end{$1}\n$$\n')
 
-  // STEP 3: Convert standard LaTeX delimiters \[...\] and \(...\) to KaTeX syntax
+  // 4. Convert LaTeX block delimiters \[...\] to $$...$$
   text = text.replace(/\\\[([\s\S]*?)\\\]/g, (_m, eq) => `\n$$\n${eq.trim()}\n$$\n`)
+
+  // 5. Convert LaTeX inline delimiters \(...\) to $...$
   text = text.replace(/\\\(([\s\S]*?)\\\)/g, (_m, eq) => `$${eq.trim()}$`)
 
-  // STEP 4: Auto-detect naked standalone LaTeX math (e.g., naked \frac{a}{b} or \sqrt{x} not inside $ or $$)
-  // Wraps single standalone math expressions like \frac{1}{2} in $...$
-  text = text.replace(/(?<!\$)\b(\\(?:frac|sqrt|sum|int|lim|prod|alpha|beta|gamma|delta|theta|pi|infty|mathbb|mathbf)\{[^{}]*\}(?:\{[^{}]*\})?)(?!\$)/g, '$$1$')
-
-  // STEP 5: Clean up broken custom tokens
+  // 6. Fix fraction/math tokens and unescape broken sequences
   text = text.replace(/%@FRAC\|/g, '\\frac')
 
-  // STEP 6: Restore code blocks intact
+  // 7. Restore saved code blocks
   text = text.replace(/___CODE_BLOCK_(\d+)___/g, (_, index) => codeBlocks[Number(index)])
 
   return mdProcessor.render(text)
 }
-
 // ─── STATE ARRAYS AND UI VALUES ───────────────────────────────────────
 const isSidebarVisible = ref(true)
 const chatHistoryList = ref([])
@@ -578,5 +615,47 @@ function renameSession(id) {
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #3f3f46;
+}
+
+/* Force distinct Markdown heading sizes for v-html rendered content */
+:deep(.prose h1) {
+  font-size: 1.35rem !important; /* 21px */
+  line-height: 1.75rem !important;
+  font-weight: 800 !important;
+  color: #facc15 !important; /* bright yellow */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.75rem !important;
+}
+
+:deep(.prose h2) {
+  font-size: 1.15rem !important; /* 18px */
+  line-height: 1.5rem !important;
+  font-weight: 700 !important;
+  color: rgba(250, 204, 21, 0.9) !important; /* soft yellow */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  margin-top: 1.25rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+:deep(.prose h3) {
+  font-size: 1.05rem !important; /* 17px */
+  line-height: 1.375rem !important;
+  font-weight: 700 !important;
+  color: #f4f4f5 !important; /* zinc 100 white */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  margin-top: 1rem !important;
+  margin-bottom: 0.375rem !important;
+}
+
+:deep(.prose h4),
+:deep(.prose h5),
+:deep(.prose h6) {
+  font-size: 0.95rem !important; /* 15px */
+  line-height: 1.25rem !important;
+  font-weight: 600 !important;
+  color: #e4e4e7 !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.25rem !important;
 }
 </style>
