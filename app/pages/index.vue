@@ -9,7 +9,9 @@
     <aside 
       :class="[
         'bg-zinc-900/95 border-r border-zinc-800/80 flex flex-col h-full shrink-0 transition-all duration-300 ease-in-out z-40 fixed md:relative',
-        isSidebarVisible ? 'w-64 translate-x-0 opacity-100' : '-translate-x-full md:translate-x-0 md:w-0 opacity-0 border-r-0'
+        isSidebarVisible 
+          ? 'w-64 translate-x-0 opacity-100 pointer-events-auto' 
+          : '-translate-x-full md:translate-x-0 md:w-0 opacity-0 border-r-0 pointer-events-none'
       ]"
     >
       <div class="p-3.5 flex items-center gap-2 border-b border-zinc-800/40 shrink-0">
@@ -89,8 +91,8 @@
       <header class="h-14 border-b border-zinc-800/60 px-4 md:px-6 flex items-center justify-between bg-zinc-950/80 backdrop-blur-md z-20 shrink-0">        <div class="flex items-center gap-3 font-mono text-[11px] truncate">
           <button 
             v-if="!isSidebarVisible"
-            @click="isSidebarVisible = true"
-            class="mr-1 px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-yellow-400 rounded transition-all font-bold text-xs"
+            @click.stop="isSidebarVisible = true"
+            class="mr-1 px-2.5 py-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-yellow-400 rounded transition-all font-bold text-xs cursor-pointer"
             title="Expand Sidebar"
           >
             ▶
