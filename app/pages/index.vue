@@ -258,7 +258,11 @@ const mdProcessor = new MarkdownIt({
   html: true,
   linkify: true,
   typographer: true
-}).use(markdownItKatex)
+}).use(markdownItKatex, {
+  throwOnError: false,
+  errorColor: '#ef4444',
+  displayMode: true // Enforces clean, centered block equations
+})
 
 // Override fence renderer for code block containers
 // Override fence renderer for code block containers
@@ -605,6 +609,7 @@ function renameSession(id) {
 </script>
 
 <style scoped>
+/* Custom Scrollbars */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
@@ -619,44 +624,149 @@ function renameSession(id) {
   background: #3f3f46;
 }
 
-/* Force distinct Markdown heading sizes for v-html rendered content */
+/* Force distinct Markdown heading sizes */
 :deep(.prose h1) {
-  font-size: 2.25rem !important; /* 36px */
-  line-height: 2.5rem !important; /* 40px - prevents line overlaps */
+  font-size: 2.25rem !important;
+  line-height: 2.5rem !important;
   font-weight: 800 !important;
-  color: #facc15 !important; /* bright yellow */
+  color: #facc15 !important;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
   margin-top: 1.5rem !important;
   margin-bottom: 0.75rem !important;
 }
 
 :deep(.prose h2) {
-  font-size: 1.625rem !important; /* 26px */
-  line-height: 2rem !important; /* 32px */
+  font-size: 1.625rem !important;
+  line-height: 2rem !important;
   font-weight: 700 !important;
-  color: rgba(250, 204, 21, 0.9) !important; /* soft yellow */
+  color: rgba(250, 204, 21, 0.9) !important;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
   margin-top: 1.25rem !important;
   margin-bottom: 0.5rem !important;
 }
 
 :deep(.prose h3) {
-  font-size: 1.25rem !important; /* 20px - clean standard rem value */
-  line-height: 1.75rem !important; /* 28px */
+  font-size: 1.25rem !important;
+  line-height: 1.75rem !important;
   font-weight: 700 !important;
-  color: #f4f4f5 !important; /* zinc 100 white */
+  color: #f4f4f5 !important;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
   margin-top: 1rem !important;
   margin-bottom: 0.375rem !important;
 }
+
 :deep(.prose h4),
 :deep(.prose h5),
 :deep(.prose h6) {
-  font-size: 0.95rem !important; /* 15px */
+  font-size: 0.95rem !important;
   line-height: 1.25rem !important;
   font-weight: 600 !important;
   color: #e4e4e7 !important;
   margin-top: 0.75rem !important;
   margin-bottom: 0.25rem !important;
+}
+
+/* 📊 1. Scrollable Table Window & Gridlines */
+:deep(.prose table) {
+  display: block !important;
+  width: 100% !important;
+  overflow-x: auto !important;
+  white-space: nowrap !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  border: 1px solid rgba(39, 39, 42, 0.8) !important;
+  border-radius: 0.5rem !important;
+  margin: 1rem 0 !important;
+}
+
+:deep(.prose th) {
+  background-color: rgba(24, 24, 27, 0.9) !important;
+  color: #facc15 !important;
+  font-weight: 700 !important;
+  text-align: left !important;
+  padding: 0.6rem 0.85rem !important;
+  border-bottom: 1px solid rgba(39, 39, 42, 0.8) !important;
+  border-right: 1px solid rgba(39, 39, 42, 0.5) !important;
+  min-width: 120px;
+}
+
+:deep(.prose td) {
+  padding: 0.6rem 0.85rem !important;
+  border-bottom: 1px solid rgba(39, 39, 42, 0.5) !important;
+  border-right: 1px solid rgba(39, 39, 42, 0.5) !important;
+  min-width: 120px;
+}
+
+:deep(.prose th:last-child),
+:deep(.prose td:last-child) {
+  border-right: none !important;
+}
+
+:deep(.prose tr:last-child td) {
+  border-bottom: none !important;
+}
+
+:deep(.prose table)::-webkit-scrollbar {
+  height: 5px;
+}
+:deep(.prose table)::-webkit-scrollbar-track {
+  background: rgba(24, 24, 27, 0.5);
+}
+:deep(.prose table)::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 4px;
+}
+:deep(.prose table)::-webkit-scrollbar-thumb:hover {
+  background: #eab308;
+}
+
+/* 🧮 2. KaTeX Math Block & Inline Formatting */
+:deep(.katex-display) {
+  margin: 1rem 0 !important;
+  padding: 0.75rem 1rem !important;
+  background-color: rgba(24, 24, 27, 0.6) !important;
+  border: 1px solid rgba(39, 39, 42, 0.8) !important;
+  border-radius: 0.75rem !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  text-align: center !important;
+}
+
+:deep(.katex) {
+  font-size: 1.05em !important;
+  color: #fef08a !important;
+}
+
+:deep(.katex-inline) {
+  padding: 0.1rem 0.3rem !important;
+  background: rgba(39, 39, 42, 0.4) !important;
+  border-radius: 0.25rem !important;
+}
+
+/* 🟡 3. Clean Bullet & List Formatting */
+:deep(.prose ul) {
+  list-style-type: disc !important;
+  padding-left: 1.25rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.75rem !important;
+}
+
+:deep(.prose ol) {
+  list-style-type: decimal !important;
+  padding-left: 1.25rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.75rem !important;
+}
+
+:deep(.prose li) {
+  margin-top: 0.25rem !important;
+  margin-bottom: 0.25rem !important;
+  line-height: 1.625 !important;
+}
+
+:deep(.prose ul > li::marker),
+:deep(.prose ol > li::marker) {
+  color: #facc15 !important;
+  font-weight: 700 !important;
 }
 </style>
