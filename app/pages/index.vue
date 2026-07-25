@@ -484,10 +484,9 @@ async function triggerBackgroundChatNamingSummary(userPromptText, responseText) 
   }
 }
 
-so 
 // ─── DIRECTIVE EXECUTION LAYER WITH STREAMING ──────────────────────────
 async function executeTransmissionDirective() {
-  const currentPayload = inputFieldPrompt.value.trim()
+ const currentPayload = inputFieldPrompt.value.trim()
   if (!currentPayload || isProcessingPipeline.value) return
 
   const isFirstMessage = messages.value.length === 0
@@ -570,7 +569,7 @@ async function executeTransmissionDirective() {
         if (trimmed.startsWith('data: ')) {
           const dataStr = trimmed.slice(6).trim()
           if (dataStr === '[DONE]') continue
-          
+
           try {
             const parsed = JSON.parse(dataStr)
             accumulatedContent += parsed.text || parsed.content || parsed.delta || parsed.choices?.[0]?.delta?.content || ''
