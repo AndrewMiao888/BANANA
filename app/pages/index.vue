@@ -634,66 +634,7 @@ async function executeTransmissionDirective() {
   }
 }
   
-  // 2. Clear input and immediately reset textarea height back to 1 row
-  inputFieldPrompt.value = ''
-  adjustTextareaHeight()
   
-  isProcessingPipeline.value = true
-  
-  // 3. Reset scroll anchor so screen auto-scrolls down for the new response
-  userHasScrolledUpManually.value = false
-  await triggerSystemEnforcedAutoScroll(true)
-
-  try {
-    const calculatedContext = messages.value[0]?.content 
-      ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
-      : ''
-
-    const apiResponse = await $fetch('/api/chat', {
-      method: 'POST',
-      body: {
-        messages: messages.value,
-        selectedModelId: selectedModelId.value,
-        summaryContext: calculatedContext
-      }
-    })
-
-    if (apiResponse && apiResponse.message) {
-      finalAiResponseContent = apiResponse.message.content || 'Blank packet allocated.'
-      messages.value.push({
-        role: 'assistant',
-        content: finalAiResponseContent,
-        source: apiResponse.source || 'Cloud Inference Network'
-      })
-      activeRoutingSource.value = apiResponse.source || 'Completed Routing Frame'
-    } else {
-      throw new Error('API down-channel schema error encountered.')
-    }
-
-  } catch (err) {
-    messages.value.push({
-      role: 'assistant',
-      content: `⚠️ **Pipeline Terminal Failure**: Cloud matrix route interrupted.\n\n* **Diagnostics**: ${err.message || 'Serverless deployment frame drop'}`,
-      source: 'Internal Error Diagnostic Layer'
-    })
-    activeRoutingSource.value = 'Connection Error'
-  } finally {
-    isProcessingPipeline.value = false
-    
-    const targetSession = chatHistoryList.value.find(s => s.id === activeSessionId.value)
-    if (targetSession) {
-      targetSession.messages = [...messages.value]
-    }
-    
-    syncSessionsToLocalStorage()
-    await triggerSystemEnforcedAutoScroll()
-
-    // Triggers the asynchronous AI title generation call if it's the first message exchange
-    if (isFirstMessage && finalAiResponseContent) {
-      triggerBackgroundChatNamingSummary(currentPayload, finalAiResponseContent)
-    }
-  }
-
 // Core initializer layout lifecycle binding hook
 onMounted(() => {
   loadSessionsFromLocalStorage()
