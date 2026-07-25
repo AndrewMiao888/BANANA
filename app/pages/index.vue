@@ -97,14 +97,27 @@
           >
             ▶
           </button>
-          <span class="text-zinc-600 hidden sm:inline">PIPELINE:</span>
-          <span class="px-2 py-0.5 bg-zinc-900 border border-zinc-800 text-yellow-400 font-semibold rounded truncate max-w-[150px] sm:max-w-none">
-            {{ activeRoutingSource || 'Idle Waiting State' }}
-          </span>
+<div class="flex items-center gap-2 bg-zinc-900/90 border border-zinc-800/90 rounded-full px-2.5 py-1 shadow-inner">
+            <span class="relative flex h-2 w-2">
+              <span 
+                v-if="isProcessingPipeline" 
+                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"
+              ></span>
+              <span 
+                :class="[
+                  'relative inline-flex rounded-full h-2 w-2 transition-colors duration-300',
+                  isProcessingPipeline ? 'bg-yellow-400' : 'bg-emerald-500'
+                ]"
+              ></span>
+            </span>
+            <span class="text-zinc-300 font-medium text-[11px] truncate max-w-[180px] sm:max-w-none">
+              {{ isProcessingPipeline ? 'Thinking...' : (activeRoutingSource || 'Ready') }}
+            </span>
+          </div>
         </div>
 
         <div class="flex items-center gap-2 font-mono text-[11px] shrink-0">
-          <span class="text-zinc-500 hidden sm:inline">ENGINE:</span>
+          <span class="text-zinc-500 hidden sm:inline">Model:</span>
           <div class="relative flex items-center">
           <select 
             v-model="selectedModelId"
@@ -201,53 +214,41 @@
           </div>
         </div>
       </div> <footer class="p-3 md:p-4 border-t border-zinc-900/80 bg-zinc-950 shrink-0 z-20 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <form @submit.prevent="executeTransmissionDirective" class="max-w-3xl mx-auto relative flex flex-col bg-zinc-900 border border-zinc-800 focus-within:border-yellow-500/40 rounded-2xl p-1.5 transition-all shadow-lg">
-          
-          <div class="flex items-center justify-between px-3 pt-1 text-[10px] font-mono text-zinc-500 select-none">
-            <span class="flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full" :class="isProcessingPipeline ? 'bg-yellow-400 animate-ping' : 'bg-emerald-500'"></span>
-              <span>Model Routing: <strong class="text-zinc-400">{{ selectedModelId || 'Default Core' }}</strong></span>
-            </span>
-            <span v-if="activeRoutingSource" class="hidden sm:inline text-zinc-600 truncate max-w-[200px]">{{ activeRoutingSource }}</span>
-          </div>
-
-          <div class="flex items-end mt-1">
-            <textarea 
-              ref="inputTextarea"
-              v-model="inputFieldPrompt"
-              @keydown="handleKeydown"
-              @input="adjustTextareaHeight"
-              rows="1"
-              placeholder="Ask BANANA AI anything... (Shift + Enter for new line)"
-              class="w-full bg-transparent text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none resize-none px-3 py-2 custom-scrollbar max-h-48 overflow-y-auto font-sans leading-relaxed whitespace-pre-wrap [word-break:break-word]"
-            ></textarea>
-            
-            <button 
-              v-if="isProcessingPipeline"
-              type="button"
-              @click="isProcessingPipeline = false"
-              class="ml-2 px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500 hover:text-white font-mono font-bold rounded-xl text-xs tracking-wider transition-all shrink-0 mb-0.5 animate-pulse cursor-pointer"
-            >
-              STOP
-            </button>
-            <button 
-              v-else
-              type="submit"
-              :disabled="!inputFieldPrompt.trim()"
-              class="ml-2 px-4 py-2 bg-yellow-500 text-zinc-950 font-mono font-bold rounded-xl text-xs tracking-wider hover:bg-yellow-400 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 mb-0.5 cursor-pointer"
-            >
-              Send
-            </button>
-          </div>
-
-        </form>
+        <form @submit.prevent="executeTransmissionDirective" class="max-w-3xl mx-auto relative flex items-end bg-zinc-900 border border-zinc-800 focus-within:border-yellow-500/40 rounded-2xl p-2 transition-all shadow-lg">
+  <textarea 
+    ref="inputTextarea"
+    v-model="inputFieldPrompt"
+    @keydown="handleKeydown"
+    @input="adjustTextareaHeight"
+    rows="1"
+    placeholder="Ask BANANA AI anything... (Shift + Enter for new line)"
+    class="w-full bg-transparent text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none resize-none px-3 py-2 custom-scrollbar max-h-48 overflow-y-auto font-sans leading-relaxed whitespace-pre-wrap [word-break:break-word]"
+  ></textarea>
+  
+  <button 
+    v-if="isProcessingPipeline"
+    type="button"
+    @click="isProcessingPipeline = false"
+    class="ml-2 px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500 hover:text-white font-mono font-bold rounded-xl text-xs tracking-wider transition-all shrink-0 mb-0.5 animate-pulse cursor-pointer"
+  >
+    STOP
+  </button>
+  <button 
+    v-else
+    type="submit"
+    :disabled="!inputFieldPrompt.trim()"
+    class="ml-2 px-4 py-2 bg-yellow-500 text-zinc-950 font-mono font-bold rounded-xl text-xs tracking-wider hover:bg-yellow-400 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 mb-0.5 cursor-pointer"
+  >
+    Send
+  </button>
+</form>
       </footer>
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { AVAILABLE_MODELS } from '~~/src/models'
 import MarkdownIt from 'markdown-it'
 import markdownItKatex from 'markdown-it-katex'
@@ -414,28 +415,26 @@ function loadSessionsFromLocalStorage() {
 }
 
 // ─── NODE LIFECYCLE MANAGERS ──────────────────────────────────────────
+
 function startNewChatSession() {
-  const targetId = `node_${Date.now()}`
-  const initialNewSession = {
-    id: targetId,
-    title: 'New chat',
-    messages: []
-  }
+  // Clear active session pointer to return to the home screen layout
+  activeSessionId.value = null
   
-  chatHistoryList.value.unshift(initialNewSession)
-  activeSessionId.value = targetId
+  // Clear messages from active view
   messages.value = []
-  activeRoutingSource.value = 'Initialized Clean Vector'
+  
+  // Reset header status pill & scroll lock states
+  activeRoutingSource.value = 'Ready'
   userHasScrolledUpManually.value = false
-  syncSessionsToLocalStorage()
 }
+
 
 function switchActiveSession(id) {
   const matchedNode = chatHistoryList.value.find(s => s.id === id)
   if (matchedNode) {
     activeSessionId.value = id
     messages.value = [...matchedNode.messages]
-    activeRoutingSource.value = messages.value.length > 0 ? 'Restored Frame Data' : 'Clean Vector State'
+    activeRoutingSource.value = 'Ready'
     userHasScrolledUpManually.value = false
     triggerSystemEnforcedAutoScroll(true) // Force scroll to bottom on switch
   }
@@ -485,16 +484,155 @@ async function triggerBackgroundChatNamingSummary(userPromptText, responseText) 
   }
 }
 
-// ─── DIRECTIVE EXECUTION LAYER ────────────────────────────────────────
+so 
+// ─── DIRECTIVE EXECUTION LAYER WITH STREAMING ──────────────────────────
 async function executeTransmissionDirective() {
-  const currentPayload = inputFieldPrompt.value.trim()
-  if (!currentPayload || isProcessingPipeline.value) return
+  const currentPayload = inputFieldPrompt.value.trim()
+  if (!currentPayload || isProcessingPipeline.value) return
 
-  const isFirstMessage = messages.value.length === 0
-  let finalAiResponseContent = ''
+  const isFirstMessage = messages.value.length === 0
 
-  // 1. Push user prompt to messages array
-  messages.value.push({ role: 'user', content: currentPayload })
+  // 1. Return to home view logic: create history node only when sending first message
+  if (!activeSessionId.value) {
+    const targetId = `node_${Date.now()}`
+    const newSession = {
+      id: targetId,
+      title: 'New chat',
+      messages: []
+    }
+    chatHistoryList.value.unshift(newSession)
+    activeSessionId.value = targetId
+  }
+
+  // 2. Add user prompt to message thread
+  messages.value.push({ role: 'user', content: currentPayload })
+  
+  // 3. Clear prompt input and reset textarea height
+  inputFieldPrompt.value = ''
+  adjustTextareaHeight()
+  
+  isProcessingPipeline.value = true
+  
+  // 4. Create assistant placeholder entry ready to receive incoming stream
+  const assistantMsgIndex = messages.value.length
+  messages.value.push({
+    role: 'assistant',
+    content: '',
+    source: 'Live Stream'
+  })
+
+  // 5. Unlock scroll state for auto-scrolling
+  userHasScrolledUpManually.value = false
+  await triggerSystemEnforcedAutoScroll(true)
+
+  try {
+    const calculatedContext = messages.value[0]?.content 
+      ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
+      : ''
+
+    // 6. Fetch live stream via API
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: messages.value.slice(0, -1), // Exclude empty assistant placeholder
+        selectedModelId: selectedModelId.value,
+        summaryContext: calculatedContext,
+        stream: true
+      })
+    })
+
+    if (!response.ok || !response.body) {
+      throw new Error(`Server returned HTTP status ${response.status}`)
+    }
+
+    // 7. Parse ReadableStream stream chunks
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder('utf-8')
+    let accumulatedContent = ''
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      
+      // Process lines delimited by newlines
+      const lines = buffer.split('\n')
+      // Hold onto incomplete line at the end of the buffer
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed) continue
+
+        if (trimmed.startsWith('data: ')) {
+          const dataStr = trimmed.slice(6).trim()
+          if (dataStr === '[DONE]') continue
+          
+          try {
+            const parsed = JSON.parse(dataStr)
+            accumulatedContent += parsed.text || parsed.content || parsed.delta || parsed.choices?.[0]?.delta?.content || ''
+          } catch {
+            accumulatedContent += dataStr
+          }
+        } else {
+          // Plain raw text stream chunk (non-SSE)
+          accumulatedContent += line + '\n'
+        }
+      }
+
+      // Live update message container
+      messages.value[assistantMsgIndex].content = accumulatedContent
+      triggerSystemEnforcedAutoScroll()
+    }
+
+    // Flush remaining buffer data after stream close
+    if (buffer.trim()) {
+      const trimmed = buffer.trim()
+      if (trimmed.startsWith('data: ')) {
+        const dataStr = trimmed.slice(6).trim()
+        if (dataStr !== '[DONE]') {
+          try {
+            const parsed = JSON.parse(dataStr)
+            accumulatedContent += parsed.text || parsed.content || parsed.delta || ''
+          } catch {
+            accumulatedContent += dataStr
+          }
+        }
+      } else {
+        accumulatedContent += buffer
+      }
+      messages.value[assistantMsgIndex].content = accumulatedContent
+    }
+
+    activeRoutingSource.value = 'Stream Complete'
+
+  } catch (err) {
+    if (!messages.value[assistantMsgIndex].content) {
+      messages.value[assistantMsgIndex].content = `⚠️ **Pipeline Terminal Failure**: Could not establish live stream.\n\n* **Diagnostics**: ${err.message || 'Stream connection drop'}`
+    }
+    activeRoutingSource.value = 'Connection Error'
+  } finally {
+    isProcessingPipeline.value = false
+    
+    // Save session to LocalStorage
+    const targetSession = chatHistoryList.value.find(s => s.id === activeSessionId.value)
+    if (targetSession) {
+      targetSession.messages = [...messages.value]
+    }
+    
+    syncSessionsToLocalStorage()
+    await triggerSystemEnforcedAutoScroll()
+
+    // Generate background summary title for new chats
+    const finalContent = messages.value[assistantMsgIndex]?.content || ''
+    if (isFirstMessage && finalContent) {
+      triggerBackgroundChatNamingSummary(currentPayload, finalContent)
+    }
+  }
+}
   
   // 2. Clear input and immediately reset textarea height back to 1 row
   inputFieldPrompt.value = ''
@@ -538,7 +676,7 @@ async function executeTransmissionDirective() {
       content: `⚠️ **Pipeline Terminal Failure**: Cloud matrix route interrupted.\n\n* **Diagnostics**: ${err.message || 'Serverless deployment frame drop'}`,
       source: 'Internal Error Diagnostic Layer'
     })
-    activeRoutingSource.value = 'Fault Safe Mode Redirect'
+    activeRoutingSource.value = 'Connection Error'
   } finally {
     isProcessingPipeline.value = false
     
@@ -555,7 +693,6 @@ async function executeTransmissionDirective() {
       triggerBackgroundChatNamingSummary(currentPayload, finalAiResponseContent)
     }
   }
-}
 
 // Core initializer layout lifecycle binding hook
 onMounted(() => {

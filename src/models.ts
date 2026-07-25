@@ -10,7 +10,7 @@ export interface ModelOption {
 
 export const AVAILABLE_MODELS: ModelOption[] = [
   // --- SINGLE EXCLUSIVE CLOUD MODEL (GROQ) ---
-  { id: 'llama3-8b-8192', name: 'Instant-NANA (Cloud)', provider: 'groq', tier: 'Instant', description: 'Ultra-fast cloud processing core' },
+  { id: 'llama3-8b-8192', name: 'Instant-NANA', provider: 'groq', tier: 'Instant', description: 'Ultra-fast cloud processing core' },
 
   // --- LOCAL COMPUTER MODELS (Active only when machine is ON) ---
   // Core Compute Tiers
