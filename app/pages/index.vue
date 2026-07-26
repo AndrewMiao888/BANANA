@@ -485,159 +485,189 @@ async function triggerBackgroundChatNamingSummary(userPromptText, responseText) 
 }
 
 // ─── DIRECTIVE EXECUTION LAYER WITH STREAMING ──────────────────────────
+// ─── DIRECTIVE EXECUTION LAYER WITH STREAMING ──────────────────────────
 async function executeTransmissionDirective() {
- const currentPayload = inputFieldPrompt.value.trim()
-  if (!currentPayload || isProcessingPipeline.value) return
+  const currentPayload = inputFieldPrompt.value.trim()
+  if (!currentPayload || isProcessingPipeline.value) return
 
-  const isFirstMessage = messages.value.length === 0
+  const isFirstMessage = messages.value.length === 0
 
-  // 1. Return to home view logic: create history node only when sending first message
-  if (!activeSessionId.value) {
-    const targetId = `node_${Date.now()}`
-    const newSession = {
-      id: targetId,
-      title: 'New chat',
-      messages: []
-    }
-    chatHistoryList.value.unshift(newSession)
-    activeSessionId.value = targetId
-  }
+  // 1. Create history session node if starting fresh
+  if (!activeSessionId.value) {
+    const targetId = `node_${Date.now()}`
+    const newSession = {
+      id: targetId,
+      title: 'New chat',
+      messages: []
+    }
+    chatHistoryList.value.unshift(newSession)
+    activeSessionId.value = targetId
+  }
 
-  // 2. Add user prompt to message thread
-  messages.value.push({ role: 'user', content: currentPayload })
-  
-  // 3. Clear prompt input and reset textarea height
-  inputFieldPrompt.value = ''
-  adjustTextareaHeight()
-  
-  isProcessingPipeline.value = true
-  
-  // 4. Create assistant placeholder entry ready to receive incoming stream
-  const assistantMsgIndex = messages.value.length
-  messages.value.push({
-    role: 'assistant',
-    content: '',
-    source: 'Live Stream'
-  })
+  // 2. Push user message
+  messages.value.push({ role: 'user', content: currentPayload })
+  
+  // 3. Clear input
+  inputFieldPrompt.value = ''
+  adjustTextareaHeight()
+  
+  isProcessingPipeline.value = true
+  
+  // 4. Create assistant placeholder
+  const assistantMsgIndex = messages.value.length
+  messages.value.push({
+    role: 'assistant',
+    content: '',
+    source: 'Live Stream'
+  })
 
-  // 5. Unlock scroll state for auto-scrolling
-  userHasScrolledUpManually.value = false
-  await triggerSystemEnforcedAutoScroll(true)
+  userHasScrolledUpManually.value = false
+  await triggerSystemEnforcedAutoScroll(true)
 
-  try {
-    const calculatedContext = messages.value[0]?.content 
-      ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
-      : ''
+  try {
+    const calculatedContext = messages.value[0]?.content 
+      ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
+      : ''
 
-    // 6. Fetch live stream via API
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messages: messages.value.slice(0, -1), // Exclude empty assistant placeholder
-        selectedModelId: selectedModelId.value,
-        summaryContext: calculatedContext,
-        stream: true
-      })
-    })
+    // 5. Fetch stream from API
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: messages.value.slice(0, -1),
+        selectedModelId: selectedModelId.value,
+        summaryContext: calculatedContext,
+        stream: true
+      })
+    })
 
-    if (!response.ok || !response.body) {
-      throw new Error(`Server returned HTTP status ${response.status}`)
-    }
+    if (!response.ok || !response.body) {
+      throw new Error(`Server returned HTTP status ${response.status}`)
+    }
 
-    // 7. Parse ReadableStream stream chunks
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder('utf-8')
-    let accumulatedContent = ''
-    let buffer = ''
+    // 6. Process response stream
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder('utf-8')
+    let accumulatedContent = ''
+    let buffer = ''
 
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
 
-      buffer += decoder.decode(value, { stream: true })
-      
-      // Process lines delimited by newlines
-      const lines = buffer.split('\n')
-      // Hold onto incomplete line at the end of the buffer
-      buffer = lines.pop() || ''
+      buffer += decoder.decode(value, { stream: true })
+      
+      const lines = buffer.split('\n')
+      // Keep incomplete line in buffer
+      buffer = lines.pop() ?? ''
 
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed) continue
+      for (const line of lines) {
+        const trimmed = line.trim()
 
-        if (trimmed.startsWith('data: ')) {
-          const dataStr = trimmed.slice(6).trim()
-          if (dataStr === '[DONE]') continue
+        // Handle SSE data lines
+        if (trimmed.startsWith('data: ')) {
+          const dataStr = trimmed.slice(6).trim()
+          if (dataStr === '[DONE]') continue
+          try {
+            const parsed = JSON.parse(dataStr)
+            accumulatedContent += 
+              parsed.message?.content || 
+              parsed.text || 
+              parsed.content || 
+              parsed.delta || 
+              parsed.choices?.[0]?.delta?.content || 
+              ''
+          } catch {
+            accumulatedContent += dataStr
+          }
+        } 
+        // Handle raw JSON blocks directly
+        else if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          try {
+            const parsed = JSON.parse(trimmed)
+            accumulatedContent += 
+              parsed.message?.content || 
+              parsed.text || 
+              parsed.content || 
+              parsed.delta || 
+              ''
+          } catch {
+            accumulatedContent += line + '\n'
+          }
+        } 
+        // Preserve regular lines AND empty newline breaks
+        else {
+          accumulatedContent += line + '\n'
+        }
+      }
 
-          try {
-            const parsed = JSON.parse(dataStr)
-            accumulatedContent += parsed.message?.content || parsed.text || parsed.content || parsed.delta || parsed.choices?.[0]?.delta?.content || ''
-          } catch {
-            accumulatedContent += dataStr
-          }
-        } else {
-          // Plain raw text stream chunk (non-SSE)
-          accumulatedContent += line + '\n'
-        }
-      }
+      // Live update message container
+      messages.value[assistantMsgIndex].content = accumulatedContent
+      triggerSystemEnforcedAutoScroll()
+    }
 
-      // Live update message container
-      messages.value[assistantMsgIndex].content = accumulatedContent
-      triggerSystemEnforcedAutoScroll()
-    }
+    // Flush remaining buffer data after stream ends
+    if (buffer) {
+      const trimmed = buffer.trim()
+      if (trimmed.startsWith('data: ')) {
+        const dataStr = trimmed.slice(6).trim()
+        if (dataStr !== '[DONE]') {
+          try {
+            const parsed = JSON.parse(dataStr)
+            accumulatedContent += 
+              parsed.message?.content || 
+              parsed.text || 
+              parsed.content || 
+              parsed.delta || 
+              ''
+          } catch {
+            accumulatedContent += dataStr
+          }
+        }
+      } else if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(trimmed)
+          accumulatedContent += 
+            parsed.message?.content || 
+            parsed.text || 
+            parsed.content || 
+            parsed.delta || 
+            ''
+        } catch {
+          accumulatedContent += buffer
+        }
+      } else {
+        accumulatedContent += buffer
+      }
+      messages.value[assistantMsgIndex].content = accumulatedContent
+    }
 
-    // Flush remaining buffer data after stream close
-    if (buffer.trim()) {
-      const trimmed = buffer.trim()
-      if (trimmed.startsWith('data: ')) {
-        const dataStr = trimmed.slice(6).trim()
-        if (dataStr !== '[DONE]') {
-          try {
-            const parsed = JSON.parse(dataStr)
-            accumulatedContent += parsed.message?.content || parsed.text || parsed.content || parsed.delta || ''
-          } catch {
-            accumulatedContent += dataStr
-          }
-        }
-      } else {
-        accumulatedContent += buffer
-      }
-      messages.value[assistantMsgIndex].content = accumulatedContent
-    }
+    activeRoutingSource.value = 'Stream Complete'
 
-    activeRoutingSource.value = 'Stream Complete'
+  } catch (err) {
+    if (!messages.value[assistantMsgIndex].content) {
+      messages.value[assistantMsgIndex].content = `⚠️ **Pipeline Terminal Failure**: Could not establish live stream.\n\n* **Diagnostics**: ${err.message || 'Stream connection drop'}`
+    }
+    activeRoutingSource.value = 'Connection Error'
+  } finally {
+    isProcessingPipeline.value = false
+    
+    // Save to LocalStorage
+    const targetSession = chatHistoryList.value.find(s => s.id === activeSessionId.value)
+    if (targetSession) {
+      targetSession.messages = [...messages.value]
+    }
+    
+    syncSessionsToLocalStorage()
+    await triggerSystemEnforcedAutoScroll()
 
-  } catch (err) {
-    if (!messages.value[assistantMsgIndex].content) {
-      messages.value[assistantMsgIndex].content = `⚠️ **Pipeline Terminal Failure**: Could not establish live stream.\n\n* **Diagnostics**: ${err.message || 'Stream connection drop'}`
-    }
-    activeRoutingSource.value = 'Connection Error'
-  } finally {
-    isProcessingPipeline.value = false
-    
-    // Save session to LocalStorage
-    const targetSession = chatHistoryList.value.find(s => s.id === activeSessionId.value)
-    if (targetSession) {
-      targetSession.messages = [...messages.value]
-    }
-    
-    syncSessionsToLocalStorage()
-    await triggerSystemEnforcedAutoScroll()
-
-    // Generate background summary title for new chats
-    const finalContent = messages.value[assistantMsgIndex]?.content || ''
-    if (isFirstMessage && finalContent) {
-      triggerBackgroundChatNamingSummary(currentPayload, finalContent)
-    }
-  }
+    // Generate background chat title
+    const finalContent = messages.value[assistantMsgIndex]?.content || ''
+    if (isFirstMessage && finalContent) {
+      triggerBackgroundChatNamingSummary(currentPayload, finalContent)
+    }
+  }
 }
-  
-  
-// Core initializer layout lifecycle binding hook
-onMounted(() => {
-  loadSessionsFromLocalStorage()
-})
 
 function copyCodeToClipboard(event, base64Text) {
   const btn = event.currentTarget
