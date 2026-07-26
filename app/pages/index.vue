@@ -572,7 +572,7 @@ async function executeTransmissionDirective() {
 
           try {
             const parsed = JSON.parse(dataStr)
-            accumulatedContent += parsed.text || parsed.content || parsed.delta || parsed.choices?.[0]?.delta?.content || ''
+            accumulatedContent += parsed.message?.content || parsed.text || parsed.content || parsed.delta || parsed.choices?.[0]?.delta?.content || ''
           } catch {
             accumulatedContent += dataStr
           }
@@ -595,7 +595,7 @@ async function executeTransmissionDirective() {
         if (dataStr !== '[DONE]') {
           try {
             const parsed = JSON.parse(dataStr)
-            accumulatedContent += parsed.text || parsed.content || parsed.delta || ''
+            accumulatedContent += parsed.message?.content || parsed.text || parsed.content || parsed.delta || ''
           } catch {
             accumulatedContent += dataStr
           }
