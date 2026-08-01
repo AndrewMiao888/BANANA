@@ -252,7 +252,7 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { AVAILABLE_MODELS } from '~~/src/models'
 import MarkdownIt from 'markdown-it'
 import markdownItKatex from 'markdown-it-katex'
-import 'katex/dist/katex.min.css' // <-- ADD THIS IMPORT
+import 'katex/dist/katex.min.css'
 
 // Custom renderer to format code blocks with language labels and copy buttons
 const mdProcessor = new MarkdownIt({
