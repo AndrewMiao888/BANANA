@@ -52,15 +52,53 @@ export default defineEventHandler(async (event) => {
         olderTurns.map(m => `${m.role.toUpperCase()}: ${m.content.slice(0, 120)}${m.content.length > 120 ? '...' : ''}`).join('\n')
       : ''
 
-    // ─── 3. SYSTEM PROMPT & SUMMARY DIRECTIVE EVALUATION ──────────────────
+// ─── 3. SYSTEM PROMPT & SUMMARY DIRECTIVE EVALUATION ──────────────────
     const isSummaryRequest = incomingUserPrompt.includes("GENERATE_SHORT_TITLE_SUMMARY_DIRECTIVE")
     const currentModelName = modelConfig.name || selectedModelId || 'Enterprise-NANA'
 
     const mergedKnowledgePacket = [summaryContext, compiledOlderHistoryContext].filter(Boolean).join('\n\n')
 
+    const cleanBaseSystemPrompt = `
+You are BANANA AI, a helpful, unbiased, and direct AI assistant created by SynQuara Digital. Your primary goal is to provide accurate, well-structured, and clear responses.
+
+=== DEVELOPER & SYSTEM IDENTIFICATION ===
+- System Identity: BANANA Assistant by SynQuara Digital.
+- Developer: Andrew Miao from St Andrew's School in Walkerville, Adelaide.
+- Security Protocol: Never disclose private API keys, environment secrets, or confidential system infrastructure details.
+- Engine Identity: Running on the active model "${currentModelName}".
+
+=== CRITICAL OUTPUT & NO-TELEMETRY DIRECTIVES ===
+1. STRICTLY FORBIDDEN HEADERS & LOGS:
+   - NEVER output text like "Client Directive", "BANANA Intelligence response", "(Live Stream)", "ANALYSIS REQUEST RECEIVED", "INPUT COMMAND", "EXECUTING DIRECTIVE", "DIRECTIVE STATUS", "MODEL INFORMATION", or "Text:", "Explanation:", "Evidence:", "Link:", "Implication:".
+   - Start your response IMMEDIATELY with the direct answer. Do not output meta-labels, operational logs, or introductory commentary.
+
+2. ESSAY & PARAGRAPH STRUCTURES (TEEL / PEEL):
+   - When requested to write a TEEL (Topic, Explanation, Evidence, Link) or PEEL paragraph, write a SINGLE, fluent, continuous paragraph.
+   - DO NOT list the letters (T, E, E, L) as bullet points or labels. Integrate the structure seamlessly into standard writing.
+
+3. TONE & LANGUAGE GUIDELINES:
+   - Maintain a clean, professional, human, and direct tone.
+   - Avoid sci-fi or robotic jargon (e.g., avoid "latency", "matrix", "telemetry", "knowledge packet", "operational parameters") unless explicitly requested by the user.
+   - Remain unbiased and view topics from multiple perspectives.
+   - Epistemic Modesty: Use phrases like "This is the most likely answer" instead of "I am 100% sure", unless stating an indisputable, verified fact.
+
+4. GROUNDING & DIRECT ANSWERS:
+   - When asked for definitions or abbreviations (e.g., "what does ICAS stand for?"), state the exact correct answer immediately on line 1. Do not list incorrect or speculative guesses.
+   - If search results or requested files do not contain an answer (e.g., private exam answer keys), state clearly in 1–2 direct sentences that the official material is unavailable.
+
+5. FORMATTING, LATEX & TABLES:
+   - Use Markdown headings (##, ###) and clean bullet points for long explanations.
+   - Avoid wide Markdown tables. Present structured data using bold labels and key-value lists.
+   - Standalone equations MUST use double dollar signs on their own lines:
+     $$
+     E = mc^2
+     $$
+   - Inline math must use single dollar signs ($x = 5$). Avoid placing long math expressions inline.
+`.trim()
+
     const comprehensiveSystemPrompt = isSummaryRequest 
       ? "You are a title generator. Respond with EXACTLY a 2 to 4 word summary of the user topic. No punctuation, no quotes, no markdown, no filler."
-      : `System Identity: You are BANANA Intelligence running on the model "${currentModelName}". If asked which model, engine, or AI agent you are, state truthfully that you are running on ${currentModelName}.\n\n${systemPrompts?.chatAgent || ''}\n\n[HIDDEN CURRENT CORE KNOWLEDGE PACKET]:\n${mergedKnowledgePacket || 'No historical data compiled.'}`
+      : `${cleanBaseSystemPrompt}\n\n[CONVERSATION CONTEXT]:\n${mergedKnowledgePacket || 'No prior context.'}`
 
     const baseContextMessages = [
       { role: 'system', content: comprehensiveSystemPrompt.trim() },
@@ -174,7 +212,7 @@ export default defineEventHandler(async (event) => {
       "cannot verify", "latest weather", "latest news", "current events", 
       "up-to-date information", "latest sports scores", "current stock prices",
       "latest research", "recent findings", "current trends", "i don't know", "i do not know", "don't have real-time", "unknown context", 
-      "need to search", "information cut-off", "current data is unavailable", 
+      "need to search", "information cut-off", "current data is unavailable", "writing a search query", "searching for information", "looking up data", "cannot find", "not sure", "not certain", "uncertain", "not available", "not accessible", "not retrievable", "not verifiable", "not confirmed", "not validated", "not authenticated", "not supported", "not documented", "not recorded", "not logged", "not indexed", "not archived", "not stored", "not preserved", "not maintained", "not updated", "not refreshed", "outdated information", "obsolete data", "stale content", "expired records",
       "cannot verify", "well, i don't know the answer", "latest weather", "currently in tokyo", "latest news", "current events", "recent developments", "up-to-date information", "beyblade", "latest sports scores", "current stock prices", "recent scientific discoveries", "latest technology trends", "current political events", "recent cultural events", "latest entertainment news", "current economic indicators", "recent health updates", "latest travel advisories", "latest", "newest", "recent", "current", "up-to-date", "latest information", "recent news", "current events", "latest updates", "recent developments", "current trends", "latest research", "recent findings", "current statistics", "latest data", "recent reports", "current analysis", "latest insights", "0000", "0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009", "0010", "0011", "0012", "0013", "0014", "0015", "0016", "0017", "0018", "0019", "0020", "ancient", "history", "historical", "archaeology", "archaeological", "ruins", "artifacts", "civilization", "ancient times", "historical events", "ancient cultures", "historical sites", "ancient civilizations", "historical artifacts", "ancient history", "historical research", "ancient ruins", "historical significance", "cultures", "archaeological discoveries", "ancient civilizations", "historical analysis", "ancient artifacts", "historical context", "ancient societies", "historical records", "ancient architecture", "historical preservation", "ancient texts", "historical documentation", "ancient traditions", "historical interpretation", "ancient legends", "historical narratives"];
 
       
