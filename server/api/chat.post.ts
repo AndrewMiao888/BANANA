@@ -165,69 +165,120 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // ─── 6. AUTONOMOUS REAL-TIME WEB SEARCH MATRIX ────────────────────────
+  // ─── 6. AUTONOMOUS REAL-TIME WEB SEARCH MATRIX (TAVILY PIPELINE) ──────
     const userExplicitlyTriggered = incomingUserPrompt.toLowerCase().trim().startsWith('/search')
     
     const implicitSearchTriggers = [
       "i don't know", "i do not know", "don't have real-time", "unknown context", 
       "need to search", "information cut-off", "current data is unavailable", 
+      "cannot verify", "latest weather", "latest news", "current events", 
+      "up-to-date information", "latest sports scores", "current stock prices",
+      "latest research", "recent findings", "current trends", "i don't know", "i do not know", "don't have real-time", "unknown context", 
+      "need to search", "information cut-off", "current data is unavailable", 
       "cannot verify", "well, i don't know the answer", "latest weather", "currently in tokyo", "latest news", "current events", "recent developments", "up-to-date information", "beyblade", "latest sports scores", "current stock prices", "recent scientific discoveries", "latest technology trends", "current political events", "recent cultural events", "latest entertainment news", "current economic indicators", "recent health updates", "latest travel advisories", "latest", "newest", "recent", "current", "up-to-date", "latest information", "recent news", "current events", "latest updates", "recent developments", "current trends", "latest research", "recent findings", "current statistics", "latest data", "recent reports", "current analysis", "latest insights", "0000", "0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009", "0010", "0011", "0012", "0013", "0014", "0015", "0016", "0017", "0018", "0019", "0020", "ancient", "history", "historical", "archaeology", "archaeological", "ruins", "artifacts", "civilization", "ancient times", "historical events", "ancient cultures", "historical sites", "ancient civilizations", "historical artifacts", "ancient history", "historical research", "ancient ruins", "historical significance", "cultures", "archaeological discoveries", "ancient civilizations", "historical analysis", "ancient artifacts", "historical context", "ancient societies", "historical records", "ancient architecture", "historical preservation", "ancient texts", "historical documentation", "ancient traditions", "historical interpretation", "ancient legends", "historical narratives"];
+
+      
     const aiWantsSearchTriggered = implicitSearchTriggers.some(trigger => 
       finalResponseText.toLowerCase().includes(trigger)
     )
 
     // Execute web search if triggered by AI choice OR user explicit /search command
-    if ((userExplicitlyTriggered || aiWantsSearchTriggered) && !isSummaryRequest && finalResponseText) {
+    if ((userExplicitlyTriggered || aiWantsSearchTriggered) && !isSummaryRequest) {
       try {
-        const apiKey = config.groqApiKey || process.env.GROQ_API_KEY
-        const searchPhrase = incomingUserPrompt.replace(/\/search\s*/i, '').trim()
-        const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(searchPhrase)}&format=json`
-        
-        const searchResults = await $fetch<any>(searchUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
-        })
-        
-        const extractedFact = searchResults?.AbstractText || searchResults?.RelatedTopics?.[0]?.Text || 'No direct summary packet returned.'
-        
-        const patchedSearchContext = [
-          { 
-            role: 'system', 
-            content: `${comprehensiveSystemPrompt}\n\n[LIVE SEARCH TELEMETRY DATA]:\n${extractedFact}\n\nIntegrate this live telemetry data directly into your answer.` 
-          },
-          ...recentHistory
-        ]
+        const tavilyKey = config.tavilyApiKey || process.env.TAVILY_API_KEY
+        const groqApiKey = config.groqApiKey || process.env.GROQ_API_KEY
 
-        // Re-query with updated search telemetry using available active pipeline
-        if (isLocalHardwareOnline) {
-          const localSearchRes = await $fetch<any>(targetLocalEndpoint, {
-            method: 'POST',
-            body: { model: modelConfig.id || 'llama3', messages: patchedSearchContext, stream: false },
-            timeout: 10000
-          })
-          if (localSearchRes?.message?.content) {
-            finalResponseText = localSearchRes.message.content
-            activeExecutionSource += ' + Autonomous Web Search'
+        if (tavilyKey) {
+          const rawSearchPhrase = incomingUserPrompt.replace(/\/search\s*/i, '').trim()
+
+          // STEP A: Transform raw user prompt into a precise, targeted search query
+          let optimizedQuery = rawSearchPhrase
+          if (groqApiKey) {
+            try {
+              const queryGenRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: { 
+                  'Authorization': `Bearer ${groqApiKey}`, 
+                  'Content-Type': 'application/json' 
+                },
+                body: { 
+                  model: 'llama-3.1-8b-instant', 
+                  messages: [
+                    { 
+                      role: 'system', 
+                      content: 'Transform the user request into a concise, highly effective search query. Remove command prefixes like /search, conversational filler, or slang. Output ONLY the search query string.' 
+                    },
+                    { role: 'user', content: rawSearchPhrase }
+                  ]
+                }
+              })
+              optimizedQuery = queryGenRes?.choices?.[0]?.message?.content?.trim() || rawSearchPhrase
+            } catch {
+              optimizedQuery = rawSearchPhrase
+            }
           }
-        } else if (apiKey) {
-          const searchGroqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
+
+          // STEP B: Fetch deep search results from Tavily API
+          const tavilyResponse = await $fetch<any>('https://api.tavily.com/search', {
             method: 'POST',
-            headers: { 
-              'Authorization': `Bearer ${apiKey}`, 
-              'Content-Type': 'application/json' 
-            },
-            body: { 
-              model: 'llama-3.1-8b-instant', 
-              messages: patchedSearchContext 
+            headers: { 'Content-Type': 'application/json' },
+            body: {
+              api_key: tavilyKey,
+              query: optimizedQuery,
+              search_depth: 'advanced',
+              include_answer: true,
+              max_results: 5,
+              include_raw_content: false
             }
           })
 
-          if (searchGroqRes?.choices?.[0]?.message?.content) {
-            finalResponseText = searchGroqRes.choices[0].message.content
-            activeExecutionSource += ' + Autonomous Web Search'
+          // STEP C: Clean and format Tavily output for the AI model
+          const formattedContext = (tavilyResponse?.results || []).map((item: any, index: number) => {
+            return `[Source ${index + 1}]: ${item.title}\nURL: ${item.url}\nContent: ${item.content}\n`
+          }).join('\n---\n')
+
+          const directAnswer = tavilyResponse?.answer ? `Search Summary: ${tavilyResponse.answer}\n\n` : ''
+
+          const patchedSearchContext = [
+            { 
+              role: 'system', 
+              content: `${comprehensiveSystemPrompt}\n\n[LIVE SEARCH RESULTS FOR "${optimizedQuery}"]:\n${directAnswer}${formattedContext}\n\nINSTRUCTIONS:\n- Synthesize the sources above to directly answer the user.\n- State clearly if official or restricted material (like exam answer keys) is unavailable.\n- DO NOT output system logs, JSON objects, or telemetry headers to the user.` 
+            },
+            ...recentHistory
+          ]
+
+          // STEP D: Re-query active model using updated search context
+          if (isLocalHardwareOnline) {
+            const localSearchRes = await $fetch<any>(targetLocalEndpoint, {
+              method: 'POST',
+              body: { model: modelConfig.id || 'llama3', messages: patchedSearchContext, stream: false },
+              timeout: 15000
+            })
+            if (localSearchRes?.message?.content) {
+              finalResponseText = localSearchRes.message.content
+              activeExecutionSource += ' + Tavily Web Search'
+            }
+          } else if (groqApiKey) {
+            const searchGroqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: { 
+                'Authorization': `Bearer ${groqApiKey}`, 
+                'Content-Type': 'application/json' 
+              },
+              body: { 
+                model: 'llama-3.1-8b-instant', 
+                messages: patchedSearchContext 
+              }
+            })
+
+            if (searchGroqRes?.choices?.[0]?.message?.content) {
+              finalResponseText = searchGroqRes.choices[0].message.content
+              activeExecutionSource += ' + Tavily Web Search'
+            }
           }
         }
       } catch (searchErr) {
-        console.warn('Network search layers dropped packet.', searchErr)
+        console.warn('Tavily search execution failed:', searchErr)
       }
     }
 
