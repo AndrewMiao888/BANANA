@@ -712,6 +712,10 @@ function renameSession(id) {
   }
 }
 
+// ─── LIFECYCLE HOOKS ───────────────────────────────────────────────
+onMounted(() => {
+  loadSessionsFromLocalStorage()
+})
 
 </script>
 
