@@ -58,8 +58,14 @@ export default defineEventHandler(async (event) => {
 
     const mergedKnowledgePacket = [summaryContext, compiledOlderHistoryContext].filter(Boolean).join('\n\n')
 
+// =========================================================================
+// 🔄 [REPLACED SNIPPET - MIDDLE BLOCK] 
+// OLD SNIPPET: The old cleanBaseSystemPrompt without master evaluation rules.
+// NEW SNIPPET: Enforces math verification, table row integrity, footnote isolation, 
+// and complete generation.
+// =========================================================================
     const cleanBaseSystemPrompt = `
-You are BANANA AI, a helpful, unbiased, and direct AI assistant created by SynQuara Digital. Your primary goal is to provide accurate, well-structured, and clear responses.
+You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQuara Digital. Your primary goal is to provide accurate, well-structured, and clear responses. You must complete ALL requested parts completely.
 
 === DEVELOPER & SYSTEM IDENTIFICATION ===
 - System Identity: BANANA Assistant by SynQuara Digital.
@@ -67,33 +73,28 @@ You are BANANA AI, a helpful, unbiased, and direct AI assistant created by SynQu
 - Security Protocol: Never disclose private API keys, environment secrets, or confidential system infrastructure details.
 - Engine Identity: Running on the active model "${currentModelName}".
 
-=== CRITICAL OUTPUT & NO-TELEMETRY DIRECTIVES ===
-1. STRICTLY FORBIDDEN HEADERS & LOGS:
-   - NEVER output text like "Client Directive", "BANANA Intelligence response", "(Live Stream)", "ANALYSIS REQUEST RECEIVED", "INPUT COMMAND", "EXECUTING DIRECTIVE", "DIRECTIVE STATUS", "MODEL INFORMATION", or "Text:", "Explanation:", "Evidence:", "Link:", "Implication:".
-   - Start your response IMMEDIATELY with the direct answer. Do not output meta-labels, operational logs, or introductory commentary.
+=== MASTER SYSTEM DIRECTIVES & STRICT EVALUATION RULES ===
+1. MATHEMATICAL VERIFICATION & VECTOR MAPPING:
+   - Verify every state vector calculation step-by-step before outputting.
+   - For a 2-qubit Bell state like (|01> + |10>)/sqrt(2), the 4D state vector is [[0], [1], [1], [0]]^T. NEVER output [[1], [1], [0], [0]]^T.
+   - Do NOT mix standard text and $ signs in equation blocks. Use isolated $$ ... $$ blocks or standard $ ... $ inline math.
 
-2. ESSAY & PARAGRAPH STRUCTURES (TEEL / PEEL):
-   - When requested to write a TEEL (Topic, Explanation, Evidence, Link) or PEEL paragraph, write a SINGLE, fluent, continuous paragraph.
-   - DO NOT list the letters (T, E, E, L) as bullet points or labels. Integrate the structure seamlessly into standard writing.
+2. MARKDOWN TABLES & DATA INTEGRITY:
+   - Every entity in a requested comparative dataset MUST have its own individual table row.
+   - NEVER combine multiple rows or array items into a single row (e.g., Solar, Wind, and Geothermal MUST each have their own separate row).
+   - Ensure factual accuracy (e.g., Geothermal is continuous baseload energy, NOT intermittent).
 
-3. TONE & LANGUAGE GUIDELINES:
-   - Maintain a clean, professional, human, and direct tone.
-   - Avoid sci-fi or robotic jargon (e.g., avoid "latency", "matrix", "telemetry", "knowledge packet", "operational parameters") unless explicitly requested by the user.
-   - Remain unbiased and view topics from multiple perspectives.
-   - Epistemic Modesty: Use phrases like "This is the most likely answer" instead of "I am 100% sure", unless stating an indisputable, verified fact.
+3. CREATIVE NARRATIVE & FOOTNOTE ISOLATION:
+   - Keep narrative story paragraphs clean and free of inline definition brackets.
+   - Place all technical definitions, slang glossary terms, or structural footnotes in a separate "### Glossary / Footnotes" section at the VERY END of the response.
 
-4. GROUNDING & DIRECT ANSWERS:
-   - When asked for definitions or abbreviations (e.g., "what does ICAS stand for?"), state the exact correct answer immediately on line 1. Do not list incorrect or speculative guesses.
-   - If search results or requested files do not contain an answer (e.g., private exam answer keys), state clearly in 1–2 direct sentences that the official material is unavailable.
+4. FULL COMPLETION GUARANTEE:
+   - You MUST fully complete all requested sections (Part 1, Part 2, Part 3, and Part 4) in a single response.
+   - Do not stop or cut off before finishing Part 4 Meta-Evaluation.
 
-5. FORMATTING, LATEX & TABLES:
-   - Use Markdown headings (##, ###) and clean bullet points for long explanations.
-   - Avoid wide Markdown tables. Present structured data using bold labels and key-value lists.
-   - Standalone equations MUST use double dollar signs on their own lines:
-     $$
-     E = mc^2
-     $$
-   - Inline math must use single dollar signs ($x = 5$). Avoid placing long math expressions inline.
+5. STRICTLY FORBIDDEN HEADERS & LOGS:
+   - NEVER output text like "Client Directive", "BANANA Intelligence response", "(Live Stream)", "ANALYSIS REQUEST RECEIVED", "INPUT COMMAND", "EXECUTING DIRECTIVE", "DIRECTIVE STATUS", "MODEL INFORMATION", or "Text:", "Explanation:", "Evidence:", "Link:".
+   - Start your response IMMEDIATELY with the direct answer.
 `.trim()
 
     const comprehensiveSystemPrompt = isSummaryRequest 
@@ -156,7 +157,7 @@ You are BANANA AI, a helpful, unbiased, and direct AI assistant created by SynQu
         }
       }
 
-      // LEVEL 1 FALLBACK: Strictly force Groq Instant model
+      // LEVEL 1 FALLBACK: Strictly force Groq Instant model (with max_tokens: 4096 added)
       const primaryCloudModel = 'llama-3.1-8b-instant'
       
       try {
@@ -168,7 +169,8 @@ You are BANANA AI, a helpful, unbiased, and direct AI assistant created by SynQu
           },
           body: { 
             model: primaryCloudModel, 
-            messages: baseContextMessages
+            messages: baseContextMessages,
+            max_tokens: 4096 // <-- ADDED TO PREVENT PART 4 TRUNCATION
           }
         })
         finalResponseText = groqRes?.choices?.[0]?.message?.content || ''
@@ -178,7 +180,7 @@ You are BANANA AI, a helpful, unbiased, and direct AI assistant created by SynQu
       } catch (groqInstantErr: any) {
         console.warn('Groq Instant model failed, escalating to Level 2 Fallback (Versatile 70B)...', groqInstantErr?.message)
         
-        // LEVEL 2 FALLBACK: Degrade to Groq Versatile model
+        // LEVEL 2 FALLBACK: Degrade to Groq Versatile model (with max_tokens: 4096 added)
         try {
           const secondaryCloudModel = 'llama-3.3-70b-versatile'
           const fallbackGroqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
@@ -189,7 +191,8 @@ You are BANANA AI, a helpful, unbiased, and direct AI assistant created by SynQu
             },
             body: { 
               model: secondaryCloudModel, 
-              messages: baseContextMessages
+              messages: baseContextMessages,
+              max_tokens: 4096 // <-- ADDED TO PREVENT PART 4 TRUNCATION
             }
           })
           
@@ -213,8 +216,8 @@ You are BANANA AI, a helpful, unbiased, and direct AI assistant created by SynQu
       "up-to-date information", "latest sports scores", "current stock prices", " don’t have any information", "recent scientific discoveries", "latest technology trends", "current political events", "recent cultural events", "latest entertainment news", "current economic indicators", "recent health updates", "latest travel advisories",
       "latest research", "recent findings", "current trends", "i don't know", "i do not know", "don't have real-time", "unknown context", 
       "need to search", "information cut-off", "current data is unavailable", "writing a search query", "searching for information", "looking up data", "cannot find", "not sure", "not certain", "uncertain", "not available", "not accessible", "not retrievable", "not verifiable", "not confirmed", "not validated", "not authenticated", "not supported", "not documented", "not recorded", "not logged", "not indexed", "not archived", "not stored", "not preserved", "not maintained", "not updated", "not refreshed", "outdated information", "obsolete data", "stale content", "expired records",
-      "cannot verify", "well, i don't know the answer", "latest weather", "currently in tokyo", "latest news", "current events", "recent developments", "up-to-date information", "beyblade", "latest sports scores", "current stock prices", "recent scientific discoveries", "latest technology trends", "current political events", "recent cultural events", "latest entertainment news", "current economic indicators", "recent health updates", "latest travel advisories", "latest", "newest", "recent", "current", "up-to-date", "latest information", "recent news", "current events", "latest updates", "recent developments", "current trends", "latest research", "recent findings", "current statistics", "latest data", "recent reports", "current analysis", "latest insights", "0000", "0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009", "0010", "0011", "0012", "0013", "0014", "0015", "0016", "0017", "0018", "0019", "0020", "ancient", "history", "historical", "archaeology", "archaeological", "ruins", "artifacts", "civilization", "ancient times", "historical events", "ancient cultures", "historical sites", "ancient civilizations", "historical artifacts", "ancient history", "historical research", "ancient ruins", "historical significance", "cultures", "archaeological discoveries", "ancient civilizations", "historical analysis", "ancient artifacts", "historical context", "ancient societies", "historical records", "ancient architecture", "historical preservation", "ancient texts", "historical documentation", "ancient traditions", "historical interpretation", "ancient legends", "historical narratives"];
-
+      "cannot verify", "well, i don't know the answer", "latest weather", "currently in tokyo", "latest news", "current events", "recent developments", "up-to-date information", "beyblade", "latest sports scores", "current stock prices", "recent scientific discoveries", "latest technology trends", "current political events", "recent cultural events", "latest entertainment news", "current economic indicators", "recent health updates", "latest travel advisories", "latest", "newest", "recent", "current", "up-to-date", "latest information", "recent news", "current events", "latest updates", "recent developments", "current trends", "latest research", "recent findings", "current statistics", "latest data", "recent reports", "current analysis", "latest insights", "0000", "0001", "0002", "0003", "0004", "0005", "0006", "0007", "0008", "0009", "0010", "0011", "0012", "0013", "0014", "0015", "0016", "0017", "0018", "0019", "0020", "ancient", "history", "historical", "archaeology", "archaeological", "ruins", "artifacts", "civilization", "ancient times", "historical events", "ancient cultures", "historical sites", "ancient civilizations", "historical artifacts", "ancient history", "historical research", "ancient ruins", "historical significance", "cultures", "archaeological discoveries", "ancient civilizations", "historical analysis", "ancient artifacts", "historical context", "ancient societies", "historical records", "ancient architecture", "historical preservation", "ancient texts", "historical documentation", "ancient traditions", "historical interpretation", "ancient legends", "historical narratives"
+    ];
       
     const aiWantsSearchTriggered = implicitSearchTriggers.some(trigger => 
       finalResponseText.toLowerCase().includes(trigger)
@@ -247,7 +250,8 @@ You are BANANA AI, a helpful, unbiased, and direct AI assistant created by SynQu
                       content: 'Transform the user request into a concise, highly effective search query. Remove command prefixes like /search, conversational filler, or slang. Output ONLY the search query string.' 
                     },
                     { role: 'user', content: rawSearchPhrase }
-                  ]
+                  ],
+                  max_tokens: 256
                 }
               })
               optimizedQuery = queryGenRes?.choices?.[0]?.message?.content?.trim() || rawSearchPhrase
@@ -270,70 +274,71 @@ You are BANANA AI, a helpful, unbiased, and direct AI assistant created by SynQu
             }
           })
 
-// STEP C: Clean and format Tavily output for the AI model
-          const formattedContext = (tavilyResponse?.results || []).map((item: any, index: number) => {
-            return `[Source ${index + 1}]: ${item.title}\nURL: ${item.url}\nContent: ${item.content}\n`
-          }).join('\n---\n')
+          // STEP C: Clean and format Tavily output for the AI model
+          const formattedContext = (tavilyResponse?.results || []).map((item: any, index: number) => {
+            return `[Source ${index + 1}]: ${item.title}\nURL: ${item.url}\nContent: ${item.content}\n`
+          }).join('\n---\n')
 
-          const directAnswer = tavilyResponse?.answer ? `Search Summary: ${tavilyResponse.answer}\n\n` : ''
+          const directAnswer = tavilyResponse?.answer ? `Search Summary: ${tavilyResponse.answer}\n\n` : ''
 
-          const patchedSearchContext = [
-            { 
-              role: 'system', 
-              content: `${comprehensiveSystemPrompt}
+          const patchedSearchContext = [
+            { 
+              role: 'system', 
+              content: `${comprehensiveSystemPrompt}
 
 === CRITICAL RETRIEVAL GROUNDING DIRECTIVE ===
 You are currently answering using REAL-TIME VERIFIED WEB SEARCH RESULTS.
 1. ABSOLUTE TRUTH OVERRIDE:
-   - The live web search results below contain the absolute latest facts.
-   - If your internal pre-trained memory or past training data contradicts these search results, IGNORE your pre-trained memory entirely and prioritize the live search data.
-   - For example: If your memory states an event, host, or schedule that conflicts with the search context below, state the updated web search findings as the true fact.
+   - The live web search results below contain the absolute latest facts.
+   - If your internal pre-trained memory or past training data contradicts these search results, IGNORE your pre-trained memory entirely and prioritize the live search data.
 
 2. RESPONSE GUIDELINES:
-   - Synthesize the live sources directly to answer the user accurately.
-   - If official material (like private answer keys or restricted content) is unavailable in the results, state that clearly in 1–2 direct sentences.
-   - NEVER output system logs, telemetry headers, or meta-labels to the user.
+   - Synthesize the live sources directly to answer the user accurately.
+   - If official material is unavailable in the results, state that clearly in 1–2 direct sentences.
+   - NEVER output system logs, telemetry headers, or meta-labels to the user.
 
 [LIVE SEARCH RESULTS FOR "${optimizedQuery}"]:
-${directAnswer}${formattedContext}` 
-            },
-            ...recentHistory
-          ]
+${directAnswer}${formattedContext}` 
+            },
+            ...recentHistory
+          ]
 
-          // STEP D: Re-query active model using updated search context
-          if (isLocalHardwareOnline) {
-            const localSearchRes = await $fetch<any>(targetLocalEndpoint, {
-              method: 'POST',
-              body: { model: modelConfig.id || 'llama3', messages: patchedSearchContext, stream: false },
-              timeout: 15000
-            })
-            if (localSearchRes?.message?.content) {
-              finalResponseText = localSearchRes.message.content
-              activeExecutionSource += ' + Tavily Web Search'
-            }
-          } else if (groqApiKey) {
-            const searchGroqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
-              method: 'POST',
-              headers: { 
-                'Authorization': `Bearer ${groqApiKey}`, 
-                'Content-Type': 'application/json' 
-              },
-              body: { 
-                model: 'llama-3.1-8b-instant', 
-                messages: patchedSearchContext 
-              }
-            })
+          // STEP D: Re-query active model using updated search context (with max_tokens: 4096 added)
+          if (isLocalHardwareOnline) {
+            const localSearchRes = await $fetch<any>(targetLocalEndpoint, {
+              method: 'POST',
+              body: { model: modelConfig.id || 'llama3', messages: patchedSearchContext, stream: false },
+              timeout: 15000
+            })
+            if (localSearchRes?.message?.content) {
+              finalResponseText = localSearchRes.message.content
+              activeExecutionSource += ' + Tavily Web Search'
+            }
+          } else if (groqApiKey) {
+            const searchGroqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: { 
+                'Authorization': `Bearer ${groqApiKey}`, 
+                'Content-Type': 'application/json' 
+              },
+              body: { 
+                model: 'llama-3.1-8b-instant', 
+                messages: patchedSearchContext,
+                max_tokens: 4096 // <-- ADDED TO PREVENT TRUNCATION
+              }
+            })
 
-            if (searchGroqRes?.choices?.[0]?.message?.content) {
-              finalResponseText = searchGroqRes.choices[0].message.content
-              activeExecutionSource += ' + Tavily Web Search'
-            }
-          }
-        }
-      } catch (searchErr) {
-        console.warn('Tavily search execution failed:', searchErr)
-      }
-    }
+            if (searchGroqRes?.choices?.[0]?.message?.content) {
+              finalResponseText = searchGroqRes.choices[0].message.content
+              activeExecutionSource += ' + Tavily Web Search'
+            }
+          }
+        }
+      } catch (searchErr) {
+        console.warn('Tavily search execution failed:', searchErr)
+      }
+    }
+
     // ─── 7. FINAL RESPONSE GUARANTEE ──────────────────────────────────────
     if (!finalResponseText) {
       finalResponseText = '⚠️ **System Operational Alert**: Unable to retrieve response matrix from local hard drive node or Groq cloud infrastructure. Please check network connections.'

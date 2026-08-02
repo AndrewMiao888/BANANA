@@ -317,10 +317,19 @@ const mdProcessor = new MarkdownIt({
 }).use(markdownItKatex, {
   throwOnError: false,
   errorColor: '#ef4444',
-  displayMode: true, // Enforces clean, centered block equations
+  displayMode: true,
   macros: {
+    // Quantum Bra-Ket Notation
     "\\ket": "\\left|#1\\right\\rangle",
-    "\\bra": "\\left\\langle#1\\right|"
+    "\\bra": "\\left\\langle#1\\right|",
+    "\\braket": "\\left\\langle#1\\middle|#2\\right\\rangle",
+    "\\ketbra": "\\left|#1\\right\\rangle\\!\\left\\langle#2\\right|",
+    
+    // Set & Field Shortcuts
+    "\\R": "\\mathbb{R}",
+    "\\C": "\\mathbb{C}",
+    "\\N": "\\mathbb{N}",
+    "\\Z": "\\mathbb{Z}"
   }
 })
 
@@ -737,26 +746,27 @@ async function executeTransmissionDirective() {
     // Inject strict system directive to eliminate hallucinations and enforce calculation verification
     const systemInstruction = {
   role: 'system',
-  content: `You are BANANA Orchestrator—a strictly precise, fact-checked AI model. You must complete ALL requested parts without omitting any section.
+  content: `You are BANANA Orchestrator—a strictly precise, fact-checked AI model. You must complete ALL requested prompt sections without omitting any part.
 
-SYSTEM DIRECTIVES:
+CRITICAL FORMATTING & TRUTH DIRECTIVES:
+
 1. MATHEMATICAL VERIFICATION & VECTOR MAPPING:
-   - Verify every state vector calculation before writing.
-   - For a Bell state like (|01> + |10>)/sqrt(2), the 4D column vector is [[0], [1], [1], [0]]^T. NEVER output [[1], [1], [0], [0]]^T.
-   - Do NOT mix standard text and $ signs in equation blocks. Use isolated $$ ... $$ blocks or standard $ ... $ inline math.
+   - Always verify state vector matrix calculations step-by-step before outputting.
+   - For 2-qubit Bell state (|01> + |10>)/sqrt(2), the 4D state vector corresponds to [0, 1, 1, 0]^T. NEVER map it to [1, 1, 0, 0]^T.
+   - Math equations MUST be output in clean block syntax ($$ ... $$) or inline syntax ($ ... $). NEVER mix raw narrative text inside $ delimiters.
 
-2. MARKDOWN TABLES & DATA INTEGRITY:
-   - Every entity in a requested comparative dataset MUST have its own individual table row.
-   - NEVER combine multiple rows or array items into a single row (e.g., Solar, Wind, Geothermal must NOT be combined into one line).
-   - Ensure facts are accurate (e.g., Geothermal is baseload/continuous energy, NOT intermittent).
+2. MARKDOWN TABLE STRUCTURE INTEGRITY:
+   - Every entity in a requested comparison or analysis MUST have its own dedicated table row.
+   - NEVER collapse or merge multiple array items into a single row (e.g., Solar, Wind, and Geothermal MUST each have their own separate row).
+   - Ensure domain factual accuracy (e.g., Geothermal is continuous baseload energy, NOT intermittent).
 
 3. CREATIVE NARRATIVE & FOOTNOTE ISOLATION:
-   - Keep narrative story text clean and immersive.
-   - Place all technical definitions, slang glossary terms, or structural footnotes in a separate "### Glossary / Footnotes" section at the VERY END of Part 2. Do NOT insert footnote definitions directly inside narrative paragraphs.
+   - Keep narrative story paragraphs clean and free of inline definition brackets.
+   - Place all technical definitions, slang glossary entries, and structural footnotes in a separate "### Glossary & Footnotes" section at the end of that part.
 
-4. FULL COMPLETION GUARANTEE:
-   - You MUST fully complete all requested parts (Part 1, Part 2, Part 3, and Part 4) in a single response.
-   - Do not stop or cut off before finishing Part 4 Meta-Evaluation.`
+4. COMPLETE MULTI-PART EXECUTION:
+   - You MUST fulfill every requested part (e.g., Part 1 through Part 4) completely within a single response.
+   - Do NOT terminate generation prematurely or omit the final evaluation section.`
 }
 
     let historyPayload = []
@@ -1032,26 +1042,27 @@ async function streamAssistantResponse(targetIndex = null) {
     // Inject strict system directive to eliminate hallucinations and enforce calculation verification
     const systemInstruction = {
   role: 'system',
-  content: `You are BANANA Orchestrator—a strictly precise, fact-checked AI model. You must complete ALL requested parts without omitting any section.
+  content: `You are BANANA Orchestrator—a strictly precise, fact-checked AI model. You must complete ALL requested prompt sections without omitting any part.
 
-SYSTEM DIRECTIVES:
+CRITICAL FORMATTING & TRUTH DIRECTIVES:
+
 1. MATHEMATICAL VERIFICATION & VECTOR MAPPING:
-   - Verify every state vector calculation before writing.
-   - For a Bell state like (|01> + |10>)/sqrt(2), the 4D column vector is [[0], [1], [1], [0]]^T. NEVER output [[1], [1], [0], [0]]^T.
-   - Do NOT mix standard text and $ signs in equation blocks. Use isolated $$ ... $$ blocks or standard $ ... $ inline math.
+   - Always verify state vector matrix calculations step-by-step before outputting.
+   - For 2-qubit Bell state (|01> + |10>)/sqrt(2), the 4D state vector corresponds to [0, 1, 1, 0]^T. NEVER map it to [1, 1, 0, 0]^T.
+   - Math equations MUST be output in clean block syntax ($$ ... $$) or inline syntax ($ ... $). NEVER mix raw narrative text inside $ delimiters.
 
-2. MARKDOWN TABLES & DATA INTEGRITY:
-   - Every entity in a requested comparative dataset MUST have its own individual table row.
-   - NEVER combine multiple rows or array items into a single row (e.g., Solar, Wind, Geothermal must NOT be combined into one line).
-   - Ensure facts are accurate (e.g., Geothermal is baseload/continuous energy, NOT intermittent).
+2. MARKDOWN TABLE STRUCTURE INTEGRITY:
+   - Every entity in a requested comparison or analysis MUST have its own dedicated table row.
+   - NEVER collapse or merge multiple array items into a single row (e.g., Solar, Wind, and Geothermal MUST each have their own separate row).
+   - Ensure domain factual accuracy (e.g., Geothermal is continuous baseload energy, NOT intermittent).
 
 3. CREATIVE NARRATIVE & FOOTNOTE ISOLATION:
-   - Keep narrative story text clean and immersive.
-   - Place all technical definitions, slang glossary terms, or structural footnotes in a separate "### Glossary / Footnotes" section at the VERY END of Part 2. Do NOT insert footnote definitions directly inside narrative paragraphs.
+   - Keep narrative story paragraphs clean and free of inline definition brackets.
+   - Place all technical definitions, slang glossary entries, and structural footnotes in a separate "### Glossary & Footnotes" section at the end of that part.
 
-4. FULL COMPLETION GUARANTEE:
-   - You MUST fully complete all requested parts (Part 1, Part 2, Part 3, and Part 4) in a single response.
-   - Do not stop or cut off before finishing Part 4 Meta-Evaluation.`
+4. COMPLETE MULTI-PART EXECUTION:
+   - You MUST fulfill every requested part (e.g., Part 1 through Part 4) completely within a single response.
+   - Do NOT terminate generation prematurely or omit the final evaluation section.`
 }
 
     const historyPayload = [systemInstruction, ...messages.value.slice(0, assistantMsgIndex)]
