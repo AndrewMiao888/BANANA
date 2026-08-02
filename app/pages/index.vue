@@ -52,26 +52,26 @@
           ]"
         >
           <div class="flex items-center gap-2.5 truncate pr-5">
-            <span class="text-zinc-500 group-hover:text-yellow-400/80 transition-colors">💬</span>
-            <span class="truncate">{{ session.title }}</span>
+            <i class="i-lucide-message-square text-xs shrink-0 text-zinc-500 group-hover:text-yellow-400/80 transition-colors"></i>
+            <span class="truncate">{{ session.title || 'Untitled Chat' }}</span>
           </div>
 
-          <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-100">
-  <button 
-    @click.stop="renameSession(session.id)"
-    class="text-zinc-500 hover:text-yellow-400 p-1 text-[11px] transition-colors"
-    title="Rename chat"
-  >
-    ✏️
-  </button>
-  <button 
-    @click.stop="purgeSession(session.id)"
-    class="text-zinc-600 hover:text-red-400 p-1 text-[11px] transition-colors"
-    title="Delete chat"
-  >
-    ✕
-  </button>
-</div>
+          <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-100">
+            <button 
+              @click.stop="renameSession(session.id)"
+              class="text-zinc-500 hover:text-yellow-400 p-1 transition-colors flex items-center"
+              title="Rename chat"
+            >
+              <i class="i-lucide-pencil text-[12px]"></i>
+            </button>
+            <button 
+              @click.stop="purgeSession(session.id)"
+              class="text-zinc-500 hover:text-red-400 p-1 transition-colors flex items-center"
+              title="Delete chat"
+            >
+              <i class="i-lucide-trash-2 text-[12px]"></i>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -177,54 +177,16 @@
           v-for="(msg, index) in messages" 
           :key="index"
           :class="[
-            'max-w-3xl mx-auto flex gap-3.5 p-1 transition-all duration-150',
-            msg.role === 'user' ? 'justify-end' : 'justify-start'
-          ]"
-        >
-          <div v-if="msg.role === 'assistant'" class="w-6 h-6 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-xs flex items-center justify-center shrink-0 mt-0.5">
-            🍌
-          </div>
-
-          <div class="flex flex-col gap-1.5 max-w-[88%] sm:max-w-[82%] min-w-0">
-            <div class="font-mono text-[10px] uppercase tracking-wider text-zinc-600 flex items-center gap-2">
-              <span>{{ msg.role === 'user' ? 'Client Directive' : 'Banana' }}</span>
-              <span v-if="msg.source" class="text-[9px] px-1 bg-zinc-900 border border-zinc-800 rounded text-zinc-500 lowercase">
-                ({{ msg.source }})
-              </span>
-            </div>
-            
-            <div 
-              :class="[
-                'text-sm leading-relaxed max-w-none w-full overflow-hidden break-words',
-                msg.role === 'user' 
-                  ? 'bg-zinc-900 text-zinc-200 border border-zinc-800 px-4 py-2.5 rounded-2xl rounded-tr-none whitespace-pre-wrap [word-break:break-word]' 
-                  : 'text-zinc-300 pt-0.5 prose prose-invert prose-zinc prose-sm max-w-none [word-break:break-word] \
-                     prose-h1:text-xl prose-h1:font-bold prose-h1:text-yellow-400 prose-h1:font-mono prose-h1:mt-5 prose-h1:mb-3 \
-                     prose-h2:text-lg prose-h2:font-bold prose-h2:text-yellow-400/90 prose-h2:font-mono prose-h2:mt-4 prose-h2:mb-2 \
-                     prose-h3:text-base prose-h3:font-semibold prose-h3:text-zinc-100 prose-h3:font-mono prose-h3:mt-3 prose-h3:mb-1.5 \
-                     prose-table:border prose-table:border-zinc-800 prose-th:bg-zinc-900 prose-th:p-2 prose-td:p-2 prose-td:border-b prose-td:border-zinc-800 \
-                     prose-code:text-yellow-500 prose-code:bg-zinc-900 prose-code:px-1 prose-code:py-0.5 prose-code:rounded \
-                     prose-blockquote:border-l-2 prose-blockquote:border-yellow-500 prose-blockquote:pl-4 prose-blockquote:italic'
-              ]"
-            >
-              <div v-if="msg.role === 'user'">{{ msg.content }}</div>
-              <div v-else v-html="renderMarkdownMarkup(msg.content)"></div>
-            </div>
-
-            <div 
-          v-for="(msg, index) in messages" 
-          :key="index"
-          :class="[
             'group max-w-3xl mx-auto flex gap-3.5 p-1 transition-all duration-150',
             msg.role === 'user' ? 'justify-end' : 'justify-start'
           ]"
         >
-          <div v-if="msg.role === 'assistant'" class="w-6 h-6 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-xs flex items-center justify-center shrink-0 mt-0.5">
-            🍌
+          <div v-if="msg.role === 'assistant'" class="w-6 h-6 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-xs flex items-center justify-center shrink-0 mt-0.5 text-yellow-400">
+            <i class="i-lucide-bot text-xs"></i>
           </div>
 
           <div class="flex flex-col gap-1.5 max-w-[88%] sm:max-w-[82%] min-w-0">
-            <div class="font-mono text-[10px] uppercase tracking-wider text-zinc-600 flex items-center gap-2">
+            <div :class="['font-mono text-[10px] uppercase tracking-wider text-zinc-600 flex items-center gap-2', msg.role === 'user' ? 'justify-end' : 'justify-start']">
               <span>{{ msg.role === 'user' ? 'Client Directive' : 'Banana' }}</span>
               <span v-if="msg.source" class="text-[9px] px-1 bg-zinc-900 border border-zinc-800 rounded text-zinc-500 lowercase">
                 ({{ msg.source }})
@@ -250,29 +212,46 @@
             </div>
 
             <div 
-              v-if="msg.role === 'assistant' && msg.content && (!isProcessingPipeline || index !== messages.length - 1)" 
-              class="flex items-center gap-3 pt-1 px-1 font-mono text-[10px] text-zinc-500 select-none opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-200"
+              v-if="msg.content && (!isProcessingPipeline || index !== messages.length - 1)" 
+              :class="[
+                'flex items-center gap-3 pt-0.5 px-1 font-mono text-[10px] text-zinc-500 select-none opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-200',
+                msg.role === 'user' ? 'justify-end' : 'justify-start'
+              ]"
             >
               <button 
-                @click.stop="copyAssistantMessage(msg.content, $event)" 
+                @click.stop="copyMessageContent(msg.content, $event)" 
                 class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
-                title="Copy response content"
+                title="Copy text"
               >
-                <span>📋</span> Copy
+                <i class="i-lucide-copy text-xs"></i>
+                <span>Copy</span>
               </button>
-              <span class="text-zinc-800">•</span>
-              <button 
-                @click.stop="regenerateMessageAtIndex(index)" 
-                class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
-                title="Regenerate response"
-              >
-                <span>🔄</span> Regenerate
-              </button>
+
+              <template v-if="msg.role === 'user' && index >= messages.length - 2">
+                <span class="text-zinc-800">•</span>
+                <button 
+                  @click.stop="editUserPrompt(msg.content)" 
+                  class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
+                  title="Edit prompt"
+                >
+                  <i class="i-lucide-pencil text-xs"></i>
+                  <span>Edit</span>
+                </button>
+              </template>
+
+              <template v-if="msg.role === 'assistant' && index === messages.length - 1">
+                <span class="text-zinc-800">•</span>
+                <button 
+                  @click.stop="regenerateMessageAtIndex(index)" 
+                  class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
+                  title="Regenerate response"
+                >
+                  <i class="i-lucide-rotate-cw text-xs"></i>
+                  <span>Regenerate</span>
+                </button>
+              </template>
             </div>
-              
-          </div>
-        </div>
-              
+
           </div>
         </div>
 
@@ -823,18 +802,29 @@ function saveEditedTitle() {
   }
 }
 
-// --- COPY & REGENERATE ASSISTANT MESSAGES ---
-function copyAssistantMessage(text, event) {
+// --- ICON ACTION HANDLERS ---
+
+// Universal Clipboard Copy with Icon Feedback
+function copyMessageContent(text, event) {
   if (!text) return
   if (navigator?.clipboard) {
     navigator.clipboard.writeText(text).then(() => {
       if (event?.currentTarget) {
         const btn = event.currentTarget
-        const originalText = btn.innerHTML
-        btn.innerHTML = '<span>✅</span> Copied!'
-        setTimeout(() => { btn.innerHTML = originalText }, 1800)
+        const originalHTML = btn.innerHTML
+        btn.innerHTML = '<i class="i-lucide-check text-xs text-emerald-400"></i><span class="text-emerald-400">Copied!</span>'
+        setTimeout(() => { btn.innerHTML = originalHTML }, 1800)
       }
-    }).catch(err => console.error('Failed to copy message:', err))
+    }).catch(err => console.error('Failed to copy text:', err))
+  }
+}
+
+// Edit Last User Prompt (Fills input field & triggers auto-height + focus)
+function editUserPrompt(content) {
+  inputFieldPrompt.value = content
+  adjustTextareaHeight()
+  if (inputTextarea.value) {
+    inputTextarea.value.focus()
   }
 }
 
