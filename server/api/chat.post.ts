@@ -270,56 +270,70 @@ You are BANANA AI, a helpful, unbiased, and direct AI assistant created by SynQu
             }
           })
 
-          // STEP C: Clean and format Tavily output for the AI model
-          const formattedContext = (tavilyResponse?.results || []).map((item: any, index: number) => {
-            return `[Source ${index + 1}]: ${item.title}\nURL: ${item.url}\nContent: ${item.content}\n`
-          }).join('\n---\n')
+// STEP C: Clean and format Tavily output for the AI model
+          const formattedContext = (tavilyResponse?.results || []).map((item: any, index: number) => {
+            return `[Source ${index + 1}]: ${item.title}\nURL: ${item.url}\nContent: ${item.content}\n`
+          }).join('\n---\n')
 
-          const directAnswer = tavilyResponse?.answer ? `Search Summary: ${tavilyResponse.answer}\n\n` : ''
+          const directAnswer = tavilyResponse?.answer ? `Search Summary: ${tavilyResponse.answer}\n\n` : ''
 
-          const patchedSearchContext = [
-            { 
-              role: 'system', 
-              content: `${comprehensiveSystemPrompt}\n\n[LIVE SEARCH RESULTS FOR "${optimizedQuery}"]:\n${directAnswer}${formattedContext}\n\nINSTRUCTIONS:\n- Synthesize the sources above to directly answer the user.\n- State clearly if official or restricted material (like exam answer keys) is unavailable.\n- DO NOT output system logs, JSON objects, or telemetry headers to the user.` 
-            },
-            ...recentHistory
-          ]
+          const patchedSearchContext = [
+            { 
+              role: 'system', 
+              content: `${comprehensiveSystemPrompt}
 
-          // STEP D: Re-query active model using updated search context
-          if (isLocalHardwareOnline) {
-            const localSearchRes = await $fetch<any>(targetLocalEndpoint, {
-              method: 'POST',
-              body: { model: modelConfig.id || 'llama3', messages: patchedSearchContext, stream: false },
-              timeout: 15000
-            })
-            if (localSearchRes?.message?.content) {
-              finalResponseText = localSearchRes.message.content
-              activeExecutionSource += ' + Tavily Web Search'
-            }
-          } else if (groqApiKey) {
-            const searchGroqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
-              method: 'POST',
-              headers: { 
-                'Authorization': `Bearer ${groqApiKey}`, 
-                'Content-Type': 'application/json' 
-              },
-              body: { 
-                model: 'llama-3.1-8b-instant', 
-                messages: patchedSearchContext 
-              }
-            })
+=== CRITICAL RETRIEVAL GROUNDING DIRECTIVE ===
+You are currently answering using REAL-TIME VERIFIED WEB SEARCH RESULTS.
+1. ABSOLUTE TRUTH OVERRIDE:
+   - The live web search results below contain the absolute latest facts.
+   - If your internal pre-trained memory or past training data contradicts these search results, IGNORE your pre-trained memory entirely and prioritize the live search data.
+   - For example: If your memory states an event, host, or schedule that conflicts with the search context below, state the updated web search findings as the true fact.
 
-            if (searchGroqRes?.choices?.[0]?.message?.content) {
-              finalResponseText = searchGroqRes.choices[0].message.content
-              activeExecutionSource += ' + Tavily Web Search'
-            }
-          }
-        }
-      } catch (searchErr) {
-        console.warn('Tavily search execution failed:', searchErr)
-      }
-    }
+2. RESPONSE GUIDELINES:
+   - Synthesize the live sources directly to answer the user accurately.
+   - If official material (like private answer keys or restricted content) is unavailable in the results, state that clearly in 1–2 direct sentences.
+   - NEVER output system logs, telemetry headers, or meta-labels to the user.
 
+[LIVE SEARCH RESULTS FOR "${optimizedQuery}"]:
+${directAnswer}${formattedContext}` 
+            },
+            ...recentHistory
+          ]
+
+          // STEP D: Re-query active model using updated search context
+          if (isLocalHardwareOnline) {
+            const localSearchRes = await $fetch<any>(targetLocalEndpoint, {
+              method: 'POST',
+              body: { model: modelConfig.id || 'llama3', messages: patchedSearchContext, stream: false },
+              timeout: 15000
+            })
+            if (localSearchRes?.message?.content) {
+              finalResponseText = localSearchRes.message.content
+              activeExecutionSource += ' + Tavily Web Search'
+            }
+          } else if (groqApiKey) {
+            const searchGroqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: { 
+                'Authorization': `Bearer ${groqApiKey}`, 
+                'Content-Type': 'application/json' 
+              },
+              body: { 
+                model: 'llama-3.1-8b-instant', 
+                messages: patchedSearchContext 
+              }
+            })
+
+            if (searchGroqRes?.choices?.[0]?.message?.content) {
+              finalResponseText = searchGroqRes.choices[0].message.content
+              activeExecutionSource += ' + Tavily Web Search'
+            }
+          }
+        }
+      } catch (searchErr) {
+        console.warn('Tavily search execution failed:', searchErr)
+      }
+    }
     // ─── 7. FINAL RESPONSE GUARANTEE ──────────────────────────────────────
     if (!finalResponseText) {
       finalResponseText = '⚠️ **System Operational Alert**: Unable to retrieve response matrix from local hard drive node or Groq cloud infrastructure. Please check network connections.'
