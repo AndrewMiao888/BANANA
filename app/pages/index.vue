@@ -787,42 +787,42 @@ function editUserPromptAtIndex(index) {
 async function regenerateMessageAtIndex(index) {
   if (isProcessingPipeline.value) return
 
-  // 1. Remove target assistant message and any subsequent messages
-  messages.value = messages.value.slice(0, index)
-
-  // 2. Find last user query
-  const lastUserMsg = [...messages.value].reverse().find(m => m.role === 'user')
-  if (!lastUserMsg) return
-
-  isProcessingPipeline.value = true
-
-  // 3. Create fresh placeholder
-  messages.value.push({
+  // Trim messages array to keep history up to and including the target assistant message placeholder
+  messages.value = messages.value.slice(0, index + 1)
+  
+  // Clear the assistant content so it behaves as a fresh placeholder
+  messages.value[index] = {
     role: 'assistant',
     content: '',
     source: 'Live Stream'
-  })
+  }
 
+  isProcessingPipeline.value = true
   userHasScrolledUpManually.value = false
   await triggerSystemEnforcedAutoScroll(true)
 
-  // 4. Stream fresh response
+  // Stream fresh response into this assistant message slot
   await streamAssistantResponse()
 }
 
 // Internal reusable stream helper
 async function streamAssistantResponse() {
   const assistantMsgIndex = messages.value.length - 1
+  if (assistantMsgIndex < 0) return
+
   try {
     const calculatedContext = messages.value[0]?.content 
       ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
       : ''
 
+    // Send all messages prior to the placeholder as conversation history
+    const historyPayload = messages.value.slice(0, assistantMsgIndex)
+
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        messages: messages.value.slice(0, -1),
+        messages: historyPayload,
         selectedModelId: selectedModelId.value,
         summaryContext: calculatedContext,
         stream: true
