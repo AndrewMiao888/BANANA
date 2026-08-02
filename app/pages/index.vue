@@ -119,7 +119,7 @@
           </div>
         </div>
 
-        <div class="flex-1 flex justify-center items-center px-4 z-10">
+        <div class="flex-1 flex justify-center items-center px-2 min-w-0 z-10">
           <template v-if="isEditingTitle">
             <input 
               v-model="editableTitleText" 
@@ -128,14 +128,14 @@
               @keyup.escape="isEditingTitle = false"
               v-focus
               type="text" 
-              class="bg-zinc-900 border border-yellow-500/50 text-yellow-400 font-mono text-xs font-semibold px-2 py-0.5 rounded text-center focus:outline-none focus:ring-1 focus:ring-yellow-400 max-w-[200px] sm:max-w-[350px] shadow-inner"
+              class="bg-zinc-900 border border-yellow-500/50 text-yellow-400 font-mono text-xs font-semibold px-2 py-0.5 rounded text-center focus:outline-none focus:ring-1 focus:ring-yellow-400 w-full max-w-[180px] sm:max-w-[320px] shadow-inner"
             />
           </template>
           <template v-else>
             <h1 
               @dblclick="handleTitleDoubleClick"
-              title="Double-click to edit chat name"
-              class="text-xs font-bold font-mono text-yellow-400 text-center whitespace-normal break-words max-w-[200px] sm:max-w-[350px] cursor-pointer hover:text-yellow-300 transition-colors select-none"
+              :title="currentSessionTitle || 'BANANA AI'"
+              class="text-xs font-bold font-mono text-yellow-400 text-center truncate whitespace-nowrap max-w-[180px] sm:max-w-[320px] cursor-pointer hover:text-yellow-300 transition-colors select-none"
             >
               {{ currentSessionTitle || 'BANANA AI' }}
             </h1>
