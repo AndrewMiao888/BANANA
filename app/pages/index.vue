@@ -56,17 +56,17 @@
             <span class="truncate">{{ session.title || 'Untitled Chat' }}</span>
           </div>
 
-          <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 shrink-0">
+          <div class="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150 shrink-0">
             <button 
               @click.stop="renameSession(session.id)"
-              class="text-zinc-500 hover:text-yellow-400 p-1.5 transition-colors flex items-center rounded hover:bg-zinc-700/50"
+              class="text-zinc-400 hover:text-yellow-400 p-1.5 transition-colors flex items-center rounded hover:bg-zinc-700/50"
               title="Rename chat"
             >
               <i class="i-lucide-pencil text-[12px]"></i>
             </button>
             <button 
               @click.stop="purgeSession(session.id)"
-              class="text-zinc-500 hover:text-red-400 p-1.5 transition-colors flex items-center rounded hover:bg-zinc-700/50"
+              class="text-zinc-400 hover:text-red-400 p-1.5 transition-colors flex items-center rounded hover:bg-zinc-700/50"
               title="Delete chat"
             >
               <i class="i-lucide-trash-2 text-[12px]"></i>
@@ -132,13 +132,17 @@
             />
           </template>
           <template v-else>
-            <h1 
-              @dblclick="handleTitleDoubleClick"
-              :title="currentSessionTitle || 'BANANA AI'"
-              class="text-xs font-bold font-mono text-yellow-400 text-center truncate whitespace-nowrap max-w-[180px] sm:max-w-[320px] cursor-pointer hover:text-yellow-300 transition-colors select-none"
+            <div 
+              @click="handleTitleClick"
+              @dblclick="handleTitleClick"
+              class="flex items-center gap-1.5 cursor-pointer group"
+              title="Click or tap to rename"
             >
-              {{ currentSessionTitle || 'BANANA AI' }}
-            </h1>
+              <h1 class="text-xs font-bold font-mono text-yellow-400 text-center truncate whitespace-nowrap max-w-[180px] sm:max-w-[320px] group-hover:text-yellow-300 transition-colors select-none">
+                {{ currentSessionTitle || 'BANANA AI' }}
+              </h1>
+              <i v-if="activeSessionId" class="i-lucide-pencil text-[10px] text-zinc-500 group-hover:text-yellow-400"></i>
+            </div>
           </template>
         </div>
 
@@ -574,14 +578,27 @@ async function executeTransmissionDirective() {
       ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
       : ''
 
-    // Send history EXCLUDING the placeholder
+    // Inject strict system directive to eliminate hallucinations and enforce calculation verification
+    const systemInstruction = {
+      role: 'system',
+      content: `You are a strictly precise, fact-checked AI assistant.
+  RULES:
+  1. ANTI-SYCOPHANCY: Never agree with incorrect statements or suggestions from the user. If the user suggests an incorrect mathematical answer or logic (e.g. "220?"), explicitly state that it is incorrect and explain why using step-by-step logic.
+  2. MATH VERIFICATION: For any math, logic, or counting problems, you MUST calculate the answer step-by-step using recursive relations or explicit formulas before providing the result.
+  3. NEVER fabricate formulas or combinations.`
+    }
+
+    const payloadMessages = [systemInstruction, ...messages.value.slice(0, assistantMsgIndex)]
+
+    // Send history with strict anti-hallucination parameters
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        messages: messages.value.slice(0, assistantMsgIndex),
+        messages: payloadMessages,
         selectedModelId: selectedModelId.value,
         summaryContext: calculatedContext,
+        temperature: 0.1,
         stream: true
       })
     })
@@ -717,8 +734,8 @@ const currentSessionTitle = computed(() => {
   return activeSession ? activeSession.title : null
 })
 
-// Enable edit mode on double click
-function handleTitleDoubleClick() {
+// Enable edit mode on click or tap
+function handleTitleClick() {
   if (!activeSessionId.value) return
   editableTitleText.value = currentSessionTitle.value || 'BANANA AI'
   isEditingTitle.value = true
@@ -807,8 +824,17 @@ async function streamAssistantResponse(targetIndex = null) {
       ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
       : ''
 
-    // Send history up to the assistant placeholder
-    const historyPayload = messages.value.slice(0, assistantMsgIndex)
+    // Inject strict system directive to eliminate hallucinations and enforce calculation verification
+    const systemInstruction = {
+      role: 'system',
+      content: `You are a strictly precise, fact-checked AI assistant.
+  RULES:
+  1. ANTI-SYCOPHANCY: Never agree with incorrect statements or suggestions from the user. If the user suggests an incorrect mathematical answer or logic (e.g. "220?"), explicitly state that it is incorrect and explain why using step-by-step logic.
+  2. MATH VERIFICATION: For any math, logic, or counting problems, you MUST calculate the answer step-by-step using recursive relations or explicit formulas before providing the result.
+  3. NEVER fabricate formulas or combinations.`
+    }
+
+    const historyPayload = [systemInstruction, ...messages.value.slice(0, assistantMsgIndex)]
 
     const response = await fetch('/api/chat', {
       method: 'POST',
@@ -817,6 +843,7 @@ async function streamAssistantResponse(targetIndex = null) {
         messages: historyPayload,
         selectedModelId: selectedModelId.value,
         summaryContext: calculatedContext,
+        temperature: 0.1,
         stream: true
       })
     })
