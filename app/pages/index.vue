@@ -88,7 +88,8 @@
 
     <main class="flex-1 flex flex-col h-full w-full bg-zinc-950 relative overflow-hidden min-w-0">
       
-      <header class="h-14 border-b border-zinc-800/60 px-4 md:px-6 flex items-center justify-between bg-zinc-950/80 backdrop-blur-md z-20 shrink-0">        <div class="flex items-center gap-3 font-mono text-[11px] truncate">
+      <header class="h-14 border-b border-zinc-800/60 px-4 md:px-6 flex items-center justify-between bg-zinc-950/80 backdrop-blur-md z-20 shrink-0">
+        <div class="flex items-center gap-3 font-mono text-[11px] truncate">
           <button 
             v-if="!isSidebarVisible"
             @click.stop="isSidebarVisible = true"
@@ -97,7 +98,12 @@
           >
             ▶
           </button>
-<div class="flex items-center gap-2 bg-zinc-900/90 border border-zinc-800/90 rounded-full px-2.5 py-1 shadow-inner">
+
+          <h1 class="text-xs font-semibold font-mono text-zinc-200 truncate max-w-[160px] sm:max-w-[300px]">
+            {{ currentSessionTitle || 'BANANA AI' }}
+          </h1>
+
+          <div class="flex items-center gap-2 bg-zinc-900/90 border border-zinc-800/90 rounded-full px-2.5 py-1 shadow-inner shrink-0">
             <span class="relative flex h-2 w-2">
               <span 
                 v-if="isProcessingPipeline" 
@@ -110,7 +116,7 @@
                 ]"
               ></span>
             </span>
-            <span class="text-zinc-300 font-medium text-[11px] truncate max-w-[180px] sm:max-w-none">
+            <span class="text-zinc-300 font-medium text-[11px] truncate hidden sm:inline">
               {{ isProcessingPipeline ? 'Thinking...' : (activeRoutingSource || 'Ready') }}
             </span>
           </div>
@@ -119,16 +125,16 @@
         <div class="flex items-center gap-2 font-mono text-[11px] shrink-0">
           <span class="text-zinc-500 hidden sm:inline">Model:</span>
           <div class="relative flex items-center">
-          <select 
-            v-model="selectedModelId"
-            class="appearance-none bg-zinc-900 border border-zinc-800 text-zinc-300 rounded pl-2.5 pr-7 py-1 focus:outline-none focus:border-yellow-500/40 cursor-pointer text-[11px] shadow-sm"
-          >
-            <option v-for="model in AVAILABLE_MODELS" :key="model.id" :value="model.id" class="bg-zinc-900 text-zinc-200">
-              {{ model.name }}
-            </option>
-          </select>
-          <span class="pointer-events-none absolute right-2 text-[9px] text-zinc-500">▼</span>
-        </div>
+            <select 
+              v-model="selectedModelId"
+              class="appearance-none bg-zinc-900 border border-zinc-800 text-zinc-300 rounded pl-2.5 pr-7 py-1 focus:outline-none focus:border-yellow-500/40 cursor-pointer text-[11px] shadow-sm"
+            >
+              <option v-for="model in AVAILABLE_MODELS" :key="model.id" :value="model.id" class="bg-zinc-900 text-zinc-200">
+                {{ model.name }}
+              </option>
+            </select>
+            <span class="pointer-events-none absolute right-2 text-[9px] text-zinc-500">▼</span>
+          </div>
         </div>
       </header>
 <div 
@@ -397,19 +403,16 @@ function syncSessionsToLocalStorage() {
 }
 
 function loadSessionsFromLocalStorage() {
-  const data = localStorage.getItem('banana_core_sessions')
-  if (data) {
-    try {
-      chatHistoryList.value = JSON.parse(data)
-      if (chatHistoryList.value.length > 0) {
-        switchActiveSession(chatHistoryList.value[0].id)
-      } else {
-        startNewChatSession()
+  if (import.meta.client) {
+    const data = localStorage.getItem('banana_core_sessions')
+    if (data) {
+      try {
+        chatHistoryList.value = JSON.parse(data)
+      } catch (e) {
+        console.error('Failed to parse chat history from LocalStorage:', e)
       }
-    } catch (e) {
-      startNewChatSession()
     }
-  } else {
+    // Always start on the clean Home Page state on fresh load:
     startNewChatSession()
   }
 }
@@ -715,6 +718,13 @@ function renameSession(id) {
 // ─── LIFECYCLE HOOKS ───────────────────────────────────────────────
 onMounted(() => {
   loadSessionsFromLocalStorage()
+})
+
+// Computed property to track current active chat title
+const currentSessionTitle = computed(() => {
+  if (!activeSessionId.value) return null
+  const activeSession = chatHistoryList.value.find(s => s.id === activeSessionId.value)
+  return activeSession ? activeSession.title : null
 })
 
 </script>
