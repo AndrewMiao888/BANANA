@@ -584,8 +584,8 @@ async function executeTransmissionDirective() {
 
     // Inject strict system directive to eliminate hallucinations and enforce calculation verification
     const systemInstruction = {
-  role: 'system',
-  content: `You are a strictly precise, fact-checked AI assistant.
+      role: 'system',
+      content: `You are a strictly precise, fact-checked AI assistant.
 
 RULES:
 1. ANTI-SYCOPHANCY: Never agree with incorrect suggestions or claims from the user. Explicitly correct mistakes with step-by-step logic.
@@ -594,11 +594,38 @@ RULES:
    - Use standard KaTeX syntax for math. Do NOT use non-standard macros like \\ket{} or \\bra{}. Use explicit bra-ket notation like |00\\rangle or \\vert 00 \\rangle instead.
 3. CONSTRAINT HANDLING: Distribute story constraints (such as required slang words or specific terms) naturally across all paragraphs rather than clustering them into a single sentence or quote at the end.
 4. HONEST EVALUATION: When reflecting on your performance, strictly verify whether every constraint was met (including layout, syntax rendering, and placement rules) before claiming compliance.`
-}
+    }
 
-    const payloadMessages = [systemInstruction, ...messages.value.slice(0, assistantMsgIndex)]
+    let historyPayload = []
 
-    // Send history with strict anti-hallucination parameters
+    try {
+      // PRIMARY MODE: Try accessing full history in memory/reactive state
+      if (!messages.value || messages.value.length === 0) {
+        throw new Error("Primary memory state is empty or inaccessible")
+      }
+      historyPayload = messages.value.slice(0, assistantMsgIndex)
+    } catch (storageError) {
+      console.warn("Primary message history failed. Reverting to Summary Fallback Mode:", storageError)
+
+      // FALLBACK MODE: Fetch rolling summary from local storage
+      const fallbackSummary = getRollingSummaryFromStorage(activeSessionId.value)
+      
+      historyPayload = [
+        {
+          role: 'system',
+          content: fallbackSummary 
+            ? `Previous Conversation Summary Context:\n${fallbackSummary}` 
+            : 'No prior summary context available.'
+        },
+        {
+          role: 'user',
+          content: currentPayload // Fixed: userQueryText -> currentPayload
+        }
+      ]
+    }
+
+    const payloadMessages = [systemInstruction, ...historyPayload]
+
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -668,12 +695,19 @@ RULES:
       targetSession.messages = [...messages.value]
     }
     
+    // Save full chat history to local storage
     syncSessionsToLocalStorage()
+    
+    // Append completed user & AI exchange to the fallback rolling summary
+    const finalAssistantText = messages.value[assistantMsgIndex]?.content || ''
+    if (finalAssistantText && currentPayload) {
+      appendToRollingSummary(activeSessionId.value, currentPayload, finalAssistantText)
+    }
+
     await triggerSystemEnforcedAutoScroll()
 
-    const finalContent = messages.value[assistantMsgIndex]?.content || ''
-    if (isFirstMessage && finalContent) {
-      triggerBackgroundChatNamingSummary(currentPayload, finalContent)
+    if (isFirstMessage && finalAssistantText) {
+      triggerBackgroundChatNamingSummary(currentPayload, finalAssistantText)
     }
   }
 }
@@ -956,6 +990,35 @@ function parseContentChunk(chunk) {
     // Plain string fallback
     return chunk
   }
+}
+
+// --- Memory & Local Storage Fallback Helpers ---
+
+// Save or update rolling summary in localStorage
+function saveRollingSummaryToStorage(sessionId, summaryText) {
+  try {
+    localStorage.setItem(`banana_summary_${sessionId}`, summaryText)
+  } catch (err) {
+    console.error("Failed to write summary to localStorage:", err)
+  }
+}
+
+// Retrieve rolling summary if main state fails
+function getRollingSummaryFromStorage(sessionId) {
+  try {
+    return localStorage.getItem(`banana_summary_${sessionId}`) || ""
+  } catch (err) {
+    console.warn("Could not access localStorage summary:", err)
+    return ""
+  }
+}
+
+// Append new conversation turn to the running summary
+function appendToRollingSummary(sessionId, userPrompt, assistantReply) {
+  const existingSummary = getRollingSummaryFromStorage(sessionId)
+  const newEntry = `\nUser: ${userPrompt}\nAI: ${assistantReply}`
+  const updatedSummary = (existingSummary + newEntry).trim()
+  saveRollingSummaryToStorage(sessionId, updatedSummary)
 }
 </script>
 
