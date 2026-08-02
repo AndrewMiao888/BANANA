@@ -540,7 +540,6 @@ async function executeTransmissionDirective() {
 
   const isFirstMessage = messages.value.length === 0
 
-  // 1. Create history session node if starting fresh
   if (!activeSessionId.value) {
     const targetId = `node_${Date.now()}`
     const newSession = {
@@ -552,16 +551,14 @@ async function executeTransmissionDirective() {
     activeSessionId.value = targetId
   }
 
-  // 2. Push user message
+  // 1. Push User Message
   messages.value.push({ role: 'user', content: currentPayload })
   
-  // 3. Clear input
   inputFieldPrompt.value = ''
   adjustTextareaHeight()
-  
   isProcessingPipeline.value = true
   
-  // 4. Create assistant placeholder
+  // 2. Push Assistant Placeholder AND Capture Exact Index
   const assistantMsgIndex = messages.value.length
   messages.value.push({
     role: 'assistant',
@@ -577,12 +574,12 @@ async function executeTransmissionDirective() {
       ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
       : ''
 
-    // 5. Fetch stream from API
+    // Send history EXCLUDING the placeholder
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        messages: messages.value.slice(0, -1),
+        messages: messages.value.slice(0, assistantMsgIndex),
         selectedModelId: selectedModelId.value,
         summaryContext: calculatedContext,
         stream: true
@@ -593,12 +590,10 @@ async function executeTransmissionDirective() {
       throw new Error(`Server returned HTTP status ${response.status}`)
     }
 
-    // 6. Process response stream
     const reader = response.body.getReader()
     const decoder = new TextDecoder('utf-8')
     let accumulatedContent = ''
     let buffer = ''
-
 
     while (true) {
       const { done, value } = await reader.read()
@@ -643,7 +638,6 @@ async function executeTransmissionDirective() {
   } finally {
     isProcessingPipeline.value = false
     
-    // Save to LocalStorage
     const targetSession = chatHistoryList.value.find(s => s.id === activeSessionId.value)
     if (targetSession) {
       targetSession.messages = [...messages.value]
@@ -652,7 +646,6 @@ async function executeTransmissionDirective() {
     syncSessionsToLocalStorage()
     await triggerSystemEnforcedAutoScroll()
 
-    // Generate background chat title
     const finalContent = messages.value[assistantMsgIndex]?.content || ''
     if (isFirstMessage && finalContent) {
       triggerBackgroundChatNamingSummary(currentPayload, finalContent)
@@ -787,10 +780,10 @@ function editUserPromptAtIndex(index) {
 async function regenerateMessageAtIndex(index) {
   if (isProcessingPipeline.value) return
 
-  // Trim messages array to keep history up to and including the target assistant message placeholder
+  // 1. Keep history up to and including the target assistant slot
   messages.value = messages.value.slice(0, index + 1)
-  
-  // Clear the assistant content so it behaves as a fresh placeholder
+
+  // 2. Clear content in target assistant slot
   messages.value[index] = {
     role: 'assistant',
     content: '',
@@ -801,13 +794,12 @@ async function regenerateMessageAtIndex(index) {
   userHasScrolledUpManually.value = false
   await triggerSystemEnforcedAutoScroll(true)
 
-  // Stream fresh response into this assistant message slot
-  await streamAssistantResponse()
+  // 3. Trigger streaming into index
+  await streamAssistantResponse(index)
 }
 
-// Internal reusable stream helper
-async function streamAssistantResponse() {
-  const assistantMsgIndex = messages.value.length - 1
+async function streamAssistantResponse(targetIndex = null) {
+  const assistantMsgIndex = targetIndex ?? (messages.value.length - 1)
   if (assistantMsgIndex < 0) return
 
   try {
@@ -815,7 +807,7 @@ async function streamAssistantResponse() {
       ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
       : ''
 
-    // Send all messages prior to the placeholder as conversation history
+    // Send history up to the assistant placeholder
     const historyPayload = messages.value.slice(0, assistantMsgIndex)
 
     const response = await fetch('/api/chat', {
