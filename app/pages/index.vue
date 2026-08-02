@@ -51,22 +51,22 @@
               : 'text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200'
           ]"
         >
-          <div class="flex items-center gap-2.5 truncate pr-5">
+          <div class="flex items-center gap-2.5 truncate pr-2 min-w-0">
             <i class="i-lucide-message-square text-xs shrink-0 text-zinc-500 group-hover:text-yellow-400/80 transition-colors"></i>
             <span class="truncate">{{ session.title || 'Untitled Chat' }}</span>
           </div>
 
-          <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-100">
+          <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 shrink-0">
             <button 
               @click.stop="renameSession(session.id)"
-              class="text-zinc-500 hover:text-yellow-400 p-1 transition-colors flex items-center"
+              class="text-zinc-500 hover:text-yellow-400 p-1.5 transition-colors flex items-center rounded hover:bg-zinc-700/50"
               title="Rename chat"
             >
               <i class="i-lucide-pencil text-[12px]"></i>
             </button>
             <button 
               @click.stop="purgeSession(session.id)"
-              class="text-zinc-500 hover:text-red-400 p-1 transition-colors flex items-center"
+              class="text-zinc-500 hover:text-red-400 p-1.5 transition-colors flex items-center rounded hover:bg-zinc-700/50"
               title="Delete chat"
             >
               <i class="i-lucide-trash-2 text-[12px]"></i>
@@ -531,6 +531,17 @@ async function triggerBackgroundChatNamingSummary(userPromptText, responseText) 
   }
 }
 
+function parseContentChunk(chunk) {
+  if (chunk === '[DONE]') return ''
+  try {
+    const parsed = JSON.parse(chunk)
+    return parsed.content || parsed.text || parsed.delta || ''
+  } catch {
+    // If the chunk is plain text rather than JSON, return it as-is
+    return chunk
+  }
+}
+
 // ─── DIRECTIVE EXECUTION LAYER WITH STREAMING ──────────────────────────
 // ─── DIRECTIVE EXECUTION LAYER WITH STREAMING ──────────────────────────
 async function executeTransmissionDirective() {
@@ -598,93 +609,36 @@ async function executeTransmissionDirective() {
     let accumulatedContent = ''
     let buffer = ''
 
+
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
 
       buffer += decoder.decode(value, { stream: true })
-      
       const lines = buffer.split('\n')
-      // Keep incomplete line in buffer
       buffer = lines.pop() ?? ''
 
       for (const line of lines) {
         const trimmed = line.trim()
+        if (!trimmed) continue
 
-        // Handle SSE data lines
         if (trimmed.startsWith('data: ')) {
-          const dataStr = trimmed.slice(6).trim()
-          if (dataStr === '[DONE]') continue
-          try {
-            const parsed = JSON.parse(dataStr)
-            accumulatedContent += 
-              parsed.message?.content || 
-              parsed.text || 
-              parsed.content || 
-              parsed.delta || 
-              parsed.choices?.[0]?.delta?.content || 
-              ''
-          } catch {
-            accumulatedContent += dataStr
-          }
-        } 
-        // Handle raw JSON blocks directly
-        else if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-          try {
-            const parsed = JSON.parse(trimmed)
-            accumulatedContent += 
-              parsed.message?.content || 
-              parsed.text || 
-              parsed.content || 
-              parsed.delta || 
-              ''
-          } catch {
-            accumulatedContent += line + '\n'
-          }
-        } 
-        // Preserve regular lines AND empty newline breaks
-        else {
-          accumulatedContent += line + '\n'
+          accumulatedContent += parseContentChunk(trimmed.slice(6))
+        } else {
+          accumulatedContent += parseContentChunk(trimmed)
         }
       }
 
-      // Live update message container
       messages.value[assistantMsgIndex].content = accumulatedContent
       triggerSystemEnforcedAutoScroll()
     }
 
-    // Flush remaining buffer data after stream ends
     if (buffer) {
       const trimmed = buffer.trim()
       if (trimmed.startsWith('data: ')) {
-        const dataStr = trimmed.slice(6).trim()
-        if (dataStr !== '[DONE]') {
-          try {
-            const parsed = JSON.parse(dataStr)
-            accumulatedContent += 
-              parsed.message?.content || 
-              parsed.text || 
-              parsed.content || 
-              parsed.delta || 
-              ''
-          } catch {
-            accumulatedContent += dataStr
-          }
-        }
-      } else if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-        try {
-          const parsed = JSON.parse(trimmed)
-          accumulatedContent += 
-            parsed.message?.content || 
-            parsed.text || 
-            parsed.content || 
-            parsed.delta || 
-            ''
-        } catch {
-          accumulatedContent += buffer
-        }
+        accumulatedContent += parseContentChunk(trimmed.slice(6))
       } else {
-        accumulatedContent += buffer
+        accumulatedContent += parseContentChunk(trimmed)
       }
       messages.value[assistantMsgIndex].content = accumulatedContent
     }
@@ -819,13 +773,16 @@ function copyMessageContent(text, event) {
   }
 }
 
-// Edit Last User Prompt (Fills input field & triggers auto-height + focus)
+// EDIT PROMPT FUNCTION - POPULATES TEXTAREA, ADJUSTS HEIGHT & PLACES CURSOR AT END
 function editUserPrompt(content) {
   inputFieldPrompt.value = content
   adjustTextareaHeight()
-  if (inputTextarea.value) {
-    inputTextarea.value.focus()
-  }
+  nextTick(() => {
+    if (inputTextarea.value) {
+      inputTextarea.value.focus()
+      inputTextarea.value.setSelectionRange(content.length, content.length)
+    }
+  })
 }
 
 async function regenerateMessageAtIndex(index) {
@@ -892,24 +849,12 @@ async function streamAssistantResponse() {
 
       for (const line of lines) {
         const trimmed = line.trim()
+        if (!trimmed) continue
+
         if (trimmed.startsWith('data: ')) {
-          const dataStr = trimmed.slice(6).trim()
-          if (dataStr === '[DONE]') continue
-          try {
-            const parsed = JSON.parse(dataStr)
-            accumulatedContent += parsed.message?.content || parsed.text || parsed.content || parsed.delta || ''
-          } catch {
-            accumulatedContent += dataStr
-          }
-        } else if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-          try {
-            const parsed = JSON.parse(trimmed)
-            accumulatedContent += parsed.message?.content || parsed.text || parsed.content || parsed.delta || ''
-          } catch {
-            accumulatedContent += line + '\n'
-          }
+          accumulatedContent += parseContentChunk(trimmed.slice(6))
         } else {
-          accumulatedContent += line + '\n'
+          accumulatedContent += parseContentChunk(trimmed)
         }
       }
 
@@ -918,7 +863,13 @@ async function streamAssistantResponse() {
     }
 
     if (buffer) {
-      messages.value[assistantMsgIndex].content = accumulatedContent + buffer
+      const trimmed = buffer.trim()
+      if (trimmed.startsWith('data: ')) {
+        accumulatedContent += parseContentChunk(trimmed.slice(6))
+      } else {
+        accumulatedContent += parseContentChunk(trimmed)
+      }
+      messages.value[assistantMsgIndex].content = accumulatedContent
     }
 
     activeRoutingSource.value = 'Stream Complete'
