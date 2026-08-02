@@ -881,11 +881,40 @@ async function streamAssistantResponse(targetIndex = null) {
 }
 
 function parseContentChunk(chunk) {
-  if (chunk === '[DONE]') return ''
+  if (!chunk || chunk === '[DONE]' || chunk === 'DONE') return ''
+
+  // Support Vercel AI SDK 0:"text" streaming format
+  if (typeof chunk === 'string' && chunk.startsWith('0:')) {
+    try {
+      return JSON.parse(chunk.slice(2))
+    } catch {
+      return chunk.slice(2)
+    }
+  }
+
   try {
     const parsed = JSON.parse(chunk)
-    return parsed.content || parsed.text || parsed.delta || ''
+    if (typeof parsed === 'string') return parsed
+
+    // 1. OpenAI / OpenRouter / Groq / DeepSeek SSE Format
+    if (parsed.choices?.[0]?.delta?.content) return parsed.choices[0].delta.content
+    if (parsed.choices?.[0]?.text) return parsed.choices[0].text
+    if (parsed.choices?.[0]?.message?.content) return parsed.choices[0].message.content
+
+    // 2. Anthropic / Ollama / Custom Formats
+    if (parsed.delta?.text) return parsed.delta.text
+    if (typeof parsed.delta === 'string') return parsed.delta
+    if (parsed.delta?.content) return parsed.delta.content
+
+    // 3. Fallbacks
+    if (parsed.content) return typeof parsed.content === 'string' ? parsed.content : ''
+    if (parsed.text) return typeof parsed.text === 'string' ? parsed.text : ''
+    if (parsed.message?.content) return parsed.message.content
+    if (parsed.response) return parsed.response
+
+    return ''
   } catch {
+    // Plain string fallback
     return chunk
   }
 }
