@@ -160,7 +160,7 @@
 
           <div class="flex flex-col gap-1.5 max-w-[88%] sm:max-w-[82%] min-w-0">
             <div class="font-mono text-[10px] uppercase tracking-wider text-zinc-600 flex items-center gap-2">
-              <span>{{ msg.role === 'user' ? 'Client Directive' : 'BANANA Intelligence response' }}</span>
+              <span>{{ msg.role === 'user' ? 'Client Directive' : 'Banana' }}</span>
               <span v-if="msg.source" class="text-[9px] px-1 bg-zinc-900 border border-zinc-800 rounded text-zinc-500 lowercase">
                 ({{ msg.source }})
               </span>
