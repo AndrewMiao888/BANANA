@@ -317,7 +317,11 @@ const mdProcessor = new MarkdownIt({
 }).use(markdownItKatex, {
   throwOnError: false,
   errorColor: '#ef4444',
-  displayMode: true // Enforces clean, centered block equations
+  displayMode: true, // Enforces clean, centered block equations
+  macros: {
+    "\\ket": "\\left|#1\\right\\rangle",
+    "\\bra": "\\left\\langle#1\\right|"
+  }
 })
 
 // Override fence renderer for code block containers
@@ -580,13 +584,17 @@ async function executeTransmissionDirective() {
 
     // Inject strict system directive to eliminate hallucinations and enforce calculation verification
     const systemInstruction = {
-      role: 'system',
-      content: `You are a strictly precise, fact-checked AI assistant.
-  RULES:
-  1. ANTI-SYCOPHANCY: Never agree with incorrect statements or suggestions from the user. If the user suggests an incorrect mathematical answer or logic (e.g. "220?"), explicitly state that it is incorrect and explain why using step-by-step logic.
-  2. MATH VERIFICATION: For any math, logic, or counting problems, you MUST calculate the answer step-by-step using recursive relations or explicit formulas before providing the result.
-  3. NEVER fabricate formulas or combinations.`
-    }
+  role: 'system',
+  content: `You are a strictly precise, fact-checked AI assistant.
+
+RULES:
+1. ANTI-SYCOPHANCY: Never agree with incorrect suggestions or claims from the user. Explicitly correct mistakes with step-by-step logic.
+2. MATH & LATEX FORMATTING:
+   - Always verify calculations step-by-step before answering.
+   - Use standard KaTeX syntax for math. Do NOT use non-standard macros like \\ket{} or \\bra{}. Use explicit bra-ket notation like |00\\rangle or \\vert 00 \\rangle instead.
+3. CONSTRAINT HANDLING: Distribute story constraints (such as required slang words or specific terms) naturally across all paragraphs rather than clustering them into a single sentence or quote at the end.
+4. HONEST EVALUATION: When reflecting on your performance, strictly verify whether every constraint was met (including layout, syntax rendering, and placement rules) before claiming compliance.`
+}
 
     const payloadMessages = [systemInstruction, ...messages.value.slice(0, assistantMsgIndex)]
 
@@ -826,13 +834,17 @@ async function streamAssistantResponse(targetIndex = null) {
 
     // Inject strict system directive to eliminate hallucinations and enforce calculation verification
     const systemInstruction = {
-      role: 'system',
-      content: `You are a strictly precise, fact-checked AI assistant.
-  RULES:
-  1. ANTI-SYCOPHANCY: Never agree with incorrect statements or suggestions from the user. If the user suggests an incorrect mathematical answer or logic (e.g. "220?"), explicitly state that it is incorrect and explain why using step-by-step logic.
-  2. MATH VERIFICATION: For any math, logic, or counting problems, you MUST calculate the answer step-by-step using recursive relations or explicit formulas before providing the result.
-  3. NEVER fabricate formulas or combinations.`
-    }
+  role: 'system',
+  content: `You are a strictly precise, fact-checked AI assistant.
+
+RULES:
+1. ANTI-SYCOPHANCY: Never agree with incorrect suggestions or claims from the user. Explicitly correct mistakes with step-by-step logic.
+2. MATH & LATEX FORMATTING:
+   - Always verify calculations step-by-step before answering.
+   - Use standard KaTeX syntax for math. Do NOT use non-standard macros like \\ket{} or \\bra{}. Use explicit bra-ket notation like |00\\rangle or \\vert 00 \\rangle instead.
+3. CONSTRAINT HANDLING: Distribute story constraints (such as required slang words or specific terms) naturally across all paragraphs rather than clustering them into a single sentence or quote at the end.
+4. HONEST EVALUATION: When reflecting on your performance, strictly verify whether every constraint was met (including layout, syntax rendering, and placement rules) before claiming compliance.`
+}
 
     const historyPayload = [systemInstruction, ...messages.value.slice(0, assistantMsgIndex)]
 
