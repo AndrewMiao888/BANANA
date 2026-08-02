@@ -1397,4 +1397,17 @@ function appendToRollingSummary(sessionId, userPrompt, assistantReply) {
 :deep(.katex .sqrt) {
   padding-bottom: 0.2em !important;
 }
+
+/* 🛠️ Permanent Fix for KaTeX Fraction & Radical Overlap */
+:deep(.katex .mfrac) {
+  margin-top: 0.25em !important;
+}
+
+:deep(.katex .sqrt) {
+  padding-bottom: 0.25em !important;
+}
+
+:deep(.katex .sqrt .vlist-t) {
+  margin-top: 0.1em !important;
+}
 </style>
