@@ -88,8 +88,9 @@
 
     <main class="flex-1 flex flex-col h-full w-full bg-zinc-950 relative overflow-hidden min-w-0">
       
-      <header class="h-14 border-b border-zinc-800/60 px-4 md:px-6 flex items-center justify-between bg-zinc-950/80 backdrop-blur-md z-20 shrink-0">
-        <div class="flex items-center gap-3 font-mono text-[11px] truncate">
+      <header class="h-14 border-b border-zinc-800/60 px-4 md:px-6 flex items-center justify-between bg-zinc-950/80 backdrop-blur-md z-20 shrink-0 relative">
+        
+        <div class="flex items-center gap-3 font-mono text-[11px] shrink-0 z-10">
           <button 
             v-if="!isSidebarVisible"
             @click.stop="isSidebarVisible = true"
@@ -98,10 +99,6 @@
           >
             ▶
           </button>
-
-          <h1 class="text-xs font-semibold font-mono text-zinc-200 truncate max-w-[160px] sm:max-w-[300px]">
-            {{ currentSessionTitle || 'BANANA AI' }}
-          </h1>
 
           <div class="flex items-center gap-2 bg-zinc-900/90 border border-zinc-800/90 rounded-full px-2.5 py-1 shadow-inner shrink-0">
             <span class="relative flex h-2 w-2">
@@ -122,7 +119,30 @@
           </div>
         </div>
 
-        <div class="flex items-center gap-2 font-mono text-[11px] shrink-0">
+        <div class="flex-1 flex justify-center items-center px-4 z-10">
+          <template v-if="isEditingTitle">
+            <input 
+              v-model="editableTitleText" 
+              @blur="saveEditedTitle" 
+              @keyup.enter="saveEditedTitle" 
+              @keyup.escape="isEditingTitle = false"
+              v-focus
+              type="text" 
+              class="bg-zinc-900 border border-yellow-500/50 text-yellow-400 font-mono text-xs font-semibold px-2 py-0.5 rounded text-center focus:outline-none focus:ring-1 focus:ring-yellow-400 max-w-[200px] sm:max-w-[350px] shadow-inner"
+            />
+          </template>
+          <template v-else>
+            <h1 
+              @dblclick="handleTitleDoubleClick"
+              title="Double-click to edit chat name"
+              class="text-xs font-bold font-mono text-yellow-400 text-center whitespace-normal break-words max-w-[200px] sm:max-w-[350px] cursor-pointer hover:text-yellow-300 transition-colors select-none"
+            >
+              {{ currentSessionTitle || 'BANANA AI' }}
+            </h1>
+          </template>
+        </div>
+
+        <div class="flex items-center gap-2 font-mono text-[11px] shrink-0 z-10">
           <span class="text-zinc-500 hidden sm:inline">Model:</span>
           <div class="relative flex items-center">
             <select 
@@ -136,6 +156,7 @@
             <span class="pointer-events-none absolute right-2 text-[9px] text-zinc-500">▼</span>
           </div>
         </div>
+
       </header>
 <div 
         ref="feedScrollContainer"
@@ -720,12 +741,43 @@ onMounted(() => {
   loadSessionsFromLocalStorage()
 })
 
-// Computed property to track current active chat title
+// --- INLINE TITLE EDITING STATE & FUNCTIONS ---
+const isEditingTitle = ref(false)
+const editableTitleText = ref('')
+
+// Auto-focus directive so the cursor immediately lands in the input when double-clicked
+const vFocus = {
+  mounted: (el) => el.focus()
+}
+
+// Computed property for display title
 const currentSessionTitle = computed(() => {
   if (!activeSessionId.value) return null
   const activeSession = chatHistoryList.value.find(s => s.id === activeSessionId.value)
   return activeSession ? activeSession.title : null
 })
+
+// Enable edit mode on double click
+function handleTitleDoubleClick() {
+  if (!activeSessionId.value) return
+  editableTitleText.value = currentSessionTitle.value || 'BANANA AI'
+  isEditingTitle.value = true
+}
+
+// Save edited title to history & LocalStorage
+function saveEditedTitle() {
+  if (!isEditingTitle.value) return
+  isEditingTitle.value = false
+
+  const newTitle = editableTitleText.value.trim()
+  if (!newTitle || !activeSessionId.value) return
+
+  const session = chatHistoryList.value.find(s => s.id === activeSessionId.value)
+  if (session) {
+    session.title = newTitle
+    syncSessionsToLocalStorage()
+  }
+}
 
 </script>
 
