@@ -359,37 +359,189 @@ mdProcessor.renderer.rules.fence = (tokens, idx) => {
   `
 }
 
+/**
+ * Complete, Robust Markdown & LaTeX Parsing Pipeline
+ * Handles streaming artifacts, currency escaping, bra-ket syntax, matrix wrapping,
+ * table cleanup, and graceful error fallbacks.
+ *
+ * @param {string} rawText - Raw unparsed markdown string from LLM output.
+ * @returns {string} HTML string processed by mdProcessor / KaTeX.
+ */
 function renderMarkdownMarkup(rawText) {
-  if (!rawText) return ''
+  if (rawText === null || rawText === undefined) {
+    return ''
+  }
 
   let text = String(rawText)
 
-  // 1. Temporarily stash code blocks so regex transformations don't corrupt code
+  if (!text.trim()) {
+    return ''
+  }
+
+  // Normalize CRLF (\r\n) line breaks to standard UNIX (\n)
+  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+
+  // =========================================================================
+  // 1. STASH CODE BLOCKS & INLINE CODE
+  // Protects code fences and backticks from regex modifications
+  // =========================================================================
   const codeBlocks = []
-  text = text.replace(/(```[\s\S]*?```|`[^`]+`)/g, (match) => {
+  
+  function stashCodeBlock(match) {
+    const placeholder = `___BANANA_CODE_BLOCK_STASH_${codeBlocks.length}___`
     codeBlocks.push(match)
-    return `___CODE_BLOCK_${codeBlocks.length - 1}___`
-  })
+    return placeholder
+  }
 
-  // 2. Convert bold lines acting as pseudo-headers (e.g. "**Header:**") into actual Markdown headers (### Header)
-  text = text.replace(/^(\s*)\*\*(.+?):\*\*\s*$/gm, '$1### $2')
+  // Preserve multi-line code blocks (``` or ~~~) and inline backticks
+  text = text.replace(/```[\s\S]*?```/g, stashCodeBlock)
+  text = text.replace(/~~~[\s\S]*?~~~/g, stashCodeBlock)
+  text = text.replace(/`[^`\n]+`/g, stashCodeBlock)
 
-  // 3. Auto-wrap naked LaTeX environments (\begin{align}, \begin{matrix}, etc.)
-  text = text.replace(/(?<!\$\$)\s*\\begin\{(align\*?|equation\*?|gather\*?|matrix|bmatrix|pmatrix|vmatrix|cases|array)\}([\s\S]*?)\\end\{\1\}\s*(?!\$\$)/g, '\n$$\n\\begin{$1}$2\\end{$1}\n$$\n')
+  // =========================================================================
+  // 2. UNESCAPE BACKSLASHES, CURRENCY, & QUANTUM TOKENS
+  // =========================================================================
+  // 2a. Recover corrupted fraction token markers
+  text = text.replace(/%@FRAC\|/g, '\\frac')
+  text = text.replace(/%@FRAC/g, '\\frac')
 
-  // 4. Convert LaTeX block delimiters \[...\] to $$...$$
+  // 2b. Currency Protection: Escape currency dollar signs ($5, $10.50, $1000)
+  // so KaTeX does not misinterpret them as LaTeX math delimiters
+  text = text.replace(/\$(\d+(?:\.\d{1,2})?)\b/g, '\\$$1')
+
+  // 2c. Clean up double-escaped backslashes in LaTeX macros
+  text = text.replace(/\\\\(begin|end|frac|sqrt|ket|bra|vert|rangle|langle|pmatrix|bmatrix|vmatrix|cases|array|align|equation|text|mathrm|mathbf|sum|prod|int|alpha|beta|gamma|delta|epsilon|theta|lambda|mu|pi|rho|sigma|tau|phi|psi|omega)/g, '\\$1')
+
+  // 2d. Clean bra-ket notation and standard vector states
+  text = text.replace(/\\ket\s*\{([^}]+)\}/g, '| $1 \\rangle')
+  text = text.replace(/\\bra\s*\{([^}]+)\}/g, '\\langle $1 |')
+  text = text.replace(/\|00\\rangle/g, '\\vert 00 \\rangle')
+  text = text.replace(/\|01\\rangle/g, '\\vert 01 \\rangle')
+  text = text.replace(/\|10\\rangle/g, '\\vert 10 \\rangle')
+  text = text.replace(/\|11\\rangle/g, '\\vert 11 \\rangle')
+
+  // =========================================================================
+  // 3. PSEUDO-HEADER CONVERSION
+  // =========================================================================
+  text = text.replace(/^(\s*)\*\*(Part\s+\d+[^:\n]*):\*\*\s*$/gm, '$1### $2')
+  text = text.replace(/^(\s*)\*\*(Section\s+\d+[^:\n]*):\*\*\s*$/gm, '$1### $2')
+  text = text.replace(/^(\s*)\*\*(Step\s+\d+[^:\n]*):\*\*\s*$/gm, '$1### $2')
+  text = text.replace(/^(\s*)\*\*([A-Z0-9\s_\-]{3,40}):\*\*\s*$/gm, '$1### $2')
+
+  // =========================================================================
+  // 4. DELIMITER & EQUATION BLOCK NORMALIZATION
+  // =========================================================================
+  // Convert \[ ... \] to display math blocks $$...$$
   text = text.replace(/\\\[([\s\S]*?)\\\]/g, (_m, eq) => `\n$$\n${eq.trim()}\n$$\n`)
 
-  // 5. Convert LaTeX inline delimiters \(...\) to $...$
+  // Convert \( ... \) to inline math $...$
   text = text.replace(/\\\(([\s\S]*?)\\\)/g, (_m, eq) => `$${eq.trim()}$`)
 
-  // 6. Fix fraction/math tokens and unescape broken sequences
-  text = text.replace(/%@FRAC\|/g, '\\frac')
+  // Fix mixed delimiters where equation equals signs bleed into $ markers
+  text = text.replace(
+    /(\\[A-Za-z]+(?:\\[A-Za-z]+)*\s*=\s*[^$\n]+?)\s*\$\s*(\\begin\{(?:pmatrix|bmatrix|vmatrix|matrix|cases)\}[\s\S]*?\\end\{(?:pmatrix|bmatrix|vmatrix|matrix|cases)\})/g,
+    '\n$$\n$1 $2\n$$\n'
+  )
 
-  // 7. Restore saved code blocks
-  text = text.replace(/___CODE_BLOCK_(\d+)___/g, (_, index) => codeBlocks[Number(index)])
+  // =========================================================================
+  // 5. AUTO-WRAP UNWRAPPED MATRICES & VECTOR EQUATIONS
+  // =========================================================================
+  const supportedEnvs = [
+    'matrix', 'pmatrix', 'bmatrix', 'vmatrix', 'Vmatrix',
+    'cases', 'align', 'align\\*', 'equation', 'equation\\*',
+    'gather', 'gather\\*', 'array', 'split', 'subarray'
+  ].join('|')
 
-  return mdProcessor.render(text)
+  // 5a. Wrap standalone LaTeX environments missing $$ wrappers
+  const envRegex = new RegExp(`(?<!\\$\\$)\\s*\\\\begin\\{(${supportedEnvs})\\}([\\s\\S]*?)\\\\end\\{\\1\\}\\s*(?!\\$\\$)`, 'g')
+  text = text.replace(envRegex, (_m, envType, envBody) => `\n$$\n\\begin{${envType}}\n${envBody.trim()}\n\\end{${envType}}\n$$\n`)
+
+  // 5b. Catch un-delimited state vector equations starting with \Psi, \vert, or \ket
+  const nakedVectorRegex = /(?<!\$)\b(\\(?:Psi|phi|psi|theta|chi|omega)\s*(?:\\rangle|\|)?\s*=\s*(?:\\frac\{[^{}]+\}\{[^{}]+\}|\d+)?\s*\\begin\{(?:pmatrix|bmatrix|vmatrix|matrix)\}[\s\S]*?\\end\{(?:pmatrix|bmatrix|vmatrix|matrix)\})(?!\$)/g
+  text = text.replace(nakedVectorRegex, (_m, vExpr) => `\n$$\n${vExpr.trim()}\n$$\n`)
+
+  // =========================================================================
+  // 6. INLINE MATH AUTO-WRAPPING
+  // =========================================================================
+  // Auto-wrap isolated fractions missing $ delimiters
+  text = text.replace(/(?<!\$)\\frac\{([^{}]+)\}\{([^{}]+)\}(?!\$)/g, '$\\frac{$1}{$2}$')
+
+  // Auto-wrap isolated bra-ket sums missing $ delimiters
+  text = text.replace(
+    /(?<!\$)\((?:\\vert|\\rangle|\\langle|\|)\s*[\d\w]+\s*(?:\\rangle|\|)\s*[\+\-]\s*(?:\\vert|\\rangle|\\langle|\|)\s*[\d\w]+\s*(?:\\rangle|\|)\)(?!\$)/g,
+    '$$&$$'
+  )
+
+  // =========================================================================
+  // 7. MARKDOWN TABLE SANITIZATION
+  // =========================================================================
+  function sanitizeMarkdownTables(content) {
+    const lines = content.split('\n')
+    const processedLines = []
+    let inTable = false
+
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i]
+      const isPipeLine = /^\s*\|.*\|\s*$/.test(line)
+      const isHeaderSeparator = /^\s*\|(?:\s*:?-+:?\s*\|)+\s*$/.test(line)
+
+      if (isPipeLine || isHeaderSeparator) {
+        if (!inTable) {
+          inTable = true
+          if (processedLines.length > 0 && processedLines[processedLines.length - 1].trim() !== '') {
+            processedLines.push('')
+          }
+        }
+        processedLines.push(line.trim())
+      } else {
+        if (inTable) {
+          inTable = false
+          if (line.trim() !== '') {
+            processedLines.push('')
+          }
+        }
+        processedLines.push(line)
+      }
+    }
+
+    return processedLines.join('\n')
+  }
+
+  text = sanitizeMarkdownTables(text)
+
+  // =========================================================================
+  // 8. DOLLAR SIGN SANITIZATION & BLOCK SPACING
+  // =========================================================================
+  text = text.replace(/\${3,}/g, '$$')
+  text = text.replace(/\$\$\s*\n+/g, '$$\n')
+  text = text.replace(/\n+\s*\$\$/g, '\n$$')
+  text = text.replace(/([^\n])\$\$/g, '$1\n$$')
+  text = text.replace(/\$\$([^\n])/g, '$$\n$1')
+
+  // =========================================================================
+  // 9. RESTORE STASHED CODE BLOCKS
+  // =========================================================================
+  text = text.replace(/___BANANA_CODE_BLOCK_STASH_(\d+)___/g, (_match, index) => {
+    const blockIndex = Number(index)
+    return codeBlocks[blockIndex] !== undefined ? codeBlocks[blockIndex] : ''
+  })
+
+  // =========================================================================
+  // 10. FINAL HTML RENDERING & SAFE FALLBACK CATCH
+  // =========================================================================
+  try {
+    return mdProcessor.render(text)
+  } catch (renderError) {
+    console.error('KaTeX/Markdown Rendering Error:', renderError)
+    
+    // Fallback logic: If rendering fails catastrophically, display plain text
+    const safeEscapedText = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+
+    return `<div class="p-4 bg-red-950/40 border border-red-800 rounded-lg text-red-200 font-mono text-xs whitespace-pre-wrap">${safeEscapedText}</div>`
+  }
 }
 // ─── STATE ARRAYS AND UI VALUES ───────────────────────────────────────
 const isSidebarVisible = ref(true)
@@ -584,17 +736,28 @@ async function executeTransmissionDirective() {
 
     // Inject strict system directive to eliminate hallucinations and enforce calculation verification
     const systemInstruction = {
-      role: 'system',
-      content: `You are a strictly precise, fact-checked AI assistant.
+  role: 'system',
+  content: `You are BANANA Orchestrator—a strictly precise, fact-checked AI model. You must complete ALL requested parts without omitting any section.
 
-RULES:
-1. ANTI-SYCOPHANCY: Never agree with incorrect suggestions or claims from the user. Explicitly correct mistakes with step-by-step logic.
-2. MATH & LATEX FORMATTING:
-   - Always verify calculations step-by-step before answering.
-   - Use standard KaTeX syntax for math. Do NOT use non-standard macros like \\ket{} or \\bra{}. Use explicit bra-ket notation like |00\\rangle or \\vert 00 \\rangle instead.
-3. CONSTRAINT HANDLING: Distribute story constraints (such as required slang words or specific terms) naturally across all paragraphs rather than clustering them into a single sentence or quote at the end.
-4. HONEST EVALUATION: When reflecting on your performance, strictly verify whether every constraint was met (including layout, syntax rendering, and placement rules) before claiming compliance.`
-    }
+SYSTEM DIRECTIVES:
+1. MATHEMATICAL VERIFICATION & VECTOR MAPPING:
+   - Verify every state vector calculation before writing.
+   - For a Bell state like (|01> + |10>)/sqrt(2), the 4D column vector is [[0], [1], [1], [0]]^T. NEVER output [[1], [1], [0], [0]]^T.
+   - Do NOT mix standard text and $ signs in equation blocks. Use isolated $$ ... $$ blocks or standard $ ... $ inline math.
+
+2. MARKDOWN TABLES & DATA INTEGRITY:
+   - Every entity in a requested comparative dataset MUST have its own individual table row.
+   - NEVER combine multiple rows or array items into a single row (e.g., Solar, Wind, Geothermal must NOT be combined into one line).
+   - Ensure facts are accurate (e.g., Geothermal is baseload/continuous energy, NOT intermittent).
+
+3. CREATIVE NARRATIVE & FOOTNOTE ISOLATION:
+   - Keep narrative story text clean and immersive.
+   - Place all technical definitions, slang glossary terms, or structural footnotes in a separate "### Glossary / Footnotes" section at the VERY END of Part 2. Do NOT insert footnote definitions directly inside narrative paragraphs.
+
+4. FULL COMPLETION GUARANTEE:
+   - You MUST fully complete all requested parts (Part 1, Part 2, Part 3, and Part 4) in a single response.
+   - Do not stop or cut off before finishing Part 4 Meta-Evaluation.`
+}
 
     let historyPayload = []
 
@@ -869,15 +1032,26 @@ async function streamAssistantResponse(targetIndex = null) {
     // Inject strict system directive to eliminate hallucinations and enforce calculation verification
     const systemInstruction = {
   role: 'system',
-  content: `You are a strictly precise, fact-checked AI assistant.
+  content: `You are BANANA Orchestrator—a strictly precise, fact-checked AI model. You must complete ALL requested parts without omitting any section.
 
-RULES:
-1. ANTI-SYCOPHANCY: Never agree with incorrect suggestions or claims from the user. Explicitly correct mistakes with step-by-step logic.
-2. MATH & LATEX FORMATTING:
-   - Always verify calculations step-by-step before answering.
-   - Use standard KaTeX syntax for math. Do NOT use non-standard macros like \\ket{} or \\bra{}. Use explicit bra-ket notation like |00\\rangle or \\vert 00 \\rangle instead.
-3. CONSTRAINT HANDLING: Distribute story constraints (such as required slang words or specific terms) naturally across all paragraphs rather than clustering them into a single sentence or quote at the end.
-4. HONEST EVALUATION: When reflecting on your performance, strictly verify whether every constraint was met (including layout, syntax rendering, and placement rules) before claiming compliance.`
+SYSTEM DIRECTIVES:
+1. MATHEMATICAL VERIFICATION & VECTOR MAPPING:
+   - Verify every state vector calculation before writing.
+   - For a Bell state like (|01> + |10>)/sqrt(2), the 4D column vector is [[0], [1], [1], [0]]^T. NEVER output [[1], [1], [0], [0]]^T.
+   - Do NOT mix standard text and $ signs in equation blocks. Use isolated $$ ... $$ blocks or standard $ ... $ inline math.
+
+2. MARKDOWN TABLES & DATA INTEGRITY:
+   - Every entity in a requested comparative dataset MUST have its own individual table row.
+   - NEVER combine multiple rows or array items into a single row (e.g., Solar, Wind, Geothermal must NOT be combined into one line).
+   - Ensure facts are accurate (e.g., Geothermal is baseload/continuous energy, NOT intermittent).
+
+3. CREATIVE NARRATIVE & FOOTNOTE ISOLATION:
+   - Keep narrative story text clean and immersive.
+   - Place all technical definitions, slang glossary terms, or structural footnotes in a separate "### Glossary / Footnotes" section at the VERY END of Part 2. Do NOT insert footnote definitions directly inside narrative paragraphs.
+
+4. FULL COMPLETION GUARANTEE:
+   - You MUST fully complete all requested parts (Part 1, Part 2, Part 3, and Part 4) in a single response.
+   - Do not stop or cut off before finishing Part 4 Meta-Evaluation.`
 }
 
     const historyPayload = [systemInstruction, ...messages.value.slice(0, assistantMsgIndex)]
