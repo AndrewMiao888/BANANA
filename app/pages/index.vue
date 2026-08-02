@@ -212,12 +212,12 @@
             </div>
 
             <div 
-              v-if="msg.content && (!isProcessingPipeline || index !== messages.length - 1)" 
-              :class="[
-                'flex items-center gap-3 pt-0.5 px-1 font-mono text-[10px] text-zinc-500 select-none opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-200',
-                msg.role === 'user' ? 'justify-end' : 'justify-start'
-              ]"
-            >
+  v-if="msg.content && (!isProcessingPipeline || index !== messages.length - 1)" 
+  :class="[
+    'flex items-center gap-3 pt-0.5 px-1 font-mono text-[10px] text-zinc-500 select-none opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200',
+    msg.role === 'user' ? 'justify-end' : 'justify-start'
+  ]"
+>
               <button 
                 @click.stop="copyMessageContent(msg.content, $event)" 
                 class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
@@ -230,10 +230,11 @@
               <template v-if="msg.role === 'user' && index >= messages.length - 2">
                 <span class="text-zinc-800">•</span>
                 <button 
-                  @click.stop="editUserPrompt(msg.content)" 
-                  class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
-                  title="Edit prompt"
-                >
+  @click.stop="editUserPromptAtIndex(index)" 
+  class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
+  title="Edit prompt"
+>
+                
                   <i class="i-lucide-pencil text-xs"></i>
                   <span>Edit</span>
                 </button>
@@ -531,17 +532,6 @@ async function triggerBackgroundChatNamingSummary(userPromptText, responseText) 
   }
 }
 
-function parseContentChunk(chunk) {
-  if (chunk === '[DONE]') return ''
-  try {
-    const parsed = JSON.parse(chunk)
-    return parsed.content || parsed.text || parsed.delta || ''
-  } catch {
-    // If the chunk is plain text rather than JSON, return it as-is
-    return chunk
-  }
-}
-
 // ─── DIRECTIVE EXECUTION LAYER WITH STREAMING ──────────────────────────
 // ─── DIRECTIVE EXECUTION LAYER WITH STREAMING ──────────────────────────
 async function executeTransmissionDirective() {
@@ -774,13 +764,22 @@ function copyMessageContent(text, event) {
 }
 
 // EDIT PROMPT FUNCTION - POPULATES TEXTAREA, ADJUSTS HEIGHT & PLACES CURSOR AT END
-function editUserPrompt(content) {
-  inputFieldPrompt.value = content
+// Replace editUserPrompt with this:
+function editUserPromptAtIndex(index) {
+  const targetMsg = messages.value[index]
+  if (!targetMsg || targetMsg.role !== 'user') return
+
+  // Populate prompt
+  inputFieldPrompt.value = targetMsg.content
+
+  // Slice history so everything from this message downward is removed
+  messages.value = messages.value.slice(0, index)
+
   adjustTextareaHeight()
   nextTick(() => {
     if (inputTextarea.value) {
       inputTextarea.value.focus()
-      inputTextarea.value.setSelectionRange(content.length, content.length)
+      inputTextarea.value.setSelectionRange(targetMsg.content.length, targetMsg.content.length)
     }
   })
 }
@@ -889,6 +888,15 @@ async function streamAssistantResponse() {
   }
 }
 
+function parseContentChunk(chunk) {
+  if (chunk === '[DONE]') return ''
+  try {
+    const parsed = JSON.parse(chunk)
+    return parsed.content || parsed.text || parsed.delta || ''
+  } catch {
+    return chunk
+  }
+}
 </script>
 
 <style scoped>
