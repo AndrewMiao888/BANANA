@@ -211,9 +211,50 @@
               <div v-else v-html="renderMarkdownMarkup(msg.content)"></div>
             </div>
 
-            <div v-if="msg.role === 'assistant'" class="flex items-center gap-3 pt-0.5 px-1 font-mono text-[10px] text-zinc-500 select-none">
+            <div 
+          v-for="(msg, index) in messages" 
+          :key="index"
+          :class="[
+            'group max-w-3xl mx-auto flex gap-3.5 p-1 transition-all duration-150',
+            msg.role === 'user' ? 'justify-end' : 'justify-start'
+          ]"
+        >
+          <div v-if="msg.role === 'assistant'" class="w-6 h-6 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-xs flex items-center justify-center shrink-0 mt-0.5">
+            🍌
+          </div>
+
+          <div class="flex flex-col gap-1.5 max-w-[88%] sm:max-w-[82%] min-w-0">
+            <div class="font-mono text-[10px] uppercase tracking-wider text-zinc-600 flex items-center gap-2">
+              <span>{{ msg.role === 'user' ? 'Client Directive' : 'Banana' }}</span>
+              <span v-if="msg.source" class="text-[9px] px-1 bg-zinc-900 border border-zinc-800 rounded text-zinc-500 lowercase">
+                ({{ msg.source }})
+              </span>
+            </div>
+            
+            <div 
+              :class="[
+                'text-sm leading-relaxed max-w-none w-full overflow-hidden break-words',
+                msg.role === 'user' 
+                  ? 'bg-zinc-900 text-zinc-200 border border-zinc-800 px-4 py-2.5 rounded-2xl rounded-tr-none whitespace-pre-wrap [word-break:break-word]' 
+                  : 'text-zinc-300 pt-0.5 prose prose-invert prose-zinc prose-sm max-w-none [word-break:break-word] \
+                     prose-h1:text-xl prose-h1:font-bold prose-h1:text-yellow-400 prose-h1:font-mono prose-h1:mt-5 prose-h1:mb-3 \
+                     prose-h2:text-lg prose-h2:font-bold prose-h2:text-yellow-400/90 prose-h2:font-mono prose-h2:mt-4 prose-h2:mb-2 \
+                     prose-h3:text-base prose-h3:font-semibold prose-h3:text-zinc-100 prose-h3:font-mono prose-h3:mt-3 prose-h3:mb-1.5 \
+                     prose-table:border prose-table:border-zinc-800 prose-th:bg-zinc-900 prose-th:p-2 prose-td:p-2 prose-td:border-b prose-td:border-zinc-800 \
+                     prose-code:text-yellow-500 prose-code:bg-zinc-900 prose-code:px-1 prose-code:py-0.5 prose-code:rounded \
+                     prose-blockquote:border-l-2 prose-blockquote:border-yellow-500 prose-blockquote:pl-4 prose-blockquote:italic'
+              ]"
+            >
+              <div v-if="msg.role === 'user'">{{ msg.content }}</div>
+              <div v-else v-html="renderMarkdownMarkup(msg.content)"></div>
+            </div>
+
+            <div 
+              v-if="msg.role === 'assistant' && msg.content && (!isProcessingPipeline || index !== messages.length - 1)" 
+              class="flex items-center gap-3 pt-1 px-1 font-mono text-[10px] text-zinc-500 select-none opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-200"
+            >
               <button 
-                @click="navigator.clipboard.writeText(msg.content)" 
+                @click.stop="copyAssistantMessage(msg.content, $event)" 
                 class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
                 title="Copy response content"
               >
@@ -221,13 +262,16 @@
               </button>
               <span class="text-zinc-800">•</span>
               <button 
-                @click="executeTransmissionDirective()" 
+                @click.stop="regenerateMessageAtIndex(index)" 
                 class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
-                title="Regenerate message"
+                title="Regenerate response"
               >
                 <span>🔄</span> Regenerate
               </button>
             </div>
+              
+          </div>
+        </div>
               
           </div>
         </div>
@@ -776,6 +820,131 @@ function saveEditedTitle() {
   if (session) {
     session.title = newTitle
     syncSessionsToLocalStorage()
+  }
+}
+
+// --- COPY & REGENERATE ASSISTANT MESSAGES ---
+function copyAssistantMessage(text, event) {
+  if (!text) return
+  if (navigator?.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      if (event?.currentTarget) {
+        const btn = event.currentTarget
+        const originalText = btn.innerHTML
+        btn.innerHTML = '<span>✅</span> Copied!'
+        setTimeout(() => { btn.innerHTML = originalText }, 1800)
+      }
+    }).catch(err => console.error('Failed to copy message:', err))
+  }
+}
+
+async function regenerateMessageAtIndex(index) {
+  if (isProcessingPipeline.value) return
+
+  // 1. Remove target assistant message and any subsequent messages
+  messages.value = messages.value.slice(0, index)
+
+  // 2. Find last user query
+  const lastUserMsg = [...messages.value].reverse().find(m => m.role === 'user')
+  if (!lastUserMsg) return
+
+  isProcessingPipeline.value = true
+
+  // 3. Create fresh placeholder
+  messages.value.push({
+    role: 'assistant',
+    content: '',
+    source: 'Live Stream'
+  })
+
+  userHasScrolledUpManually.value = false
+  await triggerSystemEnforcedAutoScroll(true)
+
+  // 4. Stream fresh response
+  await streamAssistantResponse()
+}
+
+// Internal reusable stream helper
+async function streamAssistantResponse() {
+  const assistantMsgIndex = messages.value.length - 1
+  try {
+    const calculatedContext = messages.value[0]?.content 
+      ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
+      : ''
+
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: messages.value.slice(0, -1),
+        selectedModelId: selectedModelId.value,
+        summaryContext: calculatedContext,
+        stream: true
+      })
+    })
+
+    if (!response.ok || !response.body) {
+      throw new Error(`Server returned HTTP status ${response.status}`)
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder('utf-8')
+    let accumulatedContent = ''
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (trimmed.startsWith('data: ')) {
+          const dataStr = trimmed.slice(6).trim()
+          if (dataStr === '[DONE]') continue
+          try {
+            const parsed = JSON.parse(dataStr)
+            accumulatedContent += parsed.message?.content || parsed.text || parsed.content || parsed.delta || ''
+          } catch {
+            accumulatedContent += dataStr
+          }
+        } else if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          try {
+            const parsed = JSON.parse(trimmed)
+            accumulatedContent += parsed.message?.content || parsed.text || parsed.content || parsed.delta || ''
+          } catch {
+            accumulatedContent += line + '\n'
+          }
+        } else {
+          accumulatedContent += line + '\n'
+        }
+      }
+
+      messages.value[assistantMsgIndex].content = accumulatedContent
+      triggerSystemEnforcedAutoScroll()
+    }
+
+    if (buffer) {
+      messages.value[assistantMsgIndex].content = accumulatedContent + buffer
+    }
+
+    activeRoutingSource.value = 'Stream Complete'
+  } catch (err) {
+    if (!messages.value[assistantMsgIndex].content) {
+      messages.value[assistantMsgIndex].content = `⚠️ **Pipeline Terminal Failure**: Could not establish live stream.\n\n* **Diagnostics**: ${err.message || 'Stream connection drop'}`
+    }
+    activeRoutingSource.value = 'Connection Error'
+  } finally {
+    isProcessingPipeline.value = false
+    const targetSession = chatHistoryList.value.find(s => s.id === activeSessionId.value)
+    if (targetSession) {
+      targetSession.messages = [...messages.value]
+    }
+    syncSessionsToLocalStorage()
+    await triggerSystemEnforcedAutoScroll()
   }
 }
 
