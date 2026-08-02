@@ -1379,4 +1379,22 @@ function appendToRollingSummary(sessionId, userPrompt, assistantReply) {
 .katex .sqrt {
   padding-bottom: 0.1em;
 }
+
+/* Fix vertical collision between square roots and fractions */
+.katex .sqrt {
+  padding-bottom: 0.15em;
+}
+
+.katex .sqrt .root {
+  margin-right: 0.1em;
+}
+
+/* 🛠️ Permanent Fix for Fraction & Square Root Collision */
+:deep(.katex .mfrac) {
+  margin-top: 0.15em !important;
+}
+
+:deep(.katex .sqrt) {
+  padding-bottom: 0.2em !important;
+}
 </style>
