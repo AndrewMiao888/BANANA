@@ -754,6 +754,7 @@ CRITICAL FORMATTING & TRUTH DIRECTIVES:
    - Always verify state vector matrix calculations step-by-step before outputting.
    - For 2-qubit Bell state (|01> + |10>)/sqrt(2), the 4D state vector corresponds to [0, 1, 1, 0]^T. NEVER map it to [1, 1, 0, 0]^T.
    - Math equations MUST be output in clean block syntax ($$ ... $$) or inline syntax ($ ... $). NEVER mix raw narrative text inside $ delimiters.
+   - When writing fractions with square roots (like 1/sqrt(2)), ensure proper vertical separation by using clean grouping or spacing so symbols never overlap.
 
 2. MARKDOWN TABLE STRUCTURE INTEGRITY:
    - Every entity in a requested comparison or analysis MUST have its own dedicated table row.
@@ -1050,6 +1051,7 @@ CRITICAL FORMATTING & TRUTH DIRECTIVES:
    - Always verify state vector matrix calculations step-by-step before outputting.
    - For 2-qubit Bell state (|01> + |10>)/sqrt(2), the 4D state vector corresponds to [0, 1, 1, 0]^T. NEVER map it to [1, 1, 0, 0]^T.
    - Math equations MUST be output in clean block syntax ($$ ... $$) or inline syntax ($ ... $). NEVER mix raw narrative text inside $ delimiters.
+   - When writing fractions with square roots (like 1/sqrt(2)), ensure proper vertical separation by using clean grouping or spacing so symbols never overlap.
 
 2. MARKDOWN TABLE STRUCTURE INTEGRITY:
    - Every entity in a requested comparison or analysis MUST have its own dedicated table row.
@@ -1367,5 +1369,14 @@ function appendToRollingSummary(sessionId, userPrompt, assistantReply) {
 :deep(.prose ol > li::marker) {
   color: #facc15 !important;
   font-weight: 700 !important;
+}
+
+/* Fixes vertical spacing collisions in KaTeX display and inline math */
+.katex-display, .katex {
+  line-height: 1.3;
+}
+
+.katex .sqrt {
+  padding-bottom: 0.1em;
 }
 </style>
