@@ -13,6 +13,9 @@ export const AVAILABLE_MODELS: ModelOption[] = [
   { id: 'llama3-8b-8192', name: 'Instant-NANA', provider: 'groq', tier: 'Instant', description: 'Ultra-fast cloud processing core' },
 
   // --- LOCAL COMPUTER MODELS (Active only when machine is ON) ---
+  // Core Custom Engine
+  { id: 'qwen-super', name: 'Qwen Super Engine', provider: 'local', tier: 'High Demand', description: 'Upgraded custom logic and coding engine' },
+  
   // Core Compute Tiers
   { id: 'llama3:8b', name: 'Standard-NANA', provider: 'local', tier: 'High Demand', description: 'Local foundational network' },
   { id: 'llama3:70b', name: 'Pro-NANA', provider: 'local', tier: 'High Demand', description: 'Heavy local reasoning engine' },

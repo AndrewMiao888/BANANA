@@ -171,10 +171,7 @@
       >
         <div v-if="messages.length === 0" class="h-full flex flex-col items-center justify-center max-w-xl mx-auto text-center space-y-3 pb-12">
           <div class="text-4xl animate-bounce duration-1000">🍌</div>
-          <h1 class="text-xl font-mono font-bold tracking-tight text-yellow-400">BANANA Core Orchestrator</h1>
-          <p class="text-xs text-zinc-500 font-mono leading-relaxed px-4">
-            Ready to receive system operational parameters. Prepend requests with <span class="text-yellow-500/80">/search</span> to directly trigger automated real-time web telemetry routines.
-          </p>
+          <h1 class="text-xl font-mono font-bold tracking-tight text-yellow-400">Ready when you are!</h1>
         </div>
 
         <div 
@@ -255,6 +252,18 @@
                   <span>Regenerate</span>
                 </button>
               </template>
+
+              <template v-if="msg.role === 'assistant'">
+                <span class="text-zinc-800">•</span>
+                <button 
+                  @click.stop="speakMessage(msg.content)" 
+                  class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
+                  title="Read aloud"
+                >
+                  <i class="i-lucide-volume-2 text-xs"></i>
+                  <span>Speak</span>
+                </button>
+              </template>
             </div>
 
           </div>
@@ -262,7 +271,7 @@
 
         <div v-if="isProcessingPipeline" class="max-w-3xl mx-auto flex gap-3.5 p-1">
           <div class="w-6 h-6 rounded-full bg-yellow-500/10 border border-dashed border-yellow-500/40 flex items-center justify-center shrink-0 animate-spin text-[10px]">
-            ⏳
+            🍌
           </div>
           <div class="text-xs text-zinc-500 font-mono italic flex items-center gap-2 animate-pulse pt-0.5">
             Analysing...
@@ -308,6 +317,7 @@ import { AVAILABLE_MODELS } from '~~/src/models'
 import MarkdownIt from 'markdown-it'
 import markdownItKatex from 'markdown-it-katex'
 import 'katex/dist/katex.min.css'
+
 
 // Custom renderer to format code blocks with language labels and copy buttons
 const mdProcessor = new MarkdownIt({

@@ -18,12 +18,12 @@ export default defineEventHandler(async (event) => {
       { role: 'user', content: prompt }
     ]
 
-    // 1. TRY LOCAL COMPUTER SYNTAX ENGINE (Codestral)
+    // 1. TRY LOCAL COMPUTER SYNTAX ENGINE (Qwen Super)
     try {
       const ollamaGenerate = await $fetch<any>('http://127.0.0.1:11434/api/chat', {
         method: 'POST',
         body: {
-          model: 'codestral',
+          model: 'qwen-super',
           messages: structurePayload,
           stream: false
         },

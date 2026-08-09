@@ -83,7 +83,7 @@ export default defineEventHandler(async (event) => {
       const ollamaRes = await $fetch<any>('http://127.0.0.1:11434/api/chat', {
         method: 'POST',
         body: {
-          model: 'llama3:8b', // Uses the Standard local layout matrix
+          model: 'qwen-super', // Uses the Custom local logic matrix
           messages: standardPayload,
           stream: false
         },

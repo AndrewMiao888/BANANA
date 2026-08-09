@@ -316,7 +316,7 @@ ${directAnswer}${formattedContext}`
           if (isLocalHardwareOnline) {
             const localSearchRes = await $fetch<any>(targetLocalEndpoint, {
               method: 'POST',
-              body: { model: modelConfig.id || 'qwen-super', messages: patchedSearchContext, stream: true },
+              body: { model: modelConfig.id || 'qwen-super', messages: patchedSearchContext, stream: false },
               timeout: 15000
             })
             if (localSearchRes?.message?.content) {
