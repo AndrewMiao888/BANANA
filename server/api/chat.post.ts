@@ -104,14 +104,14 @@ You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQ
     let activeExecutionSource = ''
 
     // ─── 4. HARD DRIVE LOCAL HARDWARE PROBING (PRIMARY RUNNER) ─────────────
-    const localBaseUrl = config.homeOllamaUrl || process.env.HOME_OLLAMA_URL || 'https://xps9530-haydenk.tailb68230.ts.net'
+    const localBaseUrl = config.homeOllamaUrl || process.env.HOME_OLLAMA_URL || 'http://127.0.0.1:11434'
     const targetLocalEndpoint = `${localBaseUrl.replace(/\/$/, '')}/api/chat`
     let isLocalHardwareOnline = false
 
     // Fast health probe to verify if your hard drive hardware node is live
     try {
       const probeUrl = `${localBaseUrl.replace(/\/$/, '')}/api/tags`
-      const healthCheck = await $fetch<any>(probeUrl, { method: 'GET', timeout: 1500 })
+      const healthCheck = await $fetch<any>(probeUrl, { method: 'GET', timeout: 5000 })
       isLocalHardwareOnline = !!healthCheck
     } catch {
       isLocalHardwareOnline = false
@@ -120,7 +120,7 @@ You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQ
     // IF HARD DRIVE HARDWARE IS ONLINE: Run ALL models requested through your hard drive
     if (isLocalHardwareOnline) {
       try {
-        const localModelId = modelConfig.id || selectedModelId || 'llama3'
+        const localModelId = modelConfig.id || selectedModelId || 'qwen-super'
         const ollamaRes = await $fetch<any>(targetLocalEndpoint, {
           method: 'POST',
           body: { model: localModelId, messages: baseContextMessages, stream: false },
@@ -316,7 +316,7 @@ ${directAnswer}${formattedContext}`
           if (isLocalHardwareOnline) {
             const localSearchRes = await $fetch<any>(targetLocalEndpoint, {
               method: 'POST',
-              body: { model: modelConfig.id || 'llama3', messages: patchedSearchContext, stream: false },
+              body: { model: modelConfig.id || 'qwen-super', messages: patchedSearchContext, stream: true },
               timeout: 15000
             })
             if (localSearchRes?.message?.content) {
