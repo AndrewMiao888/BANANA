@@ -1,5 +1,41 @@
 <template>
   <div class="flex h-[100dvh] w-full bg-zinc-950 text-zinc-200 font-sans overflow-hidden selection:bg-yellow-500/30 selection:text-yellow-200 relative">
+    
+    <div 
+      v-if="isSourcePanelOpen" 
+      class="fixed inset-y-0 right-0 w-80 md:w-96 bg-zinc-900 border-l border-zinc-800 shadow-2xl z-50 p-4 flex flex-col transition-all duration-300"
+    >
+      <div class="flex items-center justify-between pb-3 border-b border-zinc-800 mb-4">
+        <div class="flex items-center gap-2">
+          <i class="i-lucide-book-open text-yellow-400"></i>
+          <h3 class="font-bold text-zinc-100 text-sm">Reference Source Context</h3>
+        </div>
+        <button @click="isSourcePanelOpen = false" class="text-zinc-400 hover:text-zinc-100 p-1 cursor-pointer">✕</button>
+      </div>
+
+      <div v-if="activeSource" class="space-y-4 overflow-y-auto flex-1 custom-scrollbar pr-1">
+        <div>
+          <span class="text-xs text-yellow-500 font-mono font-semibold">SOURCE [{{ activeSource.id }}]</span>
+          <h4 class="text-base font-semibold text-zinc-100 mt-1">{{ activeSource.title }}</h4>
+          <a 
+            :href="activeSource.url" 
+            target="_blank" 
+            class="text-xs text-yellow-400 hover:underline flex items-center gap-1 mt-1 break-all"
+          >
+            <i class="i-lucide-external-link text-xs"></i>
+            {{ activeSource.url }}
+          </a>
+        </div>
+
+        <div class="bg-zinc-950 p-3 rounded-lg border border-zinc-800/80">
+          <span class="text-[10px] text-zinc-500 uppercase tracking-wider font-mono">Extracted Ground-Truth Context</span>
+          <p class="text-xs text-zinc-300 mt-2 leading-relaxed font-sans whitespace-pre-wrap">
+            "{{ activeSource.snippet }}"
+          </p>
+        </div>
+      </div>
+    </div>
+
     <div 
       v-if="isSidebarVisible" 
       @click="isSidebarVisible = false"
@@ -266,6 +302,19 @@
               </template>
             </div>
 
+            <div v-if="msg.sources && msg.sources.length > 0" class="mt-3 pt-2 border-t border-zinc-800/60 flex flex-wrap items-center gap-2">
+              <span class="text-[11px] text-zinc-500 font-mono">Sources:</span>
+              <button
+                v-for="src in msg.sources"
+                :key="src.id"
+                @click="openSourcePanel(src)"
+                class="text-xs bg-zinc-800 hover:bg-zinc-700 text-yellow-400 px-2 py-0.5 rounded border border-zinc-700 flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <i class="i-lucide-link text-[10px]"></i>
+                <span>[{{ src.id }}] {{ src.title }}</span>
+              </button>
+            </div>
+
           </div>
         </div>
 
@@ -317,6 +366,17 @@ import { AVAILABLE_MODELS } from '~~/src/models'
 import MarkdownIt from 'markdown-it'
 import markdownItKatex from 'markdown-it-katex'
 import 'katex/dist/katex.min.css'
+
+// --- SOURCE PANEL STATE ---
+const isSourcePanelOpen = ref(false)
+const activeSource = ref(null)
+
+function openSourcePanel(source) {
+  activeSource.value = source
+  isSourcePanelOpen.value = true
+}
+
+
 
 
 // Custom renderer to format code blocks with language labels and copy buttons
@@ -1217,6 +1277,8 @@ function appendToRollingSummary(sessionId, userPrompt, assistantReply) {
   const updatedSummary = (existingSummary + newEntry).trim()
   saveRollingSummaryToStorage(sessionId, updatedSummary)
 }
+
+
 </script>
 
 <style scoped>

@@ -357,7 +357,11 @@ ${directAnswer}${formattedContext}`
     return {
       success: true,
       source: activeExecutionSource,
-      message: { role: 'assistant', content: finalResponseText }
+      message: { 
+        role: 'assistant', 
+        content: finalResponseText,
+        sources: [] // Search / Crawl4AI pipeline populates this array
+      }
     }
 
   } catch (err: any) {
