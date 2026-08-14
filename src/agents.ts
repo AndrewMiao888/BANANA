@@ -4,15 +4,24 @@
 // 1. TYPE SCHEMAS & INTERFACES
 // ==========================================
 
+export interface SourceItem {
+  id: number;
+  title: string;
+  url: string;
+  snippet: string;
+}
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
+  sources?: SourceItem[];
 }
 
 export interface ChatResponse {
   content: string;
   provider: 'ollama' | 'groq' | 'error';
   updatedSummary?: string;
+  sources?: SourceItem[];
 }
 
 export interface AgentPayload {
@@ -48,7 +57,7 @@ export async function runAgent1Core(payload: AgentPayload): Promise<ChatResponse
       },
       body: JSON.stringify({
         messages: payload.messages,
-        selectedModelId: payload.model || 'llama3-8b-8192', // Map to application routing keys
+        selectedModelId: payload.model || 'qwen-super', // Default to free local engine
         summaryContext: payload.existingSummary || ''
       })
     });

@@ -19,9 +19,9 @@ export default defineEventHandler(async (event) => {
     }
 
     const modelConfig = AVAILABLE_MODELS?.find(m => m.id === selectedModelId) || AVAILABLE_MODELS?.[0] || {
-      id: selectedModelId || 'Enterprise-NANA',
-      name: 'Enterprise-NANA',
-      provider: 'groq'
+      id: 'qwen-super',
+      name: 'Qwen Super Engine',
+      provider: 'local'
     }
     
     const incomingUserPrompt = messages[messages.length - 1]?.content || ''

@@ -328,6 +328,26 @@
         </div>
       </div> <footer class="p-3 md:p-4 border-t border-zinc-900/80 bg-zinc-950 shrink-0 z-20 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <form @submit.prevent="executeTransmissionDirective" class="max-w-3xl mx-auto relative flex items-end bg-zinc-900 border border-zinc-800 focus-within:border-yellow-500/40 rounded-2xl p-2 transition-all shadow-lg">
+          
+          <label class="p-2 hover:bg-zinc-800 text-zinc-400 hover:text-yellow-400 rounded-md cursor-pointer transition-colors mb-0.5 shrink-0" title="Attach file or image">
+            <input type="file" class="hidden" @change="handleFileUpload" accept="image/*,.pdf,.txt,.js,.ts" />
+            <i class="i-lucide-paperclip text-sm"></i>
+          </label>
+
+          <button 
+            type="button"
+            @click="toggleVoiceInput" 
+            :class="['p-2 rounded-md transition-colors mb-0.5 shrink-0 mr-2', isRecording ? 'bg-red-500/20 text-red-400 animate-pulse' : 'hover:bg-zinc-800 text-zinc-400 hover:text-yellow-400']"
+            :title="isRecording ? 'Listening... Click to stop' : 'Click to speak'"
+          >
+            <i class="i-lucide-mic text-sm"></i>
+          </button>
+
+          <div v-if="selectedFile" class="flex items-center gap-1 text-xs bg-yellow-500/10 text-yellow-400 px-2 py-1 rounded border border-yellow-500/20 mb-1 shrink-0 mr-2">
+            <span class="truncate max-w-[120px]">{{ selectedFile.name }}</span>
+            <button type="button" @click="selectedFile = null" class="hover:text-red-400 ml-1">✕</button>
+          </div>
+
   <textarea 
     ref="inputTextarea"
     v-model="inputFieldPrompt"
@@ -374,6 +394,114 @@ const activeSource = ref(null)
 function openSourcePanel(source) {
   activeSource.value = source
   isSourcePanelOpen.value = true
+}
+
+// --- VOICE & FILE HANDLERS ---
+// --- 🎙️ VOICE TRANSCRIBER STATE & LOGIC ---
+const isListening = ref(false)
+let speechRecognitionInstance = null
+
+const toggleVoiceInput = () => {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+  
+  if (!SpeechRecognition) {
+    alert('Speech recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge.')
+    return
+  }
+
+  if (isListening.value) {
+    speechRecognitionInstance?.stop()
+    isListening.value = false
+    return
+  }
+
+  speechRecognitionInstance = new SpeechRecognition()
+  speechRecognitionInstance.continuous = true
+  speechRecognitionInstance.interimResults = true
+  speechRecognitionInstance.lang = 'en-US' // Change to your preferred language
+
+  speechRecognitionInstance.onstart = () => {
+    isListening.value = true
+  }
+
+  speechRecognitionInstance.onresult = (event) => {
+    let transcript = ''
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      transcript += event.results[i][0].transcript
+    }
+    // Directly inject spoken text into your active chat input box
+    userMessage.value = transcript
+  }
+
+  speechRecognitionInstance.onerror = (event) => {
+    console.error('Speech recognition error:', event.error)
+    isListening.value = false
+  }
+
+  speechRecognitionInstance.onend = () => {
+    isListening.value = false
+  }
+
+  speechRecognitionInstance.start()
+}
+
+// --- 🔊 TEXT-TO-SPEECH (SPEAKER) ---
+const speakResponse = (text) => {
+  if (!('speechSynthesis' in window)) return
+
+  window.speechSynthesis.cancel() // Stop any previous speech
+  
+  // Clean markdown symbols out so the speech engine sounds natural
+  const cleanText = text.replace(/[*#_`\[\]()]/g, '')
+  const utterance = new SpeechSynthesisUtterance(cleanText)
+  utterance.rate = 1.0
+  utterance.pitch = 1.0
+
+  window.speechSynthesis.speak(utterance)
+}
+
+const isRecording = ref(false)
+const selectedFile = ref(null)
+let recognition = null
+
+function toggleVoiceInput() {
+  if (typeof window === 'undefined') return
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    alert('Speech recognition is not supported in this browser.')
+    return
+  }
+  if (isRecording.value) {
+    recognition?.stop()
+    isRecording.value = false
+    return
+  }
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+  recognition = new SpeechRecognition()
+  recognition.continuous = false
+  recognition.interimResults = false
+
+  recognition.onstart = () => { isRecording.value = true }
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript
+    inputFieldPrompt.value = inputFieldPrompt.value ? `${inputFieldPrompt.value} ${transcript}` : transcript
+  }
+  recognition.onerror = () => { isRecording.value = false }
+  recognition.onend = () => { isRecording.value = false }
+  recognition.start()
+}
+
+function speakMessage(text) {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+  window.speechSynthesis.cancel()
+  const utterance = new SpeechSynthesisUtterance(text)
+  window.speechSynthesis.speak(utterance)
+}
+
+function handleFileUpload(event) {
+  const target = event.target
+  if (target?.files && target.files[0]) {
+    selectedFile.value = target.files[0]
+  }
 }
 
 

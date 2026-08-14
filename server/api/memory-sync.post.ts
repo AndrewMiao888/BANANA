@@ -1,3 +1,4 @@
+
 // server/api/memory-sync.post.ts
 import { systemPrompts } from '~~/src/agents'
 
@@ -42,7 +43,10 @@ export default defineEventHandler(async (event) => {
         const groqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-          body: { model: 'llama3-8b-8192', messages: incrementalPrompt }
+          body: { 
+            model: 'llama-3.1-8b-instant', // 👈 Updated to match your current cloud fallback model ID
+            messages: incrementalPrompt 
+          }
         })
 
         const appendStr = groqRes?.choices?.[0]?.message?.content || ''
@@ -83,7 +87,7 @@ export default defineEventHandler(async (event) => {
       const ollamaRes = await $fetch<any>('http://127.0.0.1:11434/api/chat', {
         method: 'POST',
         body: {
-          model: 'qwen-super', // Uses the Custom local logic matrix
+          model: 'qwen-super', // 👈 (Or 'qwen2.5:7b' if you didn't create a custom tag name with your Modelfile)
           messages: standardPayload,
           stream: false
         },
