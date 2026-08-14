@@ -1442,29 +1442,7 @@ function removeSelectedFile(index) {
   }
 }
 
-// ─── 2. MULTI-LANGUAGE SPEECH RECOGNITION & TTS ────────────────────────
-function toggleSpeechRecognition() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-  if (!SpeechRecognition) {
-    alert("Speech recognition is not supported in this browser.")
-    return
-  }
 
-  const recognition = new SpeechRecognition()
-  recognition.continuous = false
-  recognition.interimResults = true
-  recognition.lang = navigator.language || '' 
-
-  recognition.onresult = (event) => {
-    let transcript = ''
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-      transcript += event.results[i][0].transcript
-    }
-    inputFieldPrompt.value = transcript
-  }
-
-  recognition.start()
-}
 
 //3 deleted duplicate function, as it was already defined above
 
