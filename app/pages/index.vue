@@ -293,7 +293,7 @@ this?
               <template v-if="msg.role === 'assistant'">
   <span class="text-zinc-800">•</span>
   <button 
-    @click.stop="speakText(msg.content)" 
+    @click.stop="syntraspeakText(msg.content)" 
     class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
     title="Read aloud"
   >
@@ -1466,16 +1466,6 @@ function toggleSpeechRecognition() {
   recognition.start()
 }
 
-function speakText(text) {
-  if (!('speechSynthesis' in window)) return
-  window.speechSynthesis.cancel()
-
-  const utterance = new SpeechSynthesisUtterance(text)
-  utterance.lang = navigator.language || 'en-US'
-  utterance.rate = 1.0
-  window.speechSynthesis.speak(utterance)
-}
-
 //3 deleted duplicate function, as it was already defined above
 
 // ─── 4 & 5. UNIFIED TRANSMISSION & SESSION PERSISTENCE same need to delete as 3.────────────────
@@ -1498,7 +1488,7 @@ const handleClipboardPaste = (event) => {
 }
 
 // Text-to-Speech handler (with automatic Chinese vs English detection)
-const speakText = (text) => {
+const syntraspeakText = (text) => {
   if (!('speechSynthesis' in window)) {
     console.warn('Speech synthesis not supported in this browser.')
     return
