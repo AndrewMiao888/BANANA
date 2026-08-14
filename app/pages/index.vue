@@ -326,56 +326,57 @@
             Analysing...
           </div>
         </div>
-      </div> <footer class="p-3 md:p-4 border-t border-zinc-900/80 bg-zinc-950 shrink-0 z-20 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <form @submit.prevent="executeTransmissionDirective" class="max-w-3xl mx-auto relative flex items-end bg-zinc-900 border border-zinc-800 focus-within:border-yellow-500/40 rounded-2xl p-2 transition-all shadow-lg">
-          
-          <label class="p-2 hover:bg-zinc-800 text-zinc-400 hover:text-yellow-400 rounded-md cursor-pointer transition-colors mb-0.5 shrink-0" title="Attach file or image">
-            <input type="file" class="hidden" @change="handleFileUpload" accept="image/*,.pdf,.txt,.js,.ts" />
-            <i class="i-lucide-paperclip text-sm"></i>
-          </label>
+      </div> 
+      <footer class="p-3 md:p-4 border-t border-zinc-900/80 bg-zinc-950 shrink-0 z-20 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+  <form @submit.prevent="executeTransmissionDirective" class="max-w-3xl mx-auto relative flex items-end bg-zinc-900 border border-zinc-800 focus-within:border-yellow-500/40 rounded-2xl p-2 transition-all shadow-lg">
+    
+    <label class="p-2 hover:bg-zinc-800 text-zinc-400 hover:text-yellow-400 rounded-md cursor-pointer transition-colors mb-0.5 shrink-0" title="Attach file or image">
+      <input type="file" class="hidden" @change="handleFileUpload" accept="image/*,.pdf,.txt,.js,.ts,.vue" />
+      <i class="i-lucide-paperclip text-sm"></i>
+    </label>
 
-          <button 
-            type="button"
-            @click="toggleVoiceInput" 
-            :class="['p-2 rounded-md transition-colors mb-0.5 shrink-0 mr-2', isRecording ? 'bg-red-500/20 text-red-400 animate-pulse' : 'hover:bg-zinc-800 text-zinc-400 hover:text-yellow-400']"
-            :title="isRecording ? 'Listening... Click to stop' : 'Click to speak'"
-          >
-            <i class="i-lucide-mic text-sm"></i>
-          </button>
+    <button 
+      type="button"
+      @click="toggleVoiceInput" 
+      :class="['p-2 rounded-md transition-colors mb-0.5 shrink-0 mr-2 cursor-pointer', isRecording ? 'bg-red-500/20 text-red-400 animate-pulse' : 'hover:bg-zinc-800 text-zinc-400 hover:text-yellow-400']"
+      :title="isRecording ? 'Listening... Click to stop' : 'Click to speak'"
+    >
+      <i class="i-lucide-mic text-sm"></i>
+    </button>
 
-          <div v-if="selectedFile" class="flex items-center gap-1 text-xs bg-yellow-500/10 text-yellow-400 px-2 py-1 rounded border border-yellow-500/20 mb-1 shrink-0 mr-2">
-            <span class="truncate max-w-[120px]">{{ selectedFile.name }}</span>
-            <button type="button" @click="selectedFile = null" class="hover:text-red-400 ml-1">✕</button>
-          </div>
+    <div v-if="selectedFile" class="flex items-center gap-1 text-xs bg-yellow-500/10 text-yellow-400 px-2 py-1 rounded border border-yellow-500/20 mb-1 shrink-0 mr-2">
+      <span class="truncate max-w-[120px]">{{ selectedFile.name }}</span>
+      <button type="button" @click="selectedFile = null" class="hover:text-red-400 ml-1 cursor-pointer">✕</button>
+    </div>
 
-  <textarea 
-    ref="inputTextarea"
-    v-model="inputFieldPrompt"
-    @keydown="handleKeydown"
-    @input="adjustTextareaHeight"
-    rows="1"
-    placeholder="Ask BANANA AI anything... (Shift + Enter for new line)"
-    class="w-full bg-transparent text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none resize-none px-3 py-2 custom-scrollbar max-h-48 overflow-y-auto font-sans leading-relaxed whitespace-pre-wrap [word-break:break-word]"
-  ></textarea>
-  
-  <button 
-    v-if="isProcessingPipeline"
-    type="button"
-    @click="isProcessingPipeline = false"
-    class="ml-2 px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500 hover:text-white font-mono font-bold rounded-xl text-xs tracking-wider transition-all shrink-0 mb-0.5 animate-pulse cursor-pointer"
-  >
-    STOP
-  </button>
-  <button 
-    v-else
-    type="submit"
-    :disabled="!inputFieldPrompt.trim()"
-    class="ml-2 px-4 py-2 bg-yellow-500 text-zinc-950 font-mono font-bold rounded-xl text-xs tracking-wider hover:bg-yellow-400 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 mb-0.5 cursor-pointer"
-  >
-    Send
-  </button>
-</form>
-      </footer>
+    <textarea 
+      ref="inputTextarea"
+      v-model="inputFieldPrompt"
+      @keydown="handleKeydown"
+      @input="adjustTextareaHeight"
+      rows="1"
+      placeholder="Type a message, speak, or attach a document..."
+      class="w-full bg-transparent text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none resize-none px-3 py-2 custom-scrollbar max-h-48 overflow-y-auto font-sans leading-relaxed whitespace-pre-wrap [word-break:break-word]"
+    ></textarea>
+    
+    <button 
+      v-if="isProcessingPipeline"
+      type="button"
+      @click="isProcessingPipeline = false"
+      class="ml-2 px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500 hover:text-white font-mono font-bold rounded-xl text-xs tracking-wider transition-all shrink-0 mb-0.5 animate-pulse cursor-pointer"
+    >
+      STOP
+    </button>
+    <button 
+      v-else
+      type="submit"
+      :disabled="!inputFieldPrompt.trim() && !selectedFile"
+      class="ml-2 px-4 py-2 bg-yellow-500 text-zinc-950 font-mono font-bold rounded-xl text-xs tracking-wider hover:bg-yellow-400 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 mb-0.5 cursor-pointer"
+    >
+      Send
+    </button>
+  </form>
+</footer>
     </main>
   </div>
 </template>
@@ -443,21 +444,6 @@ const toggleVoiceInput = () => {
   }
 
   speechRecognitionInstance.start()
-}
-
-// --- 🔊 TEXT-TO-SPEECH (SPEAKER) ---
-const speakResponse = (text) => {
-  if (!('speechSynthesis' in window)) return
-
-  window.speechSynthesis.cancel() // Stop any previous speech
-  
-  // Clean markdown symbols out so the speech engine sounds natural
-  const cleanText = text.replace(/[*#_`\[\]()]/g, '')
-  const utterance = new SpeechSynthesisUtterance(cleanText)
-  utterance.rate = 1.0
-  utterance.pitch = 1.0
-
-  window.speechSynthesis.speak(utterance)
 }
 
 const isRecording = ref(false)
@@ -1125,6 +1111,53 @@ function renameSession(id) {
     session.title = newTitle.trim()
     syncSessionsToLocalStorage()
   }
+}
+
+// --- 📎 FILE ATTACHMENT STATE & LOGIC ---
+const attachedFile = ref(null)
+const fileInputRef = ref(null)
+
+const triggerFileUpload = () => {
+  fileInputRef.value?.click()
+}
+
+const handleFileSelected = (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    attachedFile.value = {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      content: e.target.result
+    }
+  }
+  
+  if (file.type.startsWith('image/')) {
+    reader.readAsDataURL(file)
+  } else {
+    reader.readAsText(file)
+  }
+}
+
+const removeAttachedFile = () => {
+  attachedFile.value = null
+  if (fileInputRef.value) fileInputRef.value.value = ''
+}
+
+// --- 🔊 TEXT-TO-SPEECH (SPEAKER) ---
+const speakResponse = (text) => {
+  if (!('speechSynthesis' in window)) return
+
+  window.speechSynthesis.cancel() 
+  const cleanText = text.replace(/[*#_`\[\]()]/g, '')
+  const utterance = new SpeechSynthesisUtterance(cleanText)
+  utterance.rate = 1.0
+  utterance.pitch = 1.0
+
+  window.speechSynthesis.speak(utterance)
 }
 
 // ─── LIFECYCLE HOOKS ───────────────────────────────────────────────
