@@ -1265,9 +1265,9 @@ function appendToRollingSummary(sessionId, userPrompt, assistantReply) {
 async function executeTransmissionDirective() {
   // ─── 1. INITIALIZATION & PAYLOAD EXTRACTION ───────────────────────────
   const currentPayload = typeof inputFieldPrompt?.value === 'string' ? inputFieldPrompt.value.trim() : ''
-  const currentFile = selectedFile?.value || null
+  const attachedPayloadFiles = [...(selectedFiles?.value || [])]
   
-  if (!currentPayload && !currentFile) return
+  if (!currentPayload && attachedPayloadFiles.length === 0) return
   if (isProcessingPipeline?.value) return
 
   // ─── 2. ACTIVE SESSION INITIALIZATION GUARD ───────────────────────────
@@ -1286,16 +1286,18 @@ async function executeTransmissionDirective() {
 
   // ─── 3. FILE ATTACHMENT MAPPING & USER MESSAGE DISPATCH ───────────────
   let messageContent = currentPayload
-  if (currentFile) {
-    const fileName = currentFile.name || 'Unnamed File'
-    const fileContentText = currentFile.content || ''
-    messageContent += `\n\n[Attached File: ${fileName}]\n${fileContentText}`
+  if (attachedPayloadFiles.length > 0) {
+    attachedPayloadFiles.forEach(file => {
+      const fileName = file.name || 'Unnamed File'
+      const fileContentText = file.content || ''
+      messageContent += `\n\n[Attached File: ${fileName}]\n${fileContentText}`
+    })
   }
 
   const userMessagePacket = {
     role: 'user',
     content: messageContent,
-    file: currentFile ? { name: currentFile.name } : null
+    files: attachedPayloadFiles
   }
 
   if (messages?.value) {
@@ -1305,8 +1307,8 @@ async function executeTransmissionDirective() {
   if (inputFieldPrompt) {
     inputFieldPrompt.value = ''
   }
-  if (selectedFile) {
-    selectedFile.value = null
+  if (selectedFiles) {
+    selectedFiles.value = []
     if (fileInputRef?.value) {
       fileInputRef.value.value = ''
     }
@@ -1342,11 +1344,11 @@ async function executeTransmissionDirective() {
     const targetModelId = selectedModelId?.value || 'qwen-super'
     const apiRequestBody = {
       messages: cleanHistory,
-      model: targetModelId,
-      selectedModelId: targetModelId,
+      model: targetModelId,          // Ensures backend gets 'model'
+      selectedModelId: targetModelId,// Ensures backend gets 'selectedModelId'
       summaryContext: calculatedContext,
       currentTimestamp: liveTimestamp,
-      attachedFile: currentFile
+      attachedFiles: attachedPayloadFiles
     }
 
     const response = await $fetch('/api/chat', {
@@ -1474,144 +1476,10 @@ function speakText(text) {
   window.speechSynthesis.speak(utterance)
 }
 
-// ─── 3. BACKGROUND CHAT NAMING FIX ────────────────────────────────────
-async function triggerBackgroundChatNamingSummary(userPrompt, assistantReply) {
-  if (!activeSessionId.value) return
-  try {
-    const response = await $fetch('/api/summarize-title', {
-      method: 'POST',
-      body: { prompt: userPrompt, response: assistantReply }
-    })
-    
-    const newTitle = response?.title || userPrompt.slice(0, 30) + '...'
-    const session = chatHistoryList.value.find(s => s.id === activeSessionId.value)
-    if (session) {
-      session.title = newTitle
-      syncSessionsToLocalStorage()
-    }
-  } catch (err) {
-    console.warn('Chat naming summary fallback applied:', err)
-    const session = chatHistoryList.value.find(s => s.id === activeSessionId.value)
-    if (session) {
-      session.title = userPrompt.slice(0, 30) + '...'
-      syncSessionsToLocalStorage()
-    }
-  }
-}
+//3 deleted duplicate function, as it was already defined above
 
-// ─── 4 & 5. UNIFIED TRANSMISSION & SESSION PERSISTENCE ────────────────
-async function executeTransmissionDirective() {
-  const currentPayload = typeof inputFieldPrompt?.value === 'string' ? inputFieldPrompt.value.trim() : ''
-  const attachedPayloadFiles = [...selectedFiles.value]
-  
-  if (!currentPayload && attachedPayloadFiles.length === 0) return
-  if (isProcessingPipeline?.value) return
+// ─── 4 & 5. UNIFIED TRANSMISSION & SESSION PERSISTENCE same need to delete as 3.────────────────
 
-  if (!activeSessionId?.value) {
-    const targetId = `node_${Date.now()}`
-    const newSession = {
-      id: targetId,
-      title: 'New chat',
-      messages: []
-    }
-    chatHistoryList.value.unshift(newSession)
-    activeSessionId.value = targetId
-  }
-
-  let messageContent = currentPayload
-  if (attachedPayloadFiles.length > 0) {
-    attachedPayloadFiles.forEach(file => {
-      messageContent += `\n\n[Attached File: ${file.name}]\n${file.content || ''}`
-    })
-  }
-
-  const userMessagePacket = {
-    role: 'user',
-    content: messageContent,
-    files: attachedPayloadFiles
-  }
-
-  messages.value.push(userMessagePacket)
-  
-  inputFieldPrompt.value = ''
-  selectedFiles.value = []
-  if (fileInputRef?.value) fileInputRef.value.value = ''
-  if (typeof adjustTextareaHeight === 'function') adjustTextareaHeight()
-  
-  isProcessingPipeline.value = true
-  userHasScrolledUpManually.value = false
-  if (typeof triggerSystemEnforcedAutoScroll === 'function') {
-    await triggerSystemEnforcedAutoScroll(true)
-  }
-
-  const isFirstMessage = messages.value.length === 2
-
-  try {
-    const calculatedContext = messages.value[0]?.content 
-      ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
-      : ''
-    
-    const liveTimestamp = new Date().toLocaleString()
-    const cleanHistory = messages.value.map(m => ({
-      role: m.role,
-      content: m.content
-    }))
-
-    const response = await $fetch('/api/chat', {
-      method: 'POST',
-      body: {
-        messages: cleanHistory,
-        selectedModelId: selectedModelId?.value || 'qwen-super',
-        summaryContext: calculatedContext,
-        currentTimestamp: liveTimestamp,
-        attachedFiles: attachedPayloadFiles
-      }
-    })
-
-    if (response && response.message) {
-      const assistantContent = response.message.content || response.message
-      const assistantSources = response.message.sources || response.sources || []
-
-      messages.value.push({
-        role: 'assistant',
-        content: assistantContent,
-        sources: assistantSources
-      })
-    } else {
-      throw new Error('Invalid response structure received from server payload pipeline.')
-    }
-
-  } catch (err) {
-    console.error('Transmission Directive Execution Error:', err)
-    messages.value.push({
-      role: 'assistant',
-      content: `⚠️ **Pipeline Terminal Failure**: Could not complete request synchronization.\n\n* **Diagnostics**: ${err?.message || 'Connection or network drop'}`
-    })
-  } finally {
-    isProcessingPipeline.value = false
-    
-    const targetSession = chatHistoryList.value.find(s => s.id === activeSessionId.value)
-    if (targetSession) {
-      targetSession.messages = [...messages.value]
-    }
-    
-    if (typeof syncSessionsToLocalStorage === 'function') {
-      syncSessionsToLocalStorage()
-    }
-    
-    if (typeof triggerSystemEnforcedAutoScroll === 'function') {
-      await triggerSystemEnforcedAutoScroll()
-    }
-
-    const finalAssistantText = messages.value.length > 0 
-      ? messages.value[messages.value.length - 1]?.content || '' 
-      : ''
-
-    if (isFirstMessage && finalAssistantTest) {
-      triggerBackgroundChatNamingSummary(currentPayload, finalAssistantTest)
-    }
-  }
-}
 
 const handleClipboardPaste = (event) => {
   const clipboardData = event.clipboardData || window.clipboardData
