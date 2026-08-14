@@ -1,3 +1,4 @@
+this?
 <template>
   <div class="flex h-[100dvh] w-full bg-zinc-950 text-zinc-200 font-sans overflow-hidden selection:bg-yellow-500/30 selection:text-yellow-200 relative">
     
@@ -198,7 +199,8 @@
         </div>
 
       </header>
-<div 
+
+      <div 
         ref="feedScrollContainer"
         @scroll="handleUserScrollDetection"
         @wheel="handleUserScrollDetection"
@@ -249,12 +251,12 @@
             </div>
 
             <div 
-  v-if="msg.content && (!isProcessingPipeline || index !== messages.length - 1)" 
-  :class="[
-    'flex items-center gap-3 pt-0.5 px-1 font-mono text-[10px] text-zinc-500 select-none opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200',
-    msg.role === 'user' ? 'justify-end' : 'justify-start'
-  ]"
->
+              v-if="msg.content && (!isProcessingPipeline || index !== messages.length - 1)" 
+              :class="[
+                'flex items-center gap-3 pt-0.5 px-1 font-mono text-[10px] text-zinc-500 select-none opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200',
+                msg.role === 'user' ? 'justify-end' : 'justify-start'
+              ]"
+            >
               <button 
                 @click.stop="copyMessageContent(msg.content, $event)" 
                 class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
@@ -267,11 +269,10 @@
               <template v-if="msg.role === 'user' && index >= messages.length - 2">
                 <span class="text-zinc-800">•</span>
                 <button 
-  @click.stop="editUserPromptAtIndex(index)" 
-  class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
-  title="Edit prompt"
->
-                
+                  @click.stop="editUserPromptAtIndex(index)" 
+                  class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
+                  title="Edit prompt"
+                >
                   <i class="i-lucide-pencil text-xs"></i>
                   <span>Edit</span>
                 </button>
@@ -327,56 +328,73 @@
           </div>
         </div>
       </div> 
+
       <footer class="p-3 md:p-4 border-t border-zinc-900/80 bg-zinc-950 shrink-0 z-20 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-  <form @submit.prevent="executeTransmissionDirective" class="max-w-3xl mx-auto relative flex items-end bg-zinc-900 border border-zinc-800 focus-within:border-yellow-500/40 rounded-2xl p-2 transition-all shadow-lg">
-    
-    <label class="p-2 hover:bg-zinc-800 text-zinc-400 hover:text-yellow-400 rounded-md cursor-pointer transition-colors mb-0.5 shrink-0" title="Attach file or image">
-      <input type="file" class="hidden" @change="handleFileUpload" accept="image/*,.pdf,.txt,.js,.ts,.vue" />
-      <i class="i-lucide-paperclip text-sm"></i>
-    </label>
+        <form @submit.prevent="executeTransmissionDirective" class="max-w-3xl mx-auto relative flex items-end bg-zinc-900 border border-zinc-800 focus-within:border-yellow-500/40 rounded-2xl p-2 transition-all shadow-lg">
+          
+          <input 
+            ref="fileInputRef"
+            type="file" 
+            class="hidden" 
+            @change="handleFileUpload" 
+            accept="image/*,.pdf,.txt,.js,.ts,.vue,.json" 
+          />
 
-    <button 
-      type="button"
-      @click="toggleVoiceInput" 
-      :class="['p-2 rounded-md transition-colors mb-0.5 shrink-0 mr-2 cursor-pointer', isRecording ? 'bg-red-500/20 text-red-400 animate-pulse' : 'hover:bg-zinc-800 text-zinc-400 hover:text-yellow-400']"
-      :title="isRecording ? 'Listening... Click to stop' : 'Click to speak'"
-    >
-      <i class="i-lucide-mic text-sm"></i>
-    </button>
+          <button 
+            type="button"
+            @click="fileInputRef?.click()"
+            class="p-2.5 hover:bg-zinc-800 text-zinc-400 hover:text-yellow-400 rounded-xl cursor-pointer transition-colors shrink-0 flex items-center justify-center"
+            title="Attach file or image"
+          >
+            <i class="i-lucide-paperclip text-base"></i>
+          </button>
 
-    <div v-if="selectedFile" class="flex items-center gap-1 text-xs bg-yellow-500/10 text-yellow-400 px-2 py-1 rounded border border-yellow-500/20 mb-1 shrink-0 mr-2">
-      <span class="truncate max-w-[120px]">{{ selectedFile.name }}</span>
-      <button type="button" @click="selectedFile = null" class="hover:text-red-400 ml-1 cursor-pointer">✕</button>
-    </div>
+          <button 
+            type="button"
+            @click="toggleVoiceInput" 
+            :class="[
+              'p-2.5 rounded-xl transition-colors shrink-0 flex items-center justify-center cursor-pointer', 
+              isRecording ? 'bg-red-500/20 text-red-400 animate-pulse border border-red-500/30' : 'hover:bg-zinc-800 text-zinc-400 hover:text-yellow-400'
+            ]"
+            :title="isRecording ? 'Listening... Click to stop' : 'Click to speak'"
+          >
+            <i class="i-lucide-mic text-base"></i>
+          </button>
 
-    <textarea 
-      ref="inputTextarea"
-      v-model="inputFieldPrompt"
-      @keydown="handleKeydown"
-      @input="adjustTextareaHeight"
-      rows="1"
-      placeholder="Type a message, speak, or attach a document..."
-      class="w-full bg-transparent text-zinc-100 text-sm placeholder-zinc-600 focus:outline-none resize-none px-3 py-2 custom-scrollbar max-h-48 overflow-y-auto font-sans leading-relaxed whitespace-pre-wrap [word-break:break-word]"
-    ></textarea>
-    
-    <button 
-      v-if="isProcessingPipeline"
-      type="button"
-      @click="isProcessingPipeline = false"
-      class="ml-2 px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500 hover:text-white font-mono font-bold rounded-xl text-xs tracking-wider transition-all shrink-0 mb-0.5 animate-pulse cursor-pointer"
-    >
-      STOP
-    </button>
-    <button 
-      v-else
-      type="submit"
-      :disabled="!inputFieldPrompt.trim() && !selectedFile"
-      class="ml-2 px-4 py-2 bg-yellow-500 text-zinc-950 font-mono font-bold rounded-xl text-xs tracking-wider hover:bg-yellow-400 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 mb-0.5 cursor-pointer"
-    >
-      Send
-    </button>
-  </form>
-</footer>
+          <div v-if="selectedFile" class="flex items-center gap-1.5 text-xs bg-yellow-500/10 text-yellow-400 px-2.5 py-1.5 rounded-lg border border-yellow-500/20 mb-1 shrink-0 mr-2 font-mono">
+            <i class="i-lucide-file-text text-xs shrink-0"></i>
+            <span class="truncate max-w-[120px]">{{ selectedFile.name }}</span>
+            <button type="button" @click="selectedFile = null" class="hover:text-red-400 ml-1 font-bold cursor-pointer">✕</button>
+          </div>
+
+          <textarea 
+            ref="inputTextarea"
+            v-model="inputFieldPrompt"
+            @keydown="handleKeydown"
+            @input="adjustTextareaHeight"
+            rows="1"
+            placeholder="Type a message, speak, or attach a document..."
+            class="w-full bg-transparent text-zinc-100 text-sm placeholder-zinc-500 focus:outline-none resize-none px-3 py-2.5 custom-scrollbar max-h-48 overflow-y-auto font-sans leading-relaxed"
+          ></textarea>
+          
+          <button 
+            v-if="isProcessingPipeline"
+            type="button"
+            @click="isProcessingPipeline = false"
+            class="ml-2 px-4 py-2.5 bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500 hover:text-white font-mono font-bold rounded-xl text-xs tracking-wider transition-all shrink-0 mb-0.5 animate-pulse cursor-pointer flex items-center justify-center"
+          >
+            STOP
+          </button>
+          <button 
+            v-else
+            type="submit"
+            :disabled="!inputFieldPrompt.trim() && !selectedFile"
+            class="ml-2 px-4 py-2.5 bg-yellow-500 text-zinc-950 font-mono font-bold rounded-xl text-xs tracking-wider hover:bg-yellow-400 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 mb-0.5 cursor-pointer flex items-center justify-center shadow-md"
+          >
+            Send
+          </button>
+        </form>
+      </footer>
     </main>
   </div>
 </template>
@@ -388,7 +406,64 @@ import MarkdownIt from 'markdown-it'
 import markdownItKatex from 'markdown-it-katex'
 import 'katex/dist/katex.min.css'
 
-// --- SOURCE PANEL STATE ---
+const executeTransmissionDirective = async () => {
+  // Allow submission if there is text OR an attached file
+  if (!inputFieldPrompt.value.trim() && !selectedFile.value) return
+
+  let messageContent = inputFieldPrompt.value.trim()
+  
+  if (selectedFile.value) {
+    const fileInfo = `\n\n[Attached File: ${selectedFile.value.name}]\n${selectedFile.value.content || ''}`
+    messageContent += fileInfo
+  }
+
+  messages.value.push({
+    role: 'user',
+    content: messageContent,
+    file: selectedFile.value ? { name: selectedFile.value.name } : null
+  })
+
+  inputFieldPrompt.value = ''
+  const currentFile = selectedFile.value
+  selectedFile.value = null
+  if (fileInputRef.value) fileInputRef.value.value = ''
+
+  isProcessingPipeline.value = true
+  
+  try {
+    const liveTimestamp = new Date().toLocaleString()
+    
+    const response = await $fetch('/api/chat', {
+      method: 'POST',
+      body: {
+        messages: messages.value,
+        currentTimestamp: liveTimestamp,
+        attachedFile: currentFile
+      }
+    })
+
+    if (response && response.message) {
+      messages.value.push({
+        role: 'assistant',
+        content: response.message,
+        sources: response.sources || []
+      })
+    }
+  } catch (err) {
+    console.error('Transmission pipeline error:', err)
+  } finally {
+    isProcessingPipeline.value = false
+  }
+}
+
+const response = await $fetch('/api/chat', {
+  method: 'POST',
+  body: {
+    messages: messages.value,
+    currentTimestamp: new Date().toLocaleString()
+  }
+})
+
 const isSourcePanelOpen = ref(false)
 const activeSource = ref(null)
 
