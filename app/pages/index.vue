@@ -402,50 +402,6 @@ function openSourcePanel(source) {
 const isListening = ref(false)
 let speechRecognitionInstance = null
 
-const toggleVoiceInput = () => {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-  
-  if (!SpeechRecognition) {
-    alert('Speech recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge.')
-    return
-  }
-
-  if (isListening.value) {
-    speechRecognitionInstance?.stop()
-    isListening.value = false
-    return
-  }
-
-  speechRecognitionInstance = new SpeechRecognition()
-  speechRecognitionInstance.continuous = true
-  speechRecognitionInstance.interimResults = true
-  speechRecognitionInstance.lang = 'en-US' // Change to your preferred language
-
-  speechRecognitionInstance.onstart = () => {
-    isListening.value = true
-  }
-
-  speechRecognitionInstance.onresult = (event) => {
-    let transcript = ''
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      transcript += event.results[i][0].transcript
-    }
-    // Directly inject spoken text into your active chat input box
-    userMessage.value = transcript
-  }
-
-  speechRecognitionInstance.onerror = (event) => {
-    console.error('Speech recognition error:', event.error)
-    isListening.value = false
-  }
-
-  speechRecognitionInstance.onend = () => {
-    isListening.value = false
-  }
-
-  speechRecognitionInstance.start()
-}
-
 const isRecording = ref(false)
 const selectedFile = ref(null)
 let recognition = null
