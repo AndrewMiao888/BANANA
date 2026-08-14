@@ -1234,6 +1234,7 @@ function appendToRollingSummary(sessionId, userPrompt, assistantReply) {
   const newEntry = `\nUser: ${userPrompt}\nAI: ${assistantReply}`
   const updatedSummary = (existingSummary + newEntry).trim()
   saveRollingSummaryToStorage(sessionId, updatedSummary)
+}
 
   // ─── DIRECTIVE EXECUTION LAYER WITH STREAMING ──────────────────────────
 // ─── DIRECTIVE EXECUTION LAYER WITH STREAMING ──────────────────────────
@@ -1383,8 +1384,6 @@ async function executeTransmissionDirective() {
       triggerBackgroundChatNamingSummary(currentPayload, finalAssistantText)
     }
   }
-}
-
 }
 
 
