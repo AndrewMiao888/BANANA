@@ -866,156 +866,6 @@ async function triggerBackgroundChatNamingSummary(userPromptText, responseText) 
   }
 }
 
-// ─── DIRECTIVE EXECUTION LAYER WITH STREAMING ──────────────────────────
-// ─── DIRECTIVE EXECUTION LAYER WITH STREAMING ──────────────────────────
-async function executeTransmissionDirective() {
-  // ─── 1. INITIALIZATION & PAYLOAD EXTRACTION ───────────────────────────
-  const currentPayload = typeof inputFieldPrompt?.value === 'string' ? inputFieldPrompt.value.trim() : ''
-  const currentFile = selectedFile?.value || null
-  
-  if (!currentPayload && !currentFile) return
-  if (isProcessingPipeline?.value) return
-
-  // ─── 2. ACTIVE SESSION INITIALIZATION GUARD ───────────────────────────
-  if (!activeSessionId?.value) {
-    const targetId = `node_${Date.now()}`
-    const newSession = {
-      id: targetId,
-      title: 'New chat',
-      messages: []
-    }
-    if (chatHistoryList?.value) {
-      chatHistoryList.value.unshift(newSession)
-    }
-    activeSessionId.value = targetId
-  }
-
-  // ─── 3. FILE ATTACHMENT MAPPING & USER MESSAGE DISPATCH ───────────────
-  let messageContent = currentPayload
-  if (currentFile) {
-    const fileName = currentFile.name || 'Unnamed File'
-    const fileContentText = currentFile.content || ''
-    messageContent += `\n\n[Attached File: ${fileName}]\n${fileContentText}`
-  }
-
-  const userMessagePacket = {
-    role: 'user',
-    content: messageContent,
-    file: currentFile ? { name: currentFile.name } : null
-  }
-
-  if (messages?.value) {
-    messages.value.push(userMessagePacket)
-  }
-  
-  if (inputFieldPrompt) {
-    inputFieldPrompt.value = ''
-  }
-  if (selectedFile) {
-    selectedFile.value = null
-    if (fileInputRef?.value) {
-      fileInputRef.value.value = ''
-    }
-  }
-  if (typeof adjustTextareaHeight === 'function') {
-    adjustTextareaHeight()
-  }
-  
-  if (isProcessingPipeline) isProcessingPipeline.value = true
-  if (userHasScrolledUpManually) userHasScrolledUpManually.value = false
-  
-  if (typeof triggerSystemEnforcedAutoScroll === 'function') {
-    await triggerSystemEnforcedAutoScroll(true)
-  }
-
-  const isFirstMessage = messages?.value ? messages.value.length === 2 : false
-
-  // ─── 4. API TRANSMISSION & PAYLOAD CONSTRUCTION ───────────────────────
-  try {
-    const calculatedContext = (messages?.value && messages.value[0]?.content)
-      ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
-      : ''
-    
-    const liveTimestamp = new Date().toLocaleString()
-
-    const cleanHistory = messages?.value 
-      ? messages.value.map(m => ({
-          role: m.role,
-          content: m.content
-        }))
-      : []
-
-    const apiRequestBody = {
-      messages: cleanHistory,
-      selectedModelId: selectedModelId?.value || 'qwen-super',
-      summaryContext: calculatedContext,
-      currentTimestamp: liveTimestamp,
-      attachedFile: currentFile
-    }
-
-    const response = await $fetch('/api/chat', {
-      method: 'POST',
-      body: apiRequestBody
-    })
-
-    // ─── 5. RESPONSE PROCESSING & ASSISTANT DISPATCH ──────────────────
-    if (response && response.message) {
-      const assistantContent = response.message.content || response.message
-      const assistantSources = response.message.sources || response.sources || []
-
-      const assistantMessagePacket = {
-        role: 'assistant',
-        content: assistantContent,
-        sources: assistantSources
-      }
-
-      if (messages?.value) {
-        messages.value.push(assistantMessagePacket)
-      }
-    } else {
-      throw new Error('Invalid response structure received from server payload pipeline.')
-    }
-
-  } catch (err) {
-    console.error('Transmission Directive Execution Error:', err)
-    const errorDiagnosticMessage = {
-      role: 'assistant',
-      content: `⚠️ **Pipeline Terminal Failure**: Could not complete request synchronization.\n\n* **Diagnostics**: ${err?.message || 'Connection or network drop'}`
-    }
-    if (messages?.value) {
-      messages.value.push(errorDiagnosticMessage)
-    }
-  } finally {
-    // ─── 6. STATE CLEANUP, STORAGE SYNC & AUTO-SCROLLING ───────────────
-    if (isProcessingPipeline) {
-      isProcessingPipeline.value = false
-    }
-    
-    if (chatHistoryList?.value && activeSessionId?.value) {
-      const targetSession = chatHistoryList.value.find(s => s.id === activeSessionId.value)
-      if (targetSession && messages?.value) {
-        targetSession.messages = [...messages.value]
-      }
-    }
-    
-    if (typeof syncSessionsToLocalStorage === 'function') {
-      syncSessionsToLocalStorage()
-    }
-    
-    if (typeof triggerSystemEnforcedAutoScroll === 'function') {
-      await triggerSystemEnforcedAutoScroll()
-    }
-
-    const finalAssistantText = (messages?.value && messages.value.length > 0)
-      ? messages.value[messages.value.length - 1]?.content || ''
-      : ''
-
-    if (isFirstMessage && finalAssistantText && typeof triggerBackgroundChatNamingSummary === 'function') {
-      triggerBackgroundChatNamingSummary(currentPayload, finalAssistantText)
-    }
-  }
-}
-
 function copyCodeToClipboard(event, base64Text) {
   const btn = event.currentTarget
   if (!btn || !base64Text) return
@@ -1383,6 +1233,157 @@ function appendToRollingSummary(sessionId, userPrompt, assistantReply) {
   const newEntry = `\nUser: ${userPrompt}\nAI: ${assistantReply}`
   const updatedSummary = (existingSummary + newEntry).trim()
   saveRollingSummaryToStorage(sessionId, updatedSummary)
+
+  // ─── DIRECTIVE EXECUTION LAYER WITH STREAMING ──────────────────────────
+// ─── DIRECTIVE EXECUTION LAYER WITH STREAMING ──────────────────────────
+async function executeTransmissionDirective() {
+  // ─── 1. INITIALIZATION & PAYLOAD EXTRACTION ───────────────────────────
+  const currentPayload = typeof inputFieldPrompt?.value === 'string' ? inputFieldPrompt.value.trim() : ''
+  const currentFile = selectedFile?.value || null
+  
+  if (!currentPayload && !currentFile) return
+  if (isProcessingPipeline?.value) return
+
+  // ─── 2. ACTIVE SESSION INITIALIZATION GUARD ───────────────────────────
+  if (!activeSessionId?.value) {
+    const targetId = `node_${Date.now()}`
+    const newSession = {
+      id: targetId,
+      title: 'New chat',
+      messages: []
+    }
+    if (chatHistoryList?.value) {
+      chatHistoryList.value.unshift(newSession)
+    }
+    activeSessionId.value = targetId
+  }
+
+  // ─── 3. FILE ATTACHMENT MAPPING & USER MESSAGE DISPATCH ───────────────
+  let messageContent = currentPayload
+  if (currentFile) {
+    const fileName = currentFile.name || 'Unnamed File'
+    const fileContentText = currentFile.content || ''
+    messageContent += `\n\n[Attached File: ${fileName}]\n${fileContentText}`
+  }
+
+  const userMessagePacket = {
+    role: 'user',
+    content: messageContent,
+    file: currentFile ? { name: currentFile.name } : null
+  }
+
+  if (messages?.value) {
+    messages.value.push(userMessagePacket)
+  }
+  
+  if (inputFieldPrompt) {
+    inputFieldPrompt.value = ''
+  }
+  if (selectedFile) {
+    selectedFile.value = null
+    if (fileInputRef?.value) {
+      fileInputRef.value.value = ''
+    }
+  }
+  if (typeof adjustTextareaHeight === 'function') {
+    adjustTextareaHeight()
+  }
+  
+  if (isProcessingPipeline) isProcessingPipeline.value = true
+  if (userHasScrolledUpManually) userHasScrolledUpManually.value = false
+  
+  if (typeof triggerSystemEnforcedAutoScroll === 'function') {
+    await triggerSystemEnforcedAutoScroll(true)
+  }
+
+  const isFirstMessage = messages?.value ? messages.value.length === 2 : false
+
+  // ─── 4. API TRANSMISSION & PAYLOAD CONSTRUCTION ───────────────────────
+  try {
+    const calculatedContext = (messages?.value && messages.value[0]?.content)
+      ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
+      : ''
+    
+    const liveTimestamp = new Date().toLocaleString()
+
+    const cleanHistory = messages?.value 
+      ? messages.value.map(m => ({
+          role: m.role,
+          content: m.content
+        }))
+      : []
+
+    const apiRequestBody = {
+      messages: cleanHistory,
+      selectedModelId: selectedModelId?.value || 'qwen-super',
+      summaryContext: calculatedContext,
+      currentTimestamp: liveTimestamp,
+      attachedFile: currentFile
+    }
+
+    const response = await $fetch('/api/chat', {
+      method: 'POST',
+      body: apiRequestBody
+    })
+
+    // ─── 5. RESPONSE PROCESSING & ASSISTANT DISPATCH ──────────────────
+    if (response && response.message) {
+      const assistantContent = response.message.content || response.message
+      const assistantSources = response.message.sources || response.sources || []
+
+      const assistantMessagePacket = {
+        role: 'assistant',
+        content: assistantContent,
+        sources: assistantSources
+      }
+
+      if (messages?.value) {
+        messages.value.push(assistantMessagePacket)
+      }
+    } else {
+      throw new Error('Invalid response structure received from server payload pipeline.')
+    }
+
+  } catch (err) {
+    console.error('Transmission Directive Execution Error:', err)
+    const errorDiagnosticMessage = {
+      role: 'assistant',
+      content: `⚠️ **Pipeline Terminal Failure**: Could not complete request synchronization.\n\n* **Diagnostics**: ${err?.message || 'Connection or network drop'}`
+    }
+    if (messages?.value) {
+      messages.value.push(errorDiagnosticMessage)
+    }
+  } finally {
+    // ─── 6. STATE CLEANUP, STORAGE SYNC & AUTO-SCROLLING ───────────────
+    if (isProcessingPipeline) {
+      isProcessingPipeline.value = false
+    }
+    
+    if (chatHistoryList?.value && activeSessionId?.value) {
+      const targetSession = chatHistoryList.value.find(s => s.id === activeSessionId.value)
+      if (targetSession && messages?.value) {
+        targetSession.messages = [...messages.value]
+      }
+    }
+    
+    if (typeof syncSessionsToLocalStorage === 'function') {
+      syncSessionsToLocalStorage()
+    }
+    
+    if (typeof triggerSystemEnforcedAutoScroll === 'function') {
+      await triggerSystemEnforcedAutoScroll()
+    }
+
+    const finalAssistantText = (messages?.value && messages.value.length > 0)
+      ? messages.value[messages.value.length - 1]?.content || ''
+      : ''
+
+    if (isFirstMessage && finalAssistantText && typeof triggerBackgroundChatNamingSummary === 'function') {
+      triggerBackgroundChatNamingSummary(currentPayload, finalAssistantText)
+    }
+  }
+}
+
 }
 
 
