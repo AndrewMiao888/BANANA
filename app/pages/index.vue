@@ -98,14 +98,14 @@ this?
               @click.stop="renameSession(session.id)"
               class="text-zinc-400 hover:text-yellow-400 p-1.5 transition-colors flex items-center rounded hover:bg-zinc-700/50"
               title="Rename chat"
-            >
+            > ✏️
               <i class="i-lucide-pencil text-[12px]"></i>
             </button>
             <button 
               @click.stop="purgeSession(session.id)"
               class="text-zinc-400 hover:text-red-400 p-1.5 transition-colors flex items-center rounded hover:bg-zinc-700/50"
               title="Delete chat"
-            >
+            > 🗑️
               <i class="i-lucide-trash-2 text-[12px]"></i>
             </button>
           </div>
@@ -337,7 +337,7 @@ this?
             type="file" 
             class="hidden" 
             @change="handleFileUpload" 
-            accept="image/*,.pdf,.txt,.js,.ts,.vue,.json" 
+            accept="image/*,.pdf,.txt,.js,.ts,.vue,.json,.exe,.py,.java,.c,.cpp,.md,.csv,.docx,.xlsx,.pptx,.zip,.rar,.7z,.tar,.gz,.mp3,.wav,.mp4,.avi,.mkv,.mov,.flv,.wmv,.webm,.ogg,.flac,.aac,.m4a,.opus,.epub,.azw3,.fb2,.djvu,.odt,.rtf,.tex,.psd,.ai,.eps,.svg, .ttf,.otf,.woff,.woff2,.csv,.tsv,.ics,.vcf,.sql,.db,.bak,.log,.ini,.conf,.cfg,.yml,.yaml,.toml,.mdx,.rst,.ipynb,.r,.sas,.stata,.spss,.dta,.sav,.m,.mlx,.jl,.nim,.cr,.vhd,.verilog,.hdl,.asm,.s,.bas,.lisp,.clj,.cljs,.edn,.scm, .rkt, .ml, .mli, .fs, .fsi" 
           />
 
           <button 
@@ -345,7 +345,7 @@ this?
             @click="fileInputRef?.click()"
             class="p-2.5 hover:bg-zinc-800 text-zinc-400 hover:text-yellow-400 rounded-xl cursor-pointer transition-colors shrink-0 flex items-center justify-center"
             title="Attach file or image"
-          >
+          > 🔗
             <i class="i-lucide-paperclip text-base"></i>
           </button>
 
@@ -357,7 +357,7 @@ this?
               isRecording ? 'bg-red-500/20 text-red-400 animate-pulse border border-red-500/30' : 'hover:bg-zinc-800 text-zinc-400 hover:text-yellow-400'
             ]"
             :title="isRecording ? 'Listening... Click to stop' : 'Click to speak'"
-          >
+          > 🎙️
             <i class="i-lucide-mic text-base"></i>
           </button>
 
