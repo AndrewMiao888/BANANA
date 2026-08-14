@@ -1,4 +1,6 @@
 // server/api/chat.post.ts
+import { defineEventHandler, readBody } from 'h3'
+
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
@@ -129,30 +131,35 @@ You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQ
     let activeExecutionSource = ''
 
     // ─── 6. HARD DRIVE LOCAL HARDWARE PROBING (PRIMARY RUNNER) ─────────────
-    const localBaseUrl = (config as any).homeOllamaUrl || process.env.HOME_OLLAMA_URL || 'http://127.0.0.1:11434'
-    const targetLocalEndpoint = `${localBaseUrl.replace(/\/$/, '')}/api/chat`
-    let isLocalHardwareOnline = false
+    const localBaseUrl = (config as any).homeOllamaUrl || process.env.HOME_OLLAMA_URL || 'http://localhost:11434'
+    let isLocalAvailable = false
 
     try {
-      const probeUrl = `${localBaseUrl.replace(/\/$/, '')}/api/tags`
-      const healthCheck = await $fetch<any>(probeUrl, { method: 'GET', timeout: 2000 })
-      isLocalHardwareOnline = !!healthCheck
-    } catch {
-      isLocalHardwareOnline = false
+      const localCheck = await fetch(`${localBaseUrl.replace(/\/$/, '')}/api/tags`, { 
+        method: 'GET',
+        signal: AbortSignal.timeout(800) // Fast 800ms hardware check
+      })
+      isLocalAvailable = localCheck.ok
+    } catch (e) {
+      isLocalAvailable = false
     }
 
-    if (isLocalHardwareOnline) {
+    if (isLocalAvailable) {
       try {
-        const localModelId = selectedModelId || 'qwen-super'
-        const ollamaRes = await $fetch<any>(targetLocalEndpoint, {
+        const localModelId = selectedModelId || 'qwen2.5:7b'
+        const localResponse = await $fetch<any>(`${localBaseUrl.replace(/\/$/, '')}/api/chat`, {
           method: 'POST',
-          body: { model: localModelId, messages: localContextMessages, stream: false },
+          body: { 
+            model: localModelId, 
+            messages: localContextMessages, 
+            stream: false 
+          },
           timeout: 12000 
         })
         
-        finalResponseText = ollamaRes?.message?.content || ''
+        finalResponseText = localResponse?.message?.content || ''
         if (finalResponseText) {
-          activeExecutionSource = `Hard Drive Local Execution (Full History)`
+          activeExecutionSource = 'Hard Drive Local Execution (Full History)'
           if (extractedSources.length > 0) activeExecutionSource += ' + Crawl4AI'
         }
       } catch (localErr) {
@@ -160,7 +167,7 @@ You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQ
       }
     }
 
-    // ─── 7. FALLBACK LAYER: GROQ CLOUD OVERDRIVE (USING SUMMARY CONTEXT) ───
+    // ─── 7. FALLBACK LAYER: GROQ CLOUD OVERDRIVE VIA NATIVE $FETCH ─────────
     if (!finalResponseText) {
       const apiKey = (config as any).groqApiKey || process.env.GROQ_API_KEY
       
@@ -176,40 +183,45 @@ You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQ
         }
       }
 
+      // Tier 1: Groq Llama 3.1 8B Instant
       try {
-        const groqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
+        const groqInstantRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
-          headers: { 
-            'Authorization': `Bearer ${apiKey}`, 
-            'Content-Type': 'application/json' 
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
           },
-          body: { 
-            model: 'llama-3.1-8b-instant', 
+          body: {
+            model: 'llama-3.1-8b-instant',
             messages: groqContextMessages,
-            max_tokens: 4096 
-          }
+            max_tokens: 4096
+          },
+          timeout: 12000
         })
-        finalResponseText = groqRes?.choices?.[0]?.message?.content || ''
+
+        finalResponseText = groqInstantRes?.choices?.[0]?.message?.content || ''
         if (finalResponseText) {
           activeExecutionSource = 'Groq Cloud (Instant 8B via Summary Memory)'
           if (extractedSources.length > 0) activeExecutionSource += ' + Crawl4AI'
         }
       } catch (groqInstantErr: any) {
+        // Tier 2: Fallback to Groq Llama 3.3 70B Versatile
         try {
-          const fallbackGroqRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
+          const groqVersatileRes = await $fetch<any>('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
-            headers: { 
-              'Authorization': `Bearer ${apiKey}`, 
-              'Content-Type': 'application/json' 
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json'
             },
-            body: { 
-              model: 'llama-3.3-70b-versatile', 
+            body: {
+              model: 'llama-3.3-70b-versatile',
               messages: groqContextMessages,
-              max_tokens: 4096 
-            }
+              max_tokens: 4096
+            },
+            timeout: 15000
           })
-          
-          finalResponseText = fallbackGroqRes?.choices?.[0]?.message?.content || ''
+
+          finalResponseText = groqVersatileRes?.choices?.[0]?.message?.content || ''
           if (finalResponseText) {
             activeExecutionSource = 'Groq Cloud (Versatile 70B via Summary Memory)'
             if (extractedSources.length > 0) activeExecutionSource += ' + Crawl4AI'

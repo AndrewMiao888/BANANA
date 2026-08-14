@@ -23,6 +23,7 @@
     "markdown-it-katex": "^2.0.3",
     "marked": "^18.0.6",
     "nuxt": "^4.4.8",
+    "openai": "^7.4.0",
     "vue": "^3.4.31",
     "vue-router": "^4.4.0"
   },
