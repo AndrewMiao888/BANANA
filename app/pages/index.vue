@@ -390,14 +390,15 @@ this?
 </div>
 
           <textarea 
-            ref="inputTextarea"
-            v-model="inputFieldPrompt"
-            @keydown="handleKeydown"
-            @input="adjustTextareaHeight"
-            rows="1"
-            placeholder="Type a message, speak, or attach a document..."
-            class="w-full bg-transparent text-zinc-100 text-sm placeholder-zinc-500 focus:outline-none resize-none px-3 py-2.5 custom-scrollbar max-h-48 overflow-y-auto font-sans leading-relaxed"
-          ></textarea>
+  ref="inputTextarea"
+  v-model="inputFieldPrompt"
+  @keydown="handleKeydown"
+  @input="adjustTextareaHeight"
+  @paste="handleClipboardPaste"
+  rows="1"
+  placeholder="Ask Banana AI anything..."
+  class="w-full bg-transparent text-zinc-100 text-sm placeholder-zinc-500 focus:outline-none resize-none px-3 py-2.5 custom-scrollbar max-h-48 overflow-y-auto font-sans leading-relaxed"
+></textarea>
           
           <button 
             v-if="isProcessingPipeline"
@@ -427,6 +428,7 @@ import { AVAILABLE_MODELS } from '~~/src/models'
 import MarkdownIt from 'markdown-it'
 import markdownItKatex from 'markdown-it-katex'
 import 'katex/dist/katex.min.css'
+
 
 
 const isSourcePanelOpen = ref(false)
@@ -1337,9 +1339,11 @@ async function executeTransmissionDirective() {
         }))
       : []
 
+    const targetModelId = selectedModelId?.value || 'qwen-super'
     const apiRequestBody = {
       messages: cleanHistory,
-      selectedModelId: selectedModelId?.value || 'qwen-super',
+      model: targetModelId,
+      selectedModelId: targetModelId,
       summaryContext: calculatedContext,
       currentTimestamp: liveTimestamp,
       attachedFile: currentFile
@@ -1607,6 +1611,92 @@ async function executeTransmissionDirective() {
       triggerBackgroundChatNamingSummary(currentPayload, finalAssistantTest)
     }
   }
+}
+
+const handleClipboardPaste = (event) => {
+  const clipboardData = event.clipboardData || window.clipboardData
+  if (!clipboardData || !clipboardData.items) return
+
+  for (const item of clipboardData.items) {
+    if (item.kind === 'file') {
+      event.preventDefault()
+      const file = item.getAsFile()
+      if (file) {
+        // Add to your multi-file array
+        selectedFiles.value.push(file)
+      }
+    }
+  }
+}
+
+// Text-to-Speech handler (with automatic Chinese vs English detection)
+const speakText = (text) => {
+  if (!('speechSynthesis' in window)) {
+    console.warn('Speech synthesis not supported in this browser.')
+    return
+  }
+  
+  window.speechSynthesis.cancel() // Stop any ongoing speech
+  
+  const utterance = new SpeechSynthesisUtterance(text)
+  
+  // Regex check for Chinese characters (CJK Unified Ideographs range)
+  const containsChinese = /[\u4e00-\u9fa5]/.test(text)
+  
+  // Automatically assign language code for correct pronunciation accent
+  utterance.lang = containsChinese ? 'zh-CN' : 'en-US'
+  utterance.rate = 1.0
+  utterance.pitch = 1.0
+
+  window.speechSynthesis.speak(utterance)
+}
+
+// Speech-to-Text microphone recording handler
+const toggleSpeechRecognition = () => {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    alert('Speech recognition is not supported in this browser.')
+    return
+  }
+
+  if (isRecording.value) {
+    if (recognition) recognition.stop()
+    isRecording.value = false
+    return
+  }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+  recognition = new SpeechRecognition()
+  
+  // Set to browser locale or default to support bilingual input ('zh-CN' or 'en-US')
+  recognition.lang = navigator.language || 'zh-CN' 
+  recognition.interimResults = true
+  recognition.continuous = false
+
+  recognition.onstart = () => {
+    isRecording.value = true
+  }
+
+  recognition.onresult = (event) => {
+    let transcriptText = ''
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      transcriptText += event.results[i][0].transcript
+    }
+    inputFieldPrompt.value = transcriptText
+    if (typeof adjustTextareaHeight === 'function') {
+      adjustTextareaHeight()
+    }
+  }
+
+  recognition.onerror = (event) => {
+    console.error('Speech recognition error:', event.error)
+    isRecording.value = false
+  }
+
+  recognition.onend = () => {
+    isRecording.value = false
+  }
+
+  recognition.start()
 }
 </script>
 
