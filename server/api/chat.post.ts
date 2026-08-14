@@ -103,6 +103,8 @@ You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQ
 4. STRICTLY FORBIDDEN HEADERS & LOGS:
    - NEVER output text like "Client Directive", "BANANA Intelligence response", "(Live Stream)", "ANALYSIS REQUEST RECEIVED", "INPUT COMMAND", "EXECUTING DIRECTIVE", "DIRECTIVE STATUS".
    - Start your response IMMEDIATELY with the direct answer.
+
+   - NEVER wrap filenames, code blocks, or file paths (like layouts.default.vue) in LaTeX math environments or alignment blocks.
 `.trim()
 
     // ─── 5. DUAL-STRATEGY CONTEXT GENERATION (LOCAL vs GROQ) ──────────────
@@ -130,6 +132,8 @@ You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQ
     let finalResponseText = ''
     let activeExecutionSource = ''
 
+    
+
     // ─── 6. HARD DRIVE LOCAL HARDWARE PROBING (PRIMARY RUNNER) ─────────────
     const localBaseUrl = (config as any).homeOllamaUrl || process.env.HOME_OLLAMA_URL || 'http://localhost:11434'
     let isLocalAvailable = false
@@ -137,7 +141,7 @@ You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQ
     try {
       const localCheck = await fetch(`${localBaseUrl.replace(/\/$/, '')}/api/tags`, { 
         method: 'GET',
-        signal: AbortSignal.timeout(800) // Fast 800ms hardware check
+        signal: AbortSignal.timeout(3500) // Fast 3500ms hardware check
       })
       isLocalAvailable = localCheck.ok
     } catch (e) {
@@ -146,7 +150,7 @@ You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQ
 
     if (isLocalAvailable) {
       try {
-        const localModelId = selectedModelId || 'qwen2.5:7b'
+        const localModelId = selectedModelId || 'qwen-super:latest'
         const localResponse = await $fetch<any>(`${localBaseUrl.replace(/\/$/, '')}/api/chat`, {
           method: 'POST',
           body: { 
@@ -237,7 +241,11 @@ You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQ
       finalResponseText = '⚠️ **System Operational Alert**: Unable to retrieve response matrix from local hard drive node or Groq cloud infrastructure. Please check network connections.'
       activeExecutionSource = 'System Safeguard Fallback'
     }
-
+finalResponseText = finalResponseText
+        .replace(/\\left\.\s*\\begin\{aligned\}\s*\\right\./g, '')
+        .replace(/\\begin\{aligned\}[\s\S]*?\\end\{aligned\}/g, (match) => {
+          return match.replace(/\\begin\{aligned\}|\\end\{aligned\}/g, '').trim() ? match : ''
+        })
     return {
       success: true,
       source: activeExecutionSource,
@@ -260,3 +268,4 @@ You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQ
     }
   }
 })
+
