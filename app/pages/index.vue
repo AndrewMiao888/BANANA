@@ -406,56 +406,6 @@ import MarkdownIt from 'markdown-it'
 import markdownItKatex from 'markdown-it-katex'
 import 'katex/dist/katex.min.css'
 
-const executeTransmissionDirective = async () => {
-  // Allow submission if there is text OR an attached file
-  if (!inputFieldPrompt.value.trim() && !selectedFile.value) return
-
-  let messageContent = inputFieldPrompt.value.trim()
-  
-  if (selectedFile.value) {
-    const fileInfo = `\n\n[Attached File: ${selectedFile.value.name}]\n${selectedFile.value.content || ''}`
-    messageContent += fileInfo
-  }
-
-  messages.value.push({
-    role: 'user',
-    content: messageContent,
-    file: selectedFile.value ? { name: selectedFile.value.name } : null
-  })
-
-  inputFieldPrompt.value = ''
-  const currentFile = selectedFile.value
-  selectedFile.value = null
-  if (fileInputRef.value) fileInputRef.value.value = ''
-
-  isProcessingPipeline.value = true
-  
-  try {
-    const liveTimestamp = new Date().toLocaleString()
-    
-    const response = await $fetch('/api/chat', {
-      method: 'POST',
-      body: {
-        messages: messages.value,
-        currentTimestamp: liveTimestamp,
-        attachedFile: currentFile
-      }
-    })
-
-    if (response && response.message) {
-      messages.value.push({
-        role: 'assistant',
-        content: response.message,
-        sources: response.sources || []
-      })
-    }
-  } catch (err) {
-    console.error('Transmission pipeline error:', err)
-  } finally {
-    isProcessingPipeline.value = false
-  }
-}
-
 const response = await $fetch('/api/chat', {
   method: 'POST',
   body: {
@@ -919,183 +869,148 @@ async function triggerBackgroundChatNamingSummary(userPromptText, responseText) 
 // ─── DIRECTIVE EXECUTION LAYER WITH STREAMING ──────────────────────────
 // ─── DIRECTIVE EXECUTION LAYER WITH STREAMING ──────────────────────────
 async function executeTransmissionDirective() {
-  const currentPayload = inputFieldPrompt.value.trim()
-  if (!currentPayload || isProcessingPipeline.value) return
+  // ─── 1. INITIALIZATION & PAYLOAD EXTRACTION ───────────────────────────
+  const currentPayload = typeof inputFieldPrompt?.value === 'string' ? inputFieldPrompt.value.trim() : ''
+  const currentFile = selectedFile?.value || null
+  
+  if (!currentPayload && !currentFile) return
+  if (isProcessingPipeline?.value) return
 
-  const isFirstMessage = messages.value.length === 0
-
-  if (!activeSessionId.value) {
+  // ─── 2. ACTIVE SESSION INITIALIZATION GUARD ───────────────────────────
+  if (!activeSessionId?.value) {
     const targetId = `node_${Date.now()}`
     const newSession = {
       id: targetId,
       title: 'New chat',
       messages: []
     }
-    chatHistoryList.value.unshift(newSession)
+    if (chatHistoryList?.value) {
+      chatHistoryList.value.unshift(newSession)
+    }
     activeSessionId.value = targetId
   }
 
-  // 1. Push User Message
-  messages.value.push({ role: 'user', content: currentPayload })
-  
-  inputFieldPrompt.value = ''
-  adjustTextareaHeight()
-  isProcessingPipeline.value = true
-  
-  // 2. Push Assistant Placeholder AND Capture Exact Index
-  const assistantMsgIndex = messages.value.length
-  messages.value.push({
-    role: 'assistant',
-    content: '',
-    source: 'Live Stream'
-  })
+  // ─── 3. FILE ATTACHMENT MAPPING & USER MESSAGE DISPATCH ───────────────
+  let messageContent = currentPayload
+  if (currentFile) {
+    const fileName = currentFile.name || 'Unnamed File'
+    const fileContentText = currentFile.content || ''
+    messageContent += `\n\n[Attached File: ${fileName}]\n${fileContentText}`
+  }
 
-  userHasScrolledUpManually.value = false
-  await triggerSystemEnforcedAutoScroll(true)
+  const userMessagePacket = {
+    role: 'user',
+    content: messageContent,
+    file: currentFile ? { name: currentFile.name } : null
+  }
 
+  if (messages?.value) {
+    messages.value.push(userMessagePacket)
+  }
+  
+  if (inputFieldPrompt) {
+    inputFieldPrompt.value = ''
+  }
+  if (selectedFile) {
+    selectedFile.value = null
+    if (fileInputRef?.value) {
+      fileInputRef.value.value = ''
+    }
+  }
+  if (typeof adjustTextareaHeight === 'function') {
+    adjustTextareaHeight()
+  }
+  
+  if (isProcessingPipeline) isProcessingPipeline.value = true
+  if (userHasScrolledUpManually) userHasScrolledUpManually.value = false
+  
+  if (typeof triggerSystemEnforcedAutoScroll === 'function') {
+    await triggerSystemEnforcedAutoScroll(true)
+  }
+
+  const isFirstMessage = messages?.value ? messages.value.length === 2 : false
+
+  // ─── 4. API TRANSMISSION & PAYLOAD CONSTRUCTION ───────────────────────
   try {
-    const calculatedContext = messages.value[0]?.content 
+    const calculatedContext = (messages?.value && messages.value[0]?.content)
       ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
       : ''
+    
+    const liveTimestamp = new Date().toLocaleString()
 
-    // Inject strict system directive to eliminate hallucinations and enforce calculation verification
-    const systemInstruction = {
-  role: 'system',
-  content: `You are BANANA Orchestrator—a strictly precise, fact-checked AI model. You must complete ALL requested prompt sections without omitting any part.
+    const cleanHistory = messages?.value 
+      ? messages.value.map(m => ({
+          role: m.role,
+          content: m.content
+        }))
+      : []
 
-CRITICAL FORMATTING & TRUTH DIRECTIVES:
-
-1. MATHEMATICAL VERIFICATION & VECTOR MAPPING:
-   - Always verify state vector matrix calculations step-by-step before outputting.
-   - For 2-qubit Bell state (|01> + |10>)/sqrt(2), the 4D state vector corresponds to [0, 1, 1, 0]^T. NEVER map it to [1, 1, 0, 0]^T.
-   - Math equations MUST be output in clean block syntax ($$ ... $$) or inline syntax ($ ... $). NEVER mix raw narrative text inside $ delimiters.
-   - When writing fractions with square roots (like 1/sqrt(2)), ensure proper vertical separation by using clean grouping or spacing so symbols never overlap.
-
-2. MARKDOWN TABLE STRUCTURE INTEGRITY:
-   - Every entity in a requested comparison or analysis MUST have its own dedicated table row.
-   - NEVER collapse or merge multiple array items into a single row (e.g., Solar, Wind, and Geothermal MUST each have their own separate row).
-   - Ensure domain factual accuracy (e.g., Geothermal is continuous baseload energy, NOT intermittent).
-
-3. CREATIVE NARRATIVE & FOOTNOTE ISOLATION:
-   - Keep narrative story paragraphs clean and free of inline definition brackets.
-   - Place all technical definitions, slang glossary entries, and structural footnotes in a separate "### Glossary & Footnotes" section at the end of that part.
-
-4. COMPLETE MULTI-PART EXECUTION:
-   - You MUST fulfill every requested part (e.g., Part 1 through Part 4) completely within a single response.
-   - Do NOT terminate generation prematurely or omit the final evaluation section.`
-}
-
-    let historyPayload = []
-
-    try {
-      // PRIMARY MODE: Try accessing full history in memory/reactive state
-      if (!messages.value || messages.value.length === 0) {
-        throw new Error("Primary memory state is empty or inaccessible")
-      }
-      historyPayload = messages.value.slice(0, assistantMsgIndex)
-    } catch (storageError) {
-      console.warn("Primary message history failed. Reverting to Summary Fallback Mode:", storageError)
-
-      // FALLBACK MODE: Fetch rolling summary from local storage
-      const fallbackSummary = getRollingSummaryFromStorage(activeSessionId.value)
-      
-      historyPayload = [
-        {
-          role: 'system',
-          content: fallbackSummary 
-            ? `Previous Conversation Summary Context:\n${fallbackSummary}` 
-            : 'No prior summary context available.'
-        },
-        {
-          role: 'user',
-          content: currentPayload // Fixed: userQueryText -> currentPayload
-        }
-      ]
+    const apiRequestBody = {
+      messages: cleanHistory,
+      selectedModelId: selectedModelId?.value || 'qwen-super',
+      summaryContext: calculatedContext,
+      currentTimestamp: liveTimestamp,
+      attachedFile: currentFile
     }
 
-    const payloadMessages = [systemInstruction, ...historyPayload]
-
-    const response = await fetch('/api/chat', {
+    const response = await $fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messages: payloadMessages,
-        selectedModelId: selectedModelId.value,
-        summaryContext: calculatedContext,
-        temperature: 0.1,
-        stream: true
-      })
+      body: apiRequestBody
     })
 
-    if (!response.ok || !response.body) {
-      throw new Error(`Server returned HTTP status ${response.status}`)
-    }
+    // ─── 5. RESPONSE PROCESSING & ASSISTANT DISPATCH ──────────────────
+    if (response && response.message) {
+      const assistantContent = response.message.content || response.message
+      const assistantSources = response.message.sources || response.sources || []
 
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder('utf-8')
-    let accumulatedContent = ''
-    let buffer = ''
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
-
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed) continue
-
-        if (trimmed.startsWith('data: ')) {
-          accumulatedContent += parseContentChunk(trimmed.slice(6))
-        } else {
-          accumulatedContent += parseContentChunk(trimmed)
-        }
+      const assistantMessagePacket = {
+        role: 'assistant',
+        content: assistantContent,
+        sources: assistantSources
       }
 
-      messages.value[assistantMsgIndex].content = accumulatedContent
-      triggerSystemEnforcedAutoScroll()
-    }
-
-    if (buffer) {
-      const trimmed = buffer.trim()
-      if (trimmed.startsWith('data: ')) {
-        accumulatedContent += parseContentChunk(trimmed.slice(6))
-      } else {
-        accumulatedContent += parseContentChunk(trimmed)
+      if (messages?.value) {
+        messages.value.push(assistantMessagePacket)
       }
-      messages.value[assistantMsgIndex].content = accumulatedContent
+    } else {
+      throw new Error('Invalid response structure received from server payload pipeline.')
     }
-
-    activeRoutingSource.value = 'Stream Complete'
 
   } catch (err) {
-    if (!messages.value[assistantMsgIndex].content) {
-      messages.value[assistantMsgIndex].content = `⚠️ **Pipeline Terminal Failure**: Could not establish live stream.\n\n* **Diagnostics**: ${err.message || 'Stream connection drop'}`
+    console.error('Transmission Directive Execution Error:', err)
+    const errorDiagnosticMessage = {
+      role: 'assistant',
+      content: `⚠️ **Pipeline Terminal Failure**: Could not complete request synchronization.\n\n* **Diagnostics**: ${err?.message || 'Connection or network drop'}`
     }
-    activeRoutingSource.value = 'Connection Error'
+    if (messages?.value) {
+      messages.value.push(errorDiagnosticMessage)
+    }
   } finally {
-    isProcessingPipeline.value = false
-    
-    const targetSession = chatHistoryList.value.find(s => s.id === activeSessionId.value)
-    if (targetSession) {
-      targetSession.messages = [...messages.value]
+    // ─── 6. STATE CLEANUP, STORAGE SYNC & AUTO-SCROLLING ───────────────
+    if (isProcessingPipeline) {
+      isProcessingPipeline.value = false
     }
     
-    // Save full chat history to local storage
-    syncSessionsToLocalStorage()
+    if (chatHistoryList?.value && activeSessionId?.value) {
+      const targetSession = chatHistoryList.value.find(s => s.id === activeSessionId.value)
+      if (targetSession && messages?.value) {
+        targetSession.messages = [...messages.value]
+      }
+    }
     
-    // Append completed user & AI exchange to the fallback rolling summary
-    const finalAssistantText = messages.value[assistantMsgIndex]?.content || ''
-    if (finalAssistantText && currentPayload) {
-      appendToRollingSummary(activeSessionId.value, currentPayload, finalAssistantText)
+    if (typeof syncSessionsToLocalStorage === 'function') {
+      syncSessionsToLocalStorage()
+    }
+    
+    if (typeof triggerSystemEnforcedAutoScroll === 'function') {
+      await triggerSystemEnforcedAutoScroll()
     }
 
-    await triggerSystemEnforcedAutoScroll()
+    const finalAssistantText = (messages?.value && messages.value.length > 0)
+      ? messages.value[messages.value.length - 1]?.content || ''
+      : ''
 
-    if (isFirstMessage && finalAssistantText) {
+    if (isFirstMessage && finalAssistantText && typeof triggerBackgroundChatNamingSummary === 'function') {
       triggerBackgroundChatNamingSummary(currentPayload, finalAssistantText)
     }
   }
