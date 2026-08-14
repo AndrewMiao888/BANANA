@@ -406,13 +406,6 @@ import MarkdownIt from 'markdown-it'
 import markdownItKatex from 'markdown-it-katex'
 import 'katex/dist/katex.min.css'
 
-const response = await $fetch('/api/chat', {
-  method: 'POST',
-  body: {
-    messages: messages.value,
-    currentTimestamp: new Date().toLocaleString()
-  }
-})
 
 const isSourcePanelOpen = ref(false)
 const activeSource = ref(null)
@@ -722,6 +715,14 @@ const isSidebarVisible = ref(true)
 const chatHistoryList = ref([])
 const activeSessionId = ref('')
 const messages = ref([])
+// Initial chat prefetch moved here so `messages` is defined before use
+const initialResponse = await $fetch('/api/chat', {
+  method: 'POST',
+  body: {
+    messages: messages.value,
+    currentTimestamp: new Date().toLocaleString()
+  }
+})
 const inputFieldPrompt = ref('')
 const selectedModelId = ref(AVAILABLE_MODELS[0]?.id || '')
 const isProcessingPipeline = ref(false)
