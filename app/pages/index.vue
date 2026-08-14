@@ -291,31 +291,53 @@ this?
               </template>
 
               <template v-if="msg.role === 'assistant'">
-                <span class="text-zinc-800">•</span>
-                <button 
-                  @click.stop="speakMessage(msg.content)" 
-                  class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
-                  title="Read aloud"
-                >
-                  <i class="i-lucide-volume-2 text-xs"></i>
-                  <span>Speak</span>
-                </button>
-              </template>
+  <span class="text-zinc-800">•</span>
+  <button 
+    @click.stop="speakText(msg.content)" 
+    class="hover:text-yellow-400 transition-colors flex items-center gap-1 cursor-pointer"
+    title="Read aloud"
+  >
+    <i class="i-lucide-volume-2 text-xs"></i>
+    <span>Speak</span>
+  </button>
+</template>
             </div>
 
-            <div v-if="msg.sources && msg.sources.length > 0" class="mt-3 pt-2 border-t border-zinc-800/60 flex flex-wrap items-center gap-2">
-              <span class="text-[11px] text-zinc-500 font-mono">Sources:</span>
-              <button
-                v-for="src in msg.sources"
-                :key="src.id"
-                @click="openSourcePanel(src)"
-                class="text-xs bg-zinc-800 hover:bg-zinc-700 text-yellow-400 px-2 py-0.5 rounded border border-zinc-700 flex items-center gap-1 transition-colors cursor-pointer"
-              >
-                <i class="i-lucide-link text-[10px]"></i>
-                <span>[{{ src.id }}] {{ src.title }}</span>
-              </button>
-            </div>
+            <div v-if="msg.sources && msg.sources.length > 0" class="mt-4 pt-3 border-t border-zinc-800/80">
+  <div class="text-[11px] font-medium text-zinc-400 tracking-wider uppercase mb-2 flex items-center gap-1.5">
+    <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+    </svg>
+    Sources & References
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a 
+      v-for="(source, sIndex) in msg.sources" 
+      :key="sIndex" 
+      :href="source.url" 
+      target="_blank" 
+      rel="noopener noreferrer"
+      class="flex items-center gap-2.5 px-3 py-2 bg-zinc-900/90 hover:bg-zinc-800/90 border border-zinc-800/90 hover:border-amber-500/40 rounded-xl text-xs text-zinc-300 transition-all duration-200 max-w-[280px] group shadow-md hover:shadow-amber-500/5 relative overflow-hidden"
+    >
+      <div class="w-5 h-5 rounded-lg bg-zinc-800/90 group-hover:bg-amber-500/10 flex items-center justify-center shrink-0 border border-zinc-700/60 group-hover:border-amber-500/30 text-[10px] text-amber-400 font-mono transition-colors">
+        {{ sIndex + 1 }}
+      </div>
+      
+      <div class="flex flex-col min-w-0 flex-1">
+        <span class="truncate font-semibold text-zinc-200 group-hover:text-amber-300 transition-colors">
+          {{ source.title || 'Source Reference' }}
+        </span>
+        <span class="text-[10px] text-zinc-500 group-hover:text-zinc-400 truncate font-mono">
+          {{ source.url ? source.url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] : 'external link' }}
+        </span>
+      </div>
 
+      <svg class="w-3 h-3 text-zinc-600 group-hover:text-amber-400 shrink-0 opacity-0 group-hover:opacity-100 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+      </svg>
+    </a>
+  </div>
+</div>
           </div>
         </div>
 
@@ -336,7 +358,7 @@ this?
             ref="fileInputRef"
             type="file" 
             class="hidden" 
-            @change="handleFileUpload" 
+            @change="handleFileSelection" 
             accept="image/*,.pdf,.txt,.js,.ts,.vue,.json,.exe,.py,.java,.c,.cpp,.md,.csv,.docx,.xlsx,.pptx,.zip,.rar,.7z,.tar,.gz,.mp3,.wav,.mp4,.avi,.mkv,.mov,.flv,.wmv,.webm,.ogg,.flac,.aac,.m4a,.opus,.epub,.azw3,.fb2,.djvu,.odt,.rtf,.tex,.psd,.ai,.eps,.svg, .ttf,.otf,.woff,.woff2,.csv,.tsv,.ics,.vcf,.sql,.db,.bak,.log,.ini,.conf,.cfg,.yml,.yaml,.toml,.mdx,.rst,.ipynb,.r,.sas,.stata,.spss,.dta,.sav,.m,.mlx,.jl,.nim,.cr,.vhd,.verilog,.hdl,.asm,.s,.bas,.lisp,.clj,.cljs,.edn,.scm, .rkt, .ml, .mli, .fs, .fsi" 
           />
 
@@ -351,7 +373,7 @@ this?
 
           <button 
             type="button"
-            @click="toggleVoiceInput" 
+            @click="toggleSpeechRecognition" 
             :class="[
               'p-2.5 rounded-xl transition-colors shrink-0 flex items-center justify-center cursor-pointer', 
               isRecording ? 'bg-red-500/20 text-red-400 animate-pulse border border-red-500/30' : 'hover:bg-zinc-800 text-zinc-400 hover:text-yellow-400'
@@ -361,11 +383,11 @@ this?
             <i class="i-lucide-mic text-base"></i>
           </button>
 
-          <div v-if="selectedFile" class="flex items-center gap-1.5 text-xs bg-yellow-500/10 text-yellow-400 px-2.5 py-1.5 rounded-lg border border-yellow-500/20 mb-1 shrink-0 mr-2 font-mono">
-            <i class="i-lucide-file-text text-xs shrink-0"></i>
-            <span class="truncate max-w-[120px]">{{ selectedFile.name }}</span>
-            <button type="button" @click="selectedFile = null" class="hover:text-red-400 ml-1 font-bold cursor-pointer">✕</button>
-          </div>
+          <div v-for="(file, fIndex) in selectedFiles" :key="fIndex" class="flex items-center gap-1.5 text-xs bg-yellow-500/10 text-yellow-400 px-2.5 py-1.5 rounded-lg border border-yellow-500/20 mb-1 shrink-0 mr-2 font-mono">
+  <i class="i-lucide-file-text text-xs shrink-0"></i>
+  <span class="truncate max-w-[120px]">{{ file.name }}</span>
+  <button type="button" @click="removeSelectedFile(fIndex)" class="hover:text-red-400 ml-1 font-bold cursor-pointer">✕</button>
+</div>
 
           <textarea 
             ref="inputTextarea"
@@ -386,13 +408,13 @@ this?
             STOP
           </button>
           <button 
-            v-else
-            type="submit"
-            :disabled="!inputFieldPrompt.trim() && !selectedFile"
-            class="ml-2 px-4 py-2.5 bg-yellow-500 text-zinc-950 font-mono font-bold rounded-xl text-xs tracking-wider hover:bg-yellow-400 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 mb-0.5 cursor-pointer flex items-center justify-center shadow-md"
-          >
-            Send
-          </button>
+  v-else
+  type="submit"
+  :disabled="!inputFieldPrompt.trim() && selectedFiles.length === 0"
+  class="ml-2 px-4 py-2.5 bg-yellow-500 text-zinc-950 font-mono font-bold rounded-xl text-xs tracking-wider hover:bg-yellow-400 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 mb-0.5 cursor-pointer flex items-center justify-center shadow-md"
+>
+  Send
+</button>
         </form>
       </footer>
     </main>
@@ -1386,7 +1408,206 @@ async function executeTransmissionDirective() {
   }
 }
 
+const selectedFiles = ref([]) // Upgraded to support multiple files
 
+
+// ─── 1. MULTI-FILE ATTACHMENT HANDLER ─────────────────────────────────
+function handleFileSelection(event) {
+  const files = Array.from(event.target.files || [])
+  if (files.length === 0) return
+
+  files.forEach(file => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      selectedFiles.value.push({
+        name: file.name,
+        type: file.type,
+        content: e.target.result
+      })
+    }
+    reader.readAsText(file)
+  })
+}
+
+function removeSelectedFile(index) {
+  selectedFiles.value.splice(index, 1)
+  if (selectedFiles.value.length === 0 && fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+}
+
+// ─── 2. MULTI-LANGUAGE SPEECH RECOGNITION & TTS ────────────────────────
+function toggleSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+  if (!SpeechRecognition) {
+    alert("Speech recognition is not supported in this browser.")
+    return
+  }
+
+  const recognition = new SpeechRecognition()
+  recognition.continuous = false
+  recognition.interimResults = true
+  recognition.lang = navigator.language || '' 
+
+  recognition.onresult = (event) => {
+    let transcript = ''
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      transcript += event.results[i][0].transcript
+    }
+    inputFieldPrompt.value = transcript
+  }
+
+  recognition.start()
+}
+
+function speakText(text) {
+  if (!('speechSynthesis' in window)) return
+  window.speechSynthesis.cancel()
+
+  const utterance = new SpeechSynthesisUtterance(text)
+  utterance.lang = navigator.language || 'en-US'
+  utterance.rate = 1.0
+  window.speechSynthesis.speak(utterance)
+}
+
+// ─── 3. BACKGROUND CHAT NAMING FIX ────────────────────────────────────
+async function triggerBackgroundChatNamingSummary(userPrompt, assistantReply) {
+  if (!activeSessionId.value) return
+  try {
+    const response = await $fetch('/api/summarize-title', {
+      method: 'POST',
+      body: { prompt: userPrompt, response: assistantReply }
+    })
+    
+    const newTitle = response?.title || userPrompt.slice(0, 30) + '...'
+    const session = chatHistoryList.value.find(s => s.id === activeSessionId.value)
+    if (session) {
+      session.title = newTitle
+      syncSessionsToLocalStorage()
+    }
+  } catch (err) {
+    console.warn('Chat naming summary fallback applied:', err)
+    const session = chatHistoryList.value.find(s => s.id === activeSessionId.value)
+    if (session) {
+      session.title = userPrompt.slice(0, 30) + '...'
+      syncSessionsToLocalStorage()
+    }
+  }
+}
+
+// ─── 4 & 5. UNIFIED TRANSMISSION & SESSION PERSISTENCE ────────────────
+async function executeTransmissionDirective() {
+  const currentPayload = typeof inputFieldPrompt?.value === 'string' ? inputFieldPrompt.value.trim() : ''
+  const attachedPayloadFiles = [...selectedFiles.value]
+  
+  if (!currentPayload && attachedPayloadFiles.length === 0) return
+  if (isProcessingPipeline?.value) return
+
+  if (!activeSessionId?.value) {
+    const targetId = `node_${Date.now()}`
+    const newSession = {
+      id: targetId,
+      title: 'New chat',
+      messages: []
+    }
+    chatHistoryList.value.unshift(newSession)
+    activeSessionId.value = targetId
+  }
+
+  let messageContent = currentPayload
+  if (attachedPayloadFiles.length > 0) {
+    attachedPayloadFiles.forEach(file => {
+      messageContent += `\n\n[Attached File: ${file.name}]\n${file.content || ''}`
+    })
+  }
+
+  const userMessagePacket = {
+    role: 'user',
+    content: messageContent,
+    files: attachedPayloadFiles
+  }
+
+  messages.value.push(userMessagePacket)
+  
+  inputFieldPrompt.value = ''
+  selectedFiles.value = []
+  if (fileInputRef?.value) fileInputRef.value.value = ''
+  if (typeof adjustTextareaHeight === 'function') adjustTextareaHeight()
+  
+  isProcessingPipeline.value = true
+  userHasScrolledUpManually.value = false
+  if (typeof triggerSystemEnforcedAutoScroll === 'function') {
+    await triggerSystemEnforcedAutoScroll(true)
+  }
+
+  const isFirstMessage = messages.value.length === 2
+
+  try {
+    const calculatedContext = messages.value[0]?.content 
+      ? `Topic focuses around: ${messages.value[0].content.slice(0, 40)}` 
+      : ''
+    
+    const liveTimestamp = new Date().toLocaleString()
+    const cleanHistory = messages.value.map(m => ({
+      role: m.role,
+      content: m.content
+    }))
+
+    const response = await $fetch('/api/chat', {
+      method: 'POST',
+      body: {
+        messages: cleanHistory,
+        selectedModelId: selectedModelId?.value || 'qwen-super',
+        summaryContext: calculatedContext,
+        currentTimestamp: liveTimestamp,
+        attachedFiles: attachedPayloadFiles
+      }
+    })
+
+    if (response && response.message) {
+      const assistantContent = response.message.content || response.message
+      const assistantSources = response.message.sources || response.sources || []
+
+      messages.value.push({
+        role: 'assistant',
+        content: assistantContent,
+        sources: assistantSources
+      })
+    } else {
+      throw new Error('Invalid response structure received from server payload pipeline.')
+    }
+
+  } catch (err) {
+    console.error('Transmission Directive Execution Error:', err)
+    messages.value.push({
+      role: 'assistant',
+      content: `⚠️ **Pipeline Terminal Failure**: Could not complete request synchronization.\n\n* **Diagnostics**: ${err?.message || 'Connection or network drop'}`
+    })
+  } finally {
+    isProcessingPipeline.value = false
+    
+    const targetSession = chatHistoryList.value.find(s => s.id === activeSessionId.value)
+    if (targetSession) {
+      targetSession.messages = [...messages.value]
+    }
+    
+    if (typeof syncSessionsToLocalStorage === 'function') {
+      syncSessionsToLocalStorage()
+    }
+    
+    if (typeof triggerSystemEnforcedAutoScroll === 'function') {
+      await triggerSystemEnforcedAutoScroll()
+    }
+
+    const finalAssistantText = messages.value.length > 0 
+      ? messages.value[messages.value.length - 1]?.content || '' 
+      : ''
+
+    if (isFirstMessage && finalAssistantTest) {
+      triggerBackgroundChatNamingSummary(currentPayload, finalAssistantTest)
+    }
+  }
+}
 </script>
 
 <style scoped>
