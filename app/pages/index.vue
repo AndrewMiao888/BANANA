@@ -198,6 +198,17 @@ this?
           </div>
         </div>
 
+        <button 
+  @click="toggleRightSourcesPanel"
+  class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium border border-slate-700 transition"
+>
+  <span>🌐</span>
+  <span>Sources</span>
+  <span v-if="activeSourcesList.length > 0" class="bg-cyan-500 text-slate-950 px-1.5 py-0.2 rounded-full text-[10px] font-bold">
+    {{ activeSourcesList.length }}
+  </span>
+</button>
+
       </header>
 
       <div 
@@ -420,6 +431,55 @@ this?
       </footer>
     </main>
   </div>
+  <!-- RIGHT-SIDE COLLAPSIBLE SOURCES PANEL -->
+<aside 
+  :class="isRightSourcesOpen ? 'w-80 translate-x-0' : 'w-0 translate-x-full'"
+  class="fixed right-0 top-0 h-full bg-slate-900 border-l border-slate-800 transition-all duration-300 z-40 flex flex-col overflow-hidden shadow-2xl"
+>
+  <!-- Panel Header -->
+  <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+    <div class="flex items-center gap-2">
+      <span class="text-lg">🌐</span>
+      <h3 class="font-semibold text-slate-200 text-sm tracking-wide">Retrieved Sources & Extracts</h3>
+    </div>
+    <button 
+      @click="toggleRightSourcesPanel"
+      class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition"
+      title="Close Sources Panel"
+    >
+      ✕
+    </button>
+  </div>
+
+  <!-- Panel Content Body -->
+  <div class="flex-1 overflow-y-auto p-4 space-y-4">
+    <div v-if="activeSourcesList.length === 0" class="text-center text-slate-500 py-10 text-xs">
+      No sources retrieved for the active response yet. Ask a question that triggers a web search to populate this panel!
+    </div>
+
+    <div 
+      v-for="(source, index) in activeSourcesList" 
+      :key="index"
+      class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-3.5 space-y-2 hover:border-slate-600 transition"
+    >
+      <!-- Source Title & Link -->
+      <a 
+        :href="source.url" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        class="text-xs font-medium text-cyan-400 hover:underline flex items-start gap-1.5 break-all"
+      >
+        <span class="mt-0.5">🔗</span>
+        <span>{{ source.title || source.url }}</span>
+      </a>
+
+      <!-- Source Extract / Snippet -->
+      <p v-if="source.content || source.snippet" class="text-[11px] text-slate-300 leading-relaxed bg-slate-900/50 p-2 rounded-lg border border-slate-800">
+        {{ source.content || source.snippet }}
+      </p>
+    </div>
+  </div>
+</aside>
 </template>
 
 <script setup>
@@ -1583,6 +1643,20 @@ async function generateAndUpdateChatTitle(userPromptText, sessionId) {
   } catch (err) {
     console.warn('Auto-naming failed:', err)
   }
+}
+
+// Right Sources Panel State
+const isRightSourcesOpen = ref(false)
+
+// Automatically grab sources from the most recent assistant message
+const activeSourcesList = computed(() => {
+  if (!messages?.value || messages.value.length === 0) return []
+  const lastMessage = messages.value[messages.value.length - 1]
+  return lastMessage?.sources || []
+})
+
+function toggleRightSourcesPanel() {
+  isRightSourcesOpen.value = !isRightSourcesOpen.value
 }
 </script>
 

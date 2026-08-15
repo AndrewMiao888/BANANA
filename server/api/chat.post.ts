@@ -216,7 +216,7 @@ You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQ
 
     if (isLocalAvailable) {
       try {
-        let resolvedModelId = selectedModelId || 'qwen-latest'
+        let resolvedModelId = selectedModelId || 'qwen-super:latest'
         if (resolvedModelId.toLowerCase().includes('qwen')) {
           resolvedModelId = 'qwen-latest'
         }
