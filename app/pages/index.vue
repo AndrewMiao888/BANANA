@@ -1284,6 +1284,10 @@ async function executeTransmissionDirective() {
     activeSessionId.value = targetId
   }
 
+  // ✅ FIXED CHECK: Evaluates accurately *before* the message is pushed
+  const isFirstMessage = messages?.value ? messages.value.length === 0 : true
+  const currentSessionId = activeSessionId.value
+
   // ─── 3. FILE ATTACHMENT MAPPING & USER MESSAGE DISPATCH ───────────────
   let messageContent = currentPayload
   if (attachedPayloadFiles.length > 0) {
@@ -1324,8 +1328,6 @@ async function executeTransmissionDirective() {
     await triggerSystemEnforcedAutoScroll(true)
   }
 
-  const isFirstMessage = messages?.value ? messages.value.length === 2 : false
-
   // ─── 4. API TRANSMISSION & PAYLOAD CONSTRUCTION ───────────────────────
   try {
     const calculatedContext = (messages?.value && messages.value[0]?.content)
@@ -1341,11 +1343,11 @@ async function executeTransmissionDirective() {
         }))
       : []
 
-    const targetModelId = selectedModelId?.value || 'qwen-super'
+    const targetModelId = selectedModelId?.value || 'qwen-latest'
     const apiRequestBody = {
       messages: cleanHistory,
-      model: targetModelId,          // Ensures backend gets 'model'
-      selectedModelId: targetModelId,// Ensures backend gets 'selectedModelId'
+      model: targetModelId,          
+      selectedModelId: targetModelId,
       summaryContext: calculatedContext,
       currentTimestamp: liveTimestamp,
       attachedFiles: attachedPayloadFiles
@@ -1404,12 +1406,31 @@ async function executeTransmissionDirective() {
       await triggerSystemEnforcedAutoScroll()
     }
 
-    const finalAssistantText = (messages?.value && messages.value.length > 0)
-      ? messages.value[messages.value.length - 1]?.content || ''
-      : ''
+    // ✅ FIXED: Directly calls backend with summary directive to update title live
+    if (isFirstMessage && currentPayload && currentSessionId) {
+      try {
+        const titleRes = await $fetch('/api/chat', {
+          method: 'POST',
+          body: {
+            messages: [
+              { role: 'user', content: `${currentPayload}\n\nGENERATE_SHORT_TITLE_SUMMARY_DIRECTIVE` }
+            ],
+            selectedModelId: selectedModelId?.value || 'qwen-latest'
+          }
+        })
 
-    if (isFirstMessage && finalAssistantText && typeof triggerBackgroundChatNamingSummary === 'function') {
-      triggerBackgroundChatNamingSummary(currentPayload, finalAssistantText)
+        const rawTitle = titleRes?.message?.content || 'New Chat'
+        const cleanTitle = rawTitle.replace(/['".,]/g, '').trim()
+
+        if (chatHistoryList?.value) {
+          const targetSession = chatHistoryList.value.find(s => s.id === currentSessionId)
+          if (targetSession) {
+            targetSession.title = cleanTitle
+          }
+        }
+      } catch (namingErr) {
+        console.warn('Auto-naming background sync failed:', namingErr)
+      }
     }
   }
 }
@@ -1533,6 +1554,35 @@ const toggleSpeechRecognition = () => {
   }
 
   recognition.start()
+}
+
+// --- AUTO CHAT NAMING HELPER ---
+async function generateAndUpdateChatTitle(userPromptText, sessionId) {
+  try {
+    const titleRes = await $fetch('/api/chat', {
+      method: 'POST',
+      body: {
+        messages: [
+          { role: 'user', content: `${userPromptText}\n\nGENERATE_SHORT_TITLE_SUMMARY_DIRECTIVE` }
+        ],
+        selectedModelId: selectedModelId.value || 'qwen-latest'
+      }
+    })
+
+    const rawTitle = titleRes?.message?.content || 'New Chat'
+    const cleanTitle = rawTitle.replace(/['".,]/g, '').trim()
+
+    // Find session in your history list and update its title
+    const targetSession = chatHistoryList.value.find(s => s.id === sessionId)
+    if (targetSession) {
+      targetSession.title = cleanTitle
+    }
+    if (activeSessionId.value === sessionId) {
+      currentSessionTitle.value = cleanTitle
+    }
+  } catch (err) {
+    console.warn('Auto-naming failed:', err)
+  }
 }
 </script>
 
