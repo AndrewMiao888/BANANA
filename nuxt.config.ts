@@ -39,7 +39,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     groqApiKey: process.env.GROQ_API_KEY || '',
     tavilyApiKey: process.env.TAVILY_API_KEY || '',
-    homeOllamaUrl: process.env.HOME_OLLMA_URL || 'http://localhost:11434',
+    homeOllamaUrl: process.env.HOME_OLLAMA_URL || 'http://localhost:11434',
     bananaSystemPrompt: process.env.BANANA_SYSTEM_PROMPT || getSystemPrompt()
   },
 
