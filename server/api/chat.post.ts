@@ -170,6 +170,10 @@ You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQ
    - Every entity in a requested comparison or analysis MUST have its own dedicated table row.
    - NEVER collapse or merge multiple array items into a single row.
 
+   2. MARKDOWN TABLE STRUCTURE INTEGRITY:
+   - Use standard Markdown tables (using pipes \`|\` and hyphens \`-\`).
+   - NEVER use LaTeX array environments (\\begin{array}) for tables, as the UI cannot render them.
+
 3. COMPLETE MULTI-PART EXECUTION:
    - You MUST fulfill every requested part completely within a single response without truncating early.
 
@@ -201,21 +205,34 @@ You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQ
     let finalResponseText = ''
     let activeExecutionSource = ''
 
-    // ─── 6. HARD DRIVE LOCAL HARDWARE PROBING (PRIMARY RUNNER) ─────────────
-  let isLocalAvailable = false
-
+    // ─── 6. HARD DRIVE LOCAL HARDWARE PROBING (FORCED PRIMARY RUNNER) ─────────────
   try {
-    const localCheck = await fetch(`${localBaseUrl.replace(/\/$/, '')}/api/tags`, { 
-      method: 'GET',
-      signal: AbortSignal.timeout(10000) // Increased to 10 seconds
-    })
-    isLocalAvailable = localCheck.ok
-    if (!isLocalAvailable) {
-      console.warn(`[OLLAMA HEALTH CHECK FAILED]: Status code ${localCheck.status}`)
+    let resolvedModelId = selectedModelId || 'qwen-super:latest'
+    if (resolvedModelId.toLowerCase().includes('qwen')) {
+      resolvedModelId = 'qwen-super:latest' // Enforce qwen-super:latest for local execution
     }
-  } catch (e: any) {
-    console.error(`[OLLAMA HEALTH CHECK ERROR]:`, e?.message || e)
-    isLocalAvailable = false
+
+    console.log(`[OLLAMA ATTEMPT]: Targeting Tailscale URL -> ${localBaseUrl}/api/chat`)
+
+    const localResponse = await $fetch<any>(`${localBaseUrl.replace(/\/$/, '')}/api/chat`, {
+      method: 'POST',
+      body: { 
+        model: resolvedModelId, 
+        messages: localContextMessages, 
+        stream: false 
+      },
+      timeout: 1000000 // Generous 1000s timeout for Tailscale funnel cloud latency
+    })
+    
+    finalResponseText = localResponse?.message?.content || ''
+    if (finalResponseText) {
+      activeExecutionSource = 'Hard Drive Local Execution (Tailscale)'
+      if (extractedSources.length > 0) activeExecutionSource += ' + Dual-Search RAG Pipeline'
+    }
+  } catch (localErr: any) {
+    console.error('[LOCAL OLLAMA FAILED - LOGGING ERROR FOR DEBUGGING]:', localErr?.message || localErr)
+    // This will let it fall through to Groq ONLY if your XPS/Tailscale is truly unreachable,
+    // but the error will now print clearly in your Vercel/server logs so you can see why.
   }
 
     // ─── 7. FALLBACK LAYER: GROQ CLOUD OVERDRIVE VIA NATIVE $FETCH ─────────
