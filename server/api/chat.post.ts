@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
 
     const incomingUserPrompt = messages[messages.length - 1]?.content || ''
     const liveTimestamp = currentTimestamp || new Date().toLocaleString()
-    const localBaseUrl = (config as any).homeOllamaUrl || process.env.HOME_OLLAMA_URL || 'http://localhost:11434'
+    const localBaseUrl = (config as any).homeOllamaUrl || process.env.HOME_OLLAMA_URL || 'https://xps9530-haydenk.tailb68230.ts.net'
 
     // ─── 2. STAGE DATA CLEANING & HISTORY MAPPING ─────────────────────────
     const cleanHistory = messages
@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
         content: String(m.content).trim()
       }))
 
-    // ─── 3. DUAL-SEARCH PIPELINE WITH QWEN-LATEST "FAIL-SAFE" ROUTER ──────
+    // ─── 3. DUAL-SEARCH PIPELINE WITH QWEN-SUPER:LATEST "FAIL-SAFE" ROUTER ──────
     let externalKnowledge = ''
     let extractedSources: any[] = []
 
@@ -72,14 +72,14 @@ export default defineEventHandler(async (event) => {
           }
         }
       } 
-      // Route 2: Local AI Intent Router (Decides via qwen-latest if Tavily is needed)
+      // Route 2: Local AI Intent Router (Decides via qwen-super:latest if Tavily is needed)
       else {
         try {
           const routerPrompt = `You are an AI routing agent. Evaluate this user prompt: "${incomingUserPrompt}"\nDoes this require up-to-date web search, fact-checking, or external knowledge to answer accurately? Reply with EXACTLY ONE WORD: "SEARCH" if yes, "SKIP" if it is pure general conversation/coding, or "SEARCH" if you are unsure. DO NOT add punctuation.`
           
-          let routerModelId = selectedModelId || 'qwen-latest'
+          let routerModelId = selectedModelId || 'qwen-super:latest'
           if (routerModelId.toLowerCase().includes('qwen')) {
-            routerModelId = 'qwen-latest' // Enforce qwen-latest for the router
+            routerModelId = 'qwen-super:latest' // Enforce qwen-super:latest for the router
           }
 
           const routerRes = await $fetch<any>(`${localBaseUrl.replace(/\/$/, '')}/api/chat`, {
@@ -218,7 +218,7 @@ You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQ
       try {
         let resolvedModelId = selectedModelId || 'qwen-super:latest'
         if (resolvedModelId.toLowerCase().includes('qwen')) {
-          resolvedModelId = 'qwen-latest'
+          resolvedModelId = 'qwen-super:latest' // Enforce qwen-super:latest for local execution
         }
 
         const localResponse = await $fetch<any>(`${localBaseUrl.replace(/\/$/, '')}/api/chat`, {

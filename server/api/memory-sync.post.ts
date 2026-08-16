@@ -83,11 +83,14 @@ export default defineEventHandler(async (event) => {
       }
     ]
 
-    try {
-      const ollamaRes = await $fetch<any>('http://127.0.0.1:11434/api/chat', {
+    const config = useRuntimeConfig()
+const localBaseUrl = (config as any).homeOllamaUrl || process.env.HOME_OLLAMA_URL || 'https://xps9530-haydenk.tailb68230.ts.net'
+
+try {
+      const ollamaRes = await $fetch<any>(`${localBaseUrl}/api/chat`, {
         method: 'POST',
         body: {
-          model: 'qwen-super', // 👈 (Or 'qwen2.5:7b' if you didn't create a custom tag name with your Modelfile)
+          model: 'qwen-super:latest',
           messages: standardPayload,
           stream: false
         },

@@ -6,9 +6,12 @@ import { AVAILABLE_MODELS } from '~~/src/models'
 export default defineEventHandler(async () => {
   let isLocalComputerOnline = false
 
-  try {
-    // Ping local Ollama to check if machine is online
-    await $fetch('http://127.0.0.1:11434/', { method: 'GET', timeout: 1000 })
+  const config = useRuntimeConfig()
+const localBaseUrl = (config as any).homeOllamaUrl || process.env.HOME_OLLAMA_URL || 'https://xps9530-haydenk.tailb68230.ts.net'
+
+try {
+    // Ping local Ollama via Tailscale Funnel to check if machine is online
+    await $fetch(`${localBaseUrl}/`, { method: 'GET', timeout: 1000 })
     isLocalComputerOnline = true
   } catch {
     isLocalComputerOnline = false

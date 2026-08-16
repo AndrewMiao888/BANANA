@@ -11,7 +11,7 @@ export interface ModelOption {
 export const AVAILABLE_MODELS: ModelOption[] = [
   // --- LOCAL COMPUTER MODELS (Free, Unlimited) ---
   { 
-    id: 'qwen-super', 
+    id: 'qwen-super:latest', 
     name: 'Qwen Super Engine', 
     provider: 'local', 
     tier: 'High Demand', 

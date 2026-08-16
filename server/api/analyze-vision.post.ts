@@ -16,11 +16,14 @@ export default defineEventHandler(async (event) => {
     const executionPrompt = prompt || 'Analyze this image context.'
 
     // 1. TRY LOCAL COMPUTER VISION PIPELINE (LLaVA)
-    try {
-      const ollamaVision = await $fetch<any>('http://127.0.0.1:11434/api/generate', {
+const config = useRuntimeConfig()
+const ollamaUrl = config.homeOllamaUrl || 'https://xps9530-haydenk.tailb68230.ts.net'
+
+try {
+      const ollamaVision = await $fetch<any>(`${ollamaUrl}/api/generate`, {
         method: 'POST',
         body: {
-          model: 'llava',
+          model: 'llava', // Ensure model name matches your local list (llava:latest)
           prompt: executionPrompt,
           images: [cleanBase64],
           stream: false

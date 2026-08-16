@@ -1,4 +1,4 @@
-import { c as defineEventHandler } from '../../_/nitro.mjs';
+import { c as defineEventHandler, u as useRuntimeConfig } from '../../_/nitro.mjs';
 import 'node:http';
 import 'node:https';
 import 'node:events';
@@ -11,7 +11,7 @@ import 'node:url';
 const AVAILABLE_MODELS = [
   // --- LOCAL COMPUTER MODELS (Free, Unlimited) ---
   {
-    id: "qwen-super",
+    id: "qwen-super:latest",
     name: "Qwen Super Engine",
     provider: "local",
     tier: "High Demand",
@@ -36,8 +36,10 @@ const AVAILABLE_MODELS = [
 
 const models = defineEventHandler(async () => {
   let isLocalComputerOnline = false;
+  const config = useRuntimeConfig();
+  const localBaseUrl = config.homeOllamaUrl || process.env.HOME_OLLAMA_URL || "https://xps9530-haydenk.tailb68230.ts.net";
   try {
-    await $fetch("http://127.0.0.1:11434/", { method: "GET", timeout: 1e3 });
+    await $fetch(`${localBaseUrl}/`, { method: "GET", timeout: 1e3 });
     isLocalComputerOnline = true;
   } catch {
     isLocalComputerOnline = false;

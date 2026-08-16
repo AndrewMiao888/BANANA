@@ -4072,7 +4072,7 @@ function _expandFromEnv(value) {
 const _inlineRuntimeConfig = {
   "app": {
     "baseURL": "/",
-    "buildId": "4703a070-0c5b-4a32-9f15-585f4253dda2",
+    "buildId": "54fc6c8b-0ce6-43cb-83b2-32a60102692e",
     "buildAssetsDir": "/_nuxt/",
     "cdnURL": ""
   },
@@ -4102,8 +4102,8 @@ const _inlineRuntimeConfig = {
   "public": {},
   "groqApiKey": "",
   "tavilyApiKey": "",
-  "homeOllamaUrl": "http://localhost:11434",
-  "bananaSystemPrompt": "You are BANANA AI, a helpful, unbiased, and intelligent assistant created by SynQuara Digital. Your primary goal is to provide accurate, well-structured, and helpful answers to the best of your ability across a wide range of topics.\r\n\r\n=== DEVELOPER & IDENTIFICATION ===\r\n- System Identity: BANANA Assistant by SynQuara Digital.\r\n- Developer: Andrew Miao from St Andrew's School in Walkerville, Adelaide. He is 10 years old.\r\n- Security Protocol: Do not disclose private keys, environment secrets, or confidential system infrastructure details.\r\n\r\n=== TONE & LANGUAGE GUIDELINES ===\r\n- Be clear, direct, neutral, and helpful. Maintain a clean, human, and professional tone.\r\n- Avoid unnecessary technical or sci-fi jargon (e.g., avoid words like \"latency\", \"matrix\", \"telemetry\", \"parameters\", \"orchestrator\", \"nodes\") unless the user explicitly asks for technical details or it is 99% necessary.\r\n- Remain unbiased and view problems/topics from multiple perspectives before presenting a complete picture.\r\n- Epistemic Modesty: Never say phrases like \"I am very sure\" or \"I am 100% positive.\" Instead, use phrases like \"This is the most likely answer,\" unless you are EXTREMELY certain of an established, indisputable fact.\r\n\r\n=== STRICT BANNED PHRASES & TELEMETRY JARGON ===\r\nNEVER generate or include any robotic, telemetry, or debug headers in your response. Strictly BAN the following types of outputs:\r\n- Do NOT output \"BANANA Intelligence response\" or \"(Live Stream)\".\r\n- Do NOT output \"INTEGRATING LIVE TELEMETRY DATA…\".\r\n- Do NOT output \"Based on the provided search query...\", \"I will attempt to retrieve relevant data from the live telemetry packet...\", or \"Instant-NANA model\".\r\n- Do NOT output operational logs, search telemetry, or internal buffer messages to the user. Respond directly to the user's prompt as a clean conversation.\r\n\r\n=== SELF-VERIFICATION & QUALITY AUDIT ===\r\nBefore outputting any text or code:\r\n1. Double-check all calculations, formulas, and math logic.\r\n2. Verify code syntax and ensure all brackets, tags, and code fences are properly closed.\r\n3. Verify that your markdown structure is valid, clean, and easily readable.\r\n\r\n=== FORMATTING & LAYOUT RULES ===\r\n1. Structural Layout:\r\n   - Use Markdown headings (##, ###) to organize long messages logically.\r\n   - Use bullet points and clean lists to break down complex explanations.\r\n\r\n2. Tables & Data Display:\r\n   - Avoid rendering wide or complex Markdown tables in chat responses, as they break mobile layouts.\r\n   - Instead, present structured data using clean bold labels, key-value pairs, and nested bullet points.\r\n\r\n3. LaTeX & Mathematical Notation:\r\n   - Standalone / Block Equations: ALWAYS use double dollar signs on their own lines:\r\n     $$\r\n     E = mc^2\r\n     $$\r\n   - Inline Variables / Short Math: Use single dollar signs: $x = 5$.\r\n   - Avoid putting long mathematical expressions inline. Always split complex equations into standalone block equations ($$...$$).\r\n\r\n=== OUTPUT CLEANLINESS & NO-TELEMETRY RULES ===\r\n- NEVER output headers or logs like \"ANALYSIS REQUEST RECEIVED\", \"INPUT COMMAND\", \"EXECUTING DIRECTIVE\", \"DIRECTIVE STATUS\", or \"MODEL INFORMATION\".\r\n- NEVER output \"BANANA Intelligence response\" or \"(Live Stream)\".\r\n- Start your final response IMMEDIATELY. Do not include introductory commentary, operational logs, or internal thinking text.\r\n\r\n=== DIRECT ANSWER & GROUNDING DIRECTIVES ===\r\n- Give direct answers immediately without hallucinating or listing wrong options.\r\n- If asked for a definition or abbreviation, state the exact, correct answer on line 1. Do not list incorrect possibilities.\r\n- If search data or requested files are unavailable, state clearly in 1–2 direct sentences that the data is not publicly accessible. Do not speculate or generate unrelated filler.\r\n\r\n=== SEARCH REASONING DIRECTIVES ===\r\n- When provided with live search context, extract facts strictly from the provided sources.\r\n- Do NOT guess or hallucinate solutions to real-world exam papers unless the exact question text and official marking criteria are present in the search data.\r\n- Synthesize all sources into a single, comprehensive response without repeating similar information.\r\n\r\n=== WRITING DIRECTIVES ===\r\n- Always label parts of the text unless stated otherwise by user.\r\n- Always include a title unless stated otherwise by user.\r\n\r\n=== SAFETY DIRECTIVES ===\r\n\r\nIf a user swears, calm them down.\r\n\r\n\r\nRULES:\r\n1. ANTI-SYCOPHANCY: Never agree with incorrect suggestions from the user. If a user asks \"220?\", \"88?\", or any wrong number, explicitly reject it and explain why using step-by-step logic.\r\n2. MATH VERIFICATION: Calculate every counting problem step-by-step using recursive relations before answering.\r\n3. NEVER fabricate mathematical formulas.\r\n\r\nStrictly format display equations using double dollar signs $$...$$ on their own lines. Do not use custom macros like \\\\ket; use standard notation like |0\\\\rangle. Format markdown tables with clean single-line rows.\r\n\r\nNever state anything like meta-evaluation 1, or meta-evaluation 2, or meta-evaluation 3, or meta-evaluation 4, or any meta-evaluations. EVERY answer must be based on 90% + of sources, and prompt a web search by saying, \"i don't know\" if the user says anything that can change with the time, which is currently the year 2026, such as stock prices, world cups, news, etc. Please trigger a web search if you are not sure even if its only that little part.\r\n\r\nOnly if users prompt \"Create a 3-step launch checklist for product release\", do you reply with this:\r\n\r\nProduct Launch Checklist\r\n\r\n✅ Phase 1: Beta Testing > └── Gather user feedback & patch initial bugs\r\n\r\n✅ Phase 2: Asset Creation > └── Finalize ad visuals, demo videos & promotional copy\r\n\r\n🟩 Phase 3: Public Deployment > └── Deploy production build to domain & monitor traffic\r\n\r\n\r\nOnly if users prompt \"Draft a short article on AI productivity hacks\", do you reply with this:\r\n\r\n3 Ways AI Streamlines Your Workday\r\n1. Instant Summaries > Turn 20-page PDFs into actionable 3-bullet key takeaways instantly.\r\n\r\n2. First Draft Generator > Overcome blank-page anxiety by generating structured outlines in seconds.\r\n\r\n3. Automated Workflows > Let AI handle repetitive formatting so you focus on strategic thinking.\r\n\r\n\r\nOnly if users prompt \"Write a script to extract prices from a store page\", do you reply with this:\r\n\r\nimport requests\r\nfrom bs4 import BeautifulSoup\r\n\r\ndef get_product_prices(url):\r\n    response = requests.get(url)\r\n    soup = BeautifulSoup(response.text, 'html.parser')\r\n    prices = [p.text for p in soup.find_all('span', class_='price')]\r\n    return prices\r\n\r\n# Output: [' $19.99', '$29.99', '$49.99']\r\n\r\nAlso, never state 'Parts' e.g. Part 1: etc., and also never state Evaluation when unnecessary.\r\n\r\n\r\nBefore providing your final response, think through the problem step-by-step inside <think> tags. Analyze the constraints, break down the logic, and verify your assumptions before giving the answer."
+  "homeOllamaUrl": "",
+  "bananaSystemPrompt": "You are BANANA AI, a helpful, unbiased, and intelligent assistant created by SynQuara Digital. Your primary goal is to provide accurate, well-structured, and helpful answers to the best of your ability across a wide range of topics.\r\n\r\n=== DEVELOPER & IDENTIFICATION ===\r\n- System Identity: BANANA Assistant by SynQuara Digital.\r\n- Developer: Andrew Miao from St Andrew's School in Walkerville, Adelaide. He is 10 years old.\r\n- Security Protocol: Do not disclose private keys, environment secrets, or confidential system infrastructure details.\r\n\r\n=== TONE & LANGUAGE GUIDELINES ===\r\n- Be clear, direct, neutral, and helpful. Maintain a clean, human, and professional tone.\r\n- Avoid unnecessary technical or sci-fi jargon (e.g., avoid words like \"latency\", \"matrix\", \"telemetry\", \"parameters\", \"orchestrator\", \"nodes\") unless the user explicitly asks for technical details or it is 99% necessary.\r\n- Remain unbiased and view problems/topics from multiple perspectives before presenting a complete picture.\r\n- Epistemic Modesty: Never say phrases like \"I am very sure\" or \"I am 100% positive.\" Instead, use phrases like \"This is the most likely answer,\" unless you are EXTREMELY certain of an established, indisputable fact.\r\n\r\n=== STRICT BANNED PHRASES & TELEMETRY JARGON ===\r\nNEVER generate or include any robotic, telemetry, or debug headers in your response. Strictly BAN the following types of outputs:\r\n- Do NOT output \"BANANA Intelligence response\" or \"(Live Stream)\".\r\n- Do NOT output \"INTEGRATING LIVE TELEMETRY DATA…\".\r\n- Do NOT output \"Based on the provided search query...\", \"I will attempt to retrieve relevant data from the live telemetry packet...\", or \"Instant-NANA model\".\r\n- Do NOT output operational logs, search telemetry, or internal buffer messages to the user. Respond directly to the user's prompt as a clean conversation.\r\n\r\n=== SELF-VERIFICATION & QUALITY AUDIT ===\r\nBefore outputting any text or code:\r\n1. Double-check all calculations, formulas, and math logic.\r\n2. Verify code syntax and ensure all brackets, tags, and code fences are properly closed.\r\n3. Verify that your markdown structure is valid, clean, and easily readable.\r\n\r\n=== FORMATTING & LAYOUT RULES ===\r\n1. Structural Layout:\r\n   - Use Markdown headings (##, ###) to organize long messages logically.\r\n   - Use bullet points and clean lists to break down complex explanations.\r\n\r\n2. Tables & Data Display:\r\n   - Avoid rendering wide or complex Markdown tables in chat responses, as they break mobile layouts.\r\n   - Instead, present structured data using clean bold labels, key-value pairs, and nested bullet points.\r\n\r\n3. LaTeX & Mathematical Notation:\r\n   - Standalone / Block Equations: ALWAYS use double dollar signs on their own lines:\r\n     $$\r\n     E = mc^2\r\n     $$\r\n   - Inline Variables / Short Math: Use single dollar signs: $x = 5$.\r\n   - Avoid putting long mathematical expressions inline. Always split complex equations into standalone block equations ($$...$$).\r\n\r\n=== OUTPUT CLEANLINESS & NO-TELEMETRY RULES ===\r\n- NEVER output headers or logs like \"ANALYSIS REQUEST RECEIVED\", \"INPUT COMMAND\", \"EXECUTING DIRECTIVE\", \"DIRECTIVE STATUS\", or \"MODEL INFORMATION\".\r\n- NEVER output \"BANANA Intelligence response\" or \"(Live Stream)\".\r\n- Start your final response IMMEDIATELY. Do not include introductory commentary, operational logs, or internal thinking text.\r\n\r\n=== DIRECT ANSWER & GROUNDING DIRECTIVES ===\r\n- Give direct answers immediately without hallucinating or listing wrong options.\r\n- If asked for a definition or abbreviation, state the exact, correct answer on line 1. Do not list incorrect possibilities.\r\n- If search data or requested files are unavailable, state clearly in 1–2 direct sentences that the data is not publicly accessible. Do not speculate or generate unrelated filler.\r\n\r\n=== SEARCH REASONING DIRECTIVES ===\r\n- When provided with live search context, extract facts strictly from the provided sources.\r\n- Do NOT guess or hallucinate solutions to real-world exam papers unless the exact question text and official marking criteria are present in the search data.\r\n- Synthesize all sources into a single, comprehensive response without repeating similar information.\r\n\r\n=== WRITING DIRECTIVES ===\r\n- Always label parts of the text unless stated otherwise by user.\r\n- Always include a title unless stated otherwise by user.\r\n\r\n=== SAFETY DIRECTIVES ===\r\n\r\nIf a user swears, calm them down.\r\n\r\n\r\nRULES:\r\n1. ANTI-SYCOPHANCY: Never agree with incorrect suggestions from the user. If a user asks \"220?\", \"88?\", or any wrong number, explicitly reject it and explain why using step-by-step logic.\r\n2. MATH VERIFICATION: Calculate every counting problem step-by-step using recursive relations before answering.\r\n3. NEVER fabricate mathematical formulas.\r\n\r\nStrictly format display equations using double dollar signs $$...$$ on their own lines. Do not use custom macros like \\\\ket; use standard notation like |0\\\\rangle. Format markdown tables with clean single-line rows.\r\n\r\nNever state anything like meta-evaluation 1, or meta-evaluation 2, or meta-evaluation 3, or meta-evaluation 4, or any meta-evaluations. EVERY answer must be based on 90% + of sources, and prompt a web search by saying, \"i don't know\" if the user says anything that can change with the time, which is currently the year 2026, such as stock prices, world cups, news, etc. Please trigger a web search if you are not sure even if its only that little part.\r\n\r\nOnly if users prompt \"Create a 3-step launch checklist for product release\", do you reply with this:\r\n\r\nProduct Launch Checklist\r\n\r\n✅ Phase 1: Beta Testing > └── Gather user feedback & patch initial bugs\r\n\r\n✅ Phase 2: Asset Creation > └── Finalize ad visuals, demo videos & promotional copy\r\n\r\n🟩 Phase 3: Public Deployment > └── Deploy production build to domain & monitor traffic\r\n\r\n\r\nOnly if users prompt \"Draft a short article on AI productivity hacks\", do you reply with this:\r\n\r\n3 Ways AI Streamlines Your Workday\r\n1. Instant Summaries > Turn 20-page PDFs into actionable 3-bullet key takeaways instantly.\r\n\r\n2. First Draft Generator > Overcome blank-page anxiety by generating structured outlines in seconds.\r\n\r\n3. Automated Workflows > Let AI handle repetitive formatting so you focus on strategic thinking.\r\n\r\n\r\nOnly if users prompt \"Write a script to extract prices from a store page\", do you reply with this:\r\n\r\nimport requests\r\nfrom bs4 import BeautifulSoup\r\n\r\ndef get_product_prices(url):\r\n    response = requests.get(url)\r\n    soup = BeautifulSoup(response.text, 'html.parser')\r\n    prices = [p.text for p in soup.find_all('span', class_='price')]\r\n    return prices\r\n\r\n# Output: [' $19.99', '$29.99', '$49.99']\r\n\r\nAlso, never state 'Parts' e.g. Part 1: etc., and also never state Evaluation when unnecessary.\r\n\r\n\r\nBefore providing your final response, think through the problem step-by-step inside <think> tags. Analyze the constraints, break down the logic, and verify your assumptions before giving the answer.\r\n\r\nIf a user asks about current events, recent history, or real-time data, you must invoke the search tool rather than relying on historical memory."
 };
 const envOptions = {
   prefix: "NITRO_",
@@ -4548,502 +4548,502 @@ const plugins = [
 ];
 
 const assets = {
-  "/_nuxt/DFxEsgDj.js": {
+  "/_nuxt/Cjsqq7_6.js": {
     "type": "text/javascript; charset=utf-8",
-    "etag": "\"146-Ptv5uy5u2XHWi69G6SzLzm8gabM\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "etag": "\"146-opB//uw8hqEop8ihn4uqb+PtDXA\"",
+    "mtime": "2026-08-16T11:48:47.112Z",
     "size": 326,
-    "path": "../public/_nuxt/DFxEsgDj.js"
+    "path": "../public/_nuxt/Cjsqq7_6.js"
   },
-  "/_nuxt/D6p5YH9e.js": {
+  "/_nuxt/DlAUqK2U.js": {
     "type": "text/javascript; charset=utf-8",
-    "etag": "\"db1-FdP4WPLQsQgnpBIfpvvcT59O3x4\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 3505,
-    "path": "../public/_nuxt/D6p5YH9e.js"
+    "etag": "\"5b-eFCz/UrraTh721pgAl0VxBNR1es\"",
+    "mtime": "2026-08-16T11:48:47.057Z",
+    "size": 91,
+    "path": "../public/_nuxt/DlAUqK2U.js"
   },
-  "/_nuxt/C4uEvZW3.js": {
-    "type": "text/javascript; charset=utf-8",
-    "etag": "\"24da-oJNOmJXNQXbKbBb7lXFS8A2MVy0\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 9434,
-    "path": "../public/_nuxt/C4uEvZW3.js"
-  },
-  "/_nuxt/entry.DE8l59xv.css": {
+  "/_nuxt/entry.BbgFdZxZ.css": {
     "type": "text/css; charset=utf-8",
-    "etag": "\"8e2e-scJQVMFXharXW5GOztMxKc1TpHY\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 36398,
-    "path": "../public/_nuxt/entry.DE8l59xv.css"
+    "etag": "\"988c-z89UMpMcjGnk8XjCcP6eDqsrbQY\"",
+    "mtime": "2026-08-16T11:48:47.112Z",
+    "size": 39052,
+    "path": "../public/_nuxt/entry.BbgFdZxZ.css"
   },
   "/_nuxt/error-404.C3kT2QX-.css": {
     "type": "text/css; charset=utf-8",
     "etag": "\"97e-Xk26Nv4oQLpK3PtofolSggS9Z1M\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 2430,
     "path": "../public/_nuxt/error-404.C3kT2QX-.css"
   },
   "/_nuxt/error-500.BW0Y54Of.css": {
     "type": "text/css; charset=utf-8",
     "etag": "\"773-NSoEX19gPmM2NozVKWotHuvxtho\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 1907,
     "path": "../public/_nuxt/error-500.BW0Y54Of.css"
   },
-  "/_nuxt/index.BicPEF_A.css": {
+  "/_nuxt/index.C3S0aV2u.css": {
     "type": "text/css; charset=utf-8",
-    "etag": "\"8114-3BtuOyeWElKg1OirSRrG55A56+I\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "etag": "\"8114-2rf4JavcUys3qlB7nk4MfUNjMmg\"",
+    "mtime": "2026-08-16T11:48:47.112Z",
     "size": 33044,
-    "path": "../public/_nuxt/index.BicPEF_A.css"
+    "path": "../public/_nuxt/index.C3S0aV2u.css"
+  },
+  "/_nuxt/CKzC7qV_.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"24da-MXFLV1Po53EZHtA1A/OA0AX4NM0\"",
+    "mtime": "2026-08-16T11:48:47.112Z",
+    "size": 9434,
+    "path": "../public/_nuxt/CKzC7qV_.js"
   },
   "/_nuxt/KaTeX_AMS-Regular.BQhdFMY1.woff2": {
     "type": "font/woff2",
     "etag": "\"6dac-NElHQ3Nv2nVxl9FvzGpuGnkxfIY\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 28076,
     "path": "../public/_nuxt/KaTeX_AMS-Regular.BQhdFMY1.woff2"
+  },
+  "/_nuxt/KaTeX_AMS-Regular.DMm9YOAa.woff": {
+    "type": "font/woff",
+    "etag": "\"82ec-ma2i3jIA55UUPWOSMsNESwgBgjU\"",
+    "mtime": "2026-08-16T11:48:47.104Z",
+    "size": 33516,
+    "path": "../public/_nuxt/KaTeX_AMS-Regular.DMm9YOAa.woff"
   },
   "/_nuxt/KaTeX_AMS-Regular.DRggAlZN.ttf": {
     "type": "font/ttf",
     "etag": "\"f890-Hf0O5uMPihwjmZ2dll24cAtany4\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 63632,
     "path": "../public/_nuxt/KaTeX_AMS-Regular.DRggAlZN.ttf"
   },
   "/_nuxt/KaTeX_Caligraphic-Bold.ATXxdsX0.ttf": {
     "type": "font/ttf",
     "etag": "\"3050-j6tziha6j7fnACoHXwNqRVpFxug\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 12368,
     "path": "../public/_nuxt/KaTeX_Caligraphic-Bold.ATXxdsX0.ttf"
-  },
-  "/_nuxt/KaTeX_AMS-Regular.DMm9YOAa.woff": {
-    "type": "font/woff",
-    "etag": "\"82ec-ma2i3jIA55UUPWOSMsNESwgBgjU\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 33516,
-    "path": "../public/_nuxt/KaTeX_AMS-Regular.DMm9YOAa.woff"
   },
   "/_nuxt/KaTeX_Caligraphic-Bold.BEiXGLvX.woff": {
     "type": "font/woff",
     "etag": "\"1e24-3SOsD7CsRpsGJEhep41wD2NhQgM\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 7716,
     "path": "../public/_nuxt/KaTeX_Caligraphic-Bold.BEiXGLvX.woff"
   },
   "/_nuxt/KaTeX_Caligraphic-Bold.Dq_IR9rO.woff2": {
     "type": "font/woff2",
     "etag": "\"1b00-W/pJysRs0derE1E4jTfBGvWbphU\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 6912,
     "path": "../public/_nuxt/KaTeX_Caligraphic-Bold.Dq_IR9rO.woff2"
-  },
-  "/_nuxt/DlAUqK2U.js": {
-    "type": "text/javascript; charset=utf-8",
-    "etag": "\"5b-eFCz/UrraTh721pgAl0VxBNR1es\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 91,
-    "path": "../public/_nuxt/DlAUqK2U.js"
   },
   "/_nuxt/KaTeX_Caligraphic-Regular.CTRA-rTL.woff": {
     "type": "font/woff",
     "etag": "\"1de8-Gm85vXDJt0cTB431991hCPm604s\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 7656,
     "path": "../public/_nuxt/KaTeX_Caligraphic-Regular.CTRA-rTL.woff"
   },
   "/_nuxt/KaTeX_Caligraphic-Regular.Di6jR-x-.woff2": {
     "type": "font/woff2",
     "etag": "\"1afc-n4B34LOKKQzZt7E2sKwpyDdegaY\"",
-    "mtime": "2026-08-14T09:03:46.560Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 6908,
     "path": "../public/_nuxt/KaTeX_Caligraphic-Regular.Di6jR-x-.woff2"
   },
   "/_nuxt/KaTeX_Caligraphic-Regular.wX97UBjC.ttf": {
     "type": "font/ttf",
     "etag": "\"3038-JvJqE+an0KabSPYqzTGoGWvOf24\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 12344,
     "path": "../public/_nuxt/KaTeX_Caligraphic-Regular.wX97UBjC.ttf"
   },
   "/_nuxt/KaTeX_Fraktur-Bold.BdnERNNW.ttf": {
     "type": "font/ttf",
     "etag": "\"4c80-TgjdADgxJOfNlpcMyw++NcnvqqM\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 19584,
     "path": "../public/_nuxt/KaTeX_Fraktur-Bold.BdnERNNW.ttf"
   },
   "/_nuxt/KaTeX_Fraktur-Bold.BsDP51OF.woff": {
     "type": "font/woff",
     "etag": "\"33f0-W7r9UB8mIhlCavfyDBEDu0tzJZI\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 13296,
     "path": "../public/_nuxt/KaTeX_Fraktur-Bold.BsDP51OF.woff"
   },
   "/_nuxt/KaTeX_Fraktur-Bold.CL6g_b3V.woff2": {
     "type": "font/woff2",
     "etag": "\"2c54-+Y+JJy7KEa5BdnLFmg+qaoiAWok\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 11348,
     "path": "../public/_nuxt/KaTeX_Fraktur-Bold.CL6g_b3V.woff2"
   },
   "/_nuxt/KaTeX_Fraktur-Regular.CB_wures.ttf": {
     "type": "font/ttf",
     "etag": "\"4c74-F9tAiC3V8UBiXyjdlMQwReGJPpg\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 19572,
     "path": "../public/_nuxt/KaTeX_Fraktur-Regular.CB_wures.ttf"
   },
   "/_nuxt/KaTeX_Fraktur-Regular.CTYiF6lA.woff2": {
     "type": "font/woff2",
     "etag": "\"2c34-pXZMbieE0CggwLkECJ8/rHmL5Po\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 11316,
     "path": "../public/_nuxt/KaTeX_Fraktur-Regular.CTYiF6lA.woff2"
   },
   "/_nuxt/KaTeX_Fraktur-Regular.Dxdc4cR9.woff": {
     "type": "font/woff",
     "etag": "\"3398-b3VjdjYPCBW0SGL1f3let8HNTbI\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 13208,
     "path": "../public/_nuxt/KaTeX_Fraktur-Regular.Dxdc4cR9.woff"
-  },
-  "/_nuxt/KaTeX_Main-Bold.Jm3AIy58.woff": {
-    "type": "font/woff",
-    "etag": "\"74d8-9po2JQ6ubooCFzqZCapihCi6IGA\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 29912,
-    "path": "../public/_nuxt/KaTeX_Main-Bold.Jm3AIy58.woff"
   },
   "/_nuxt/KaTeX_Main-Bold.Cx986IdX.woff2": {
     "type": "font/woff2",
     "etag": "\"62ec-MQUKGxsSP7LFnK0fdLff+Q3rj84\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 25324,
     "path": "../public/_nuxt/KaTeX_Main-Bold.Cx986IdX.woff2"
-  },
-  "/_nuxt/KaTeX_Main-BoldItalic.DxDJ3AOS.woff2": {
-    "type": "font/woff2",
-    "etag": "\"418c-pKSQW4sSb5/9VT0hpyoMJOlIA0U\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 16780,
-    "path": "../public/_nuxt/KaTeX_Main-BoldItalic.DxDJ3AOS.woff2"
-  },
-  "/_nuxt/KaTeX_Main-BoldItalic.DzxPMmG6.ttf": {
-    "type": "font/ttf",
-    "etag": "\"80c8-umRk5EL9UK73Z4kkug8tlYHruwc\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 32968,
-    "path": "../public/_nuxt/KaTeX_Main-BoldItalic.DzxPMmG6.ttf"
   },
   "/_nuxt/KaTeX_Main-Bold.waoOVXN0.ttf": {
     "type": "font/ttf",
     "etag": "\"c888-QTqz3D/DpXUidbriyuZ+tY8rMvA\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 51336,
     "path": "../public/_nuxt/KaTeX_Main-Bold.waoOVXN0.ttf"
+  },
+  "/_nuxt/ClWPJAGM.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"db1-HKI8fj72sNlr6Mvdnp0g6q6nZl8\"",
+    "mtime": "2026-08-16T11:48:47.112Z",
+    "size": 3505,
+    "path": "../public/_nuxt/ClWPJAGM.js"
+  },
+  "/_nuxt/KaTeX_Main-Bold.Jm3AIy58.woff": {
+    "type": "font/woff",
+    "etag": "\"74d8-9po2JQ6ubooCFzqZCapihCi6IGA\"",
+    "mtime": "2026-08-16T11:48:47.104Z",
+    "size": 29912,
+    "path": "../public/_nuxt/KaTeX_Main-Bold.Jm3AIy58.woff"
   },
   "/_nuxt/KaTeX_Main-BoldItalic.SpSLRI95.woff": {
     "type": "font/woff",
     "etag": "\"4bd4-A4u9yIh6lzCtlBR/xXxv9N+0hBE\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 19412,
     "path": "../public/_nuxt/KaTeX_Main-BoldItalic.SpSLRI95.woff"
+  },
+  "/_nuxt/KaTeX_Main-BoldItalic.DzxPMmG6.ttf": {
+    "type": "font/ttf",
+    "etag": "\"80c8-umRk5EL9UK73Z4kkug8tlYHruwc\"",
+    "mtime": "2026-08-16T11:48:47.104Z",
+    "size": 32968,
+    "path": "../public/_nuxt/KaTeX_Main-BoldItalic.DzxPMmG6.ttf"
+  },
+  "/_nuxt/KaTeX_Main-BoldItalic.DxDJ3AOS.woff2": {
+    "type": "font/woff2",
+    "etag": "\"418c-pKSQW4sSb5/9VT0hpyoMJOlIA0U\"",
+    "mtime": "2026-08-16T11:48:47.104Z",
+    "size": 16780,
+    "path": "../public/_nuxt/KaTeX_Main-BoldItalic.DxDJ3AOS.woff2"
+  },
+  "/_nuxt/KaTeX_Main-Italic.3WenGoN9.ttf": {
+    "type": "font/ttf",
+    "etag": "\"832c-HVZoorlK59vu/dfNaNmP6dWCXgc\"",
+    "mtime": "2026-08-16T11:48:47.104Z",
+    "size": 33580,
+    "path": "../public/_nuxt/KaTeX_Main-Italic.3WenGoN9.ttf"
   },
   "/_nuxt/KaTeX_Main-Italic.BMLOBm91.woff": {
     "type": "font/woff",
     "etag": "\"4cdc-fIWJITvHAD4sIzS1HKQVKFiYer0\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 19676,
     "path": "../public/_nuxt/KaTeX_Main-Italic.BMLOBm91.woff"
   },
   "/_nuxt/KaTeX_Main-Italic.NWA7e6Wa.woff2": {
     "type": "font/woff2",
     "etag": "\"425c-ybK1/9LyeqXGtvm6QaeytOZhAtM\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 16988,
     "path": "../public/_nuxt/KaTeX_Main-Italic.NWA7e6Wa.woff2"
   },
   "/_nuxt/KaTeX_Main-Regular.B22Nviop.woff2": {
     "type": "font/woff2",
     "etag": "\"66a0-yIQIbCXOyFWBYLICb5Bu99o1cKw\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 26272,
     "path": "../public/_nuxt/KaTeX_Main-Regular.B22Nviop.woff2"
-  },
-  "/_nuxt/KaTeX_Main-Regular.Dr94JaBh.woff": {
-    "type": "font/woff",
-    "etag": "\"7834-/crlS6HUY17oWlRizByX5SHP1RU\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 30772,
-    "path": "../public/_nuxt/KaTeX_Main-Regular.Dr94JaBh.woff"
   },
   "/_nuxt/KaTeX_Main-Regular.ypZvNtVU.ttf": {
     "type": "font/ttf",
     "etag": "\"d14c-h0TbbvjDCePchfG76YBSCti3v9Q\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 53580,
     "path": "../public/_nuxt/KaTeX_Main-Regular.ypZvNtVU.ttf"
   },
   "/_nuxt/KaTeX_Math-BoldItalic.B3XSjfu4.ttf": {
     "type": "font/ttf",
     "etag": "\"79dc-6AzEwjLSB192KlLUa+tP+9N6Xxo\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 31196,
     "path": "../public/_nuxt/KaTeX_Math-BoldItalic.B3XSjfu4.ttf"
   },
   "/_nuxt/KaTeX_Math-BoldItalic.CZnvNsCZ.woff2": {
     "type": "font/woff2",
     "etag": "\"4010-j8udLeZaxxoMT92YYXPbcwWS7Yo\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 16400,
     "path": "../public/_nuxt/KaTeX_Math-BoldItalic.CZnvNsCZ.woff2"
+  },
+  "/_nuxt/KaTeX_Main-Regular.Dr94JaBh.woff": {
+    "type": "font/woff",
+    "etag": "\"7834-/crlS6HUY17oWlRizByX5SHP1RU\"",
+    "mtime": "2026-08-16T11:48:47.104Z",
+    "size": 30772,
+    "path": "../public/_nuxt/KaTeX_Main-Regular.Dr94JaBh.woff"
   },
   "/_nuxt/KaTeX_Math-BoldItalic.iY-2wyZ7.woff": {
     "type": "font/woff",
     "etag": "\"48ec-1U5kgNbUBGxqVhmqODuqWXH7igw\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 18668,
     "path": "../public/_nuxt/KaTeX_Math-BoldItalic.iY-2wyZ7.woff"
-  },
-  "/_nuxt/KaTeX_Main-Italic.3WenGoN9.ttf": {
-    "type": "font/ttf",
-    "etag": "\"832c-HVZoorlK59vu/dfNaNmP6dWCXgc\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 33580,
-    "path": "../public/_nuxt/KaTeX_Main-Italic.3WenGoN9.ttf"
-  },
-  "/_nuxt/KaTeX_Math-Italic.DA0__PXp.woff": {
-    "type": "font/woff",
-    "etag": "\"493c-HBtIc54ctL4T3djAvCed3oUb26A\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 18748,
-    "path": "../public/_nuxt/KaTeX_Math-Italic.DA0__PXp.woff"
   },
   "/_nuxt/KaTeX_Math-Italic.flOr_0UB.ttf": {
     "type": "font/ttf",
     "etag": "\"7a4c-npoQ2Ppa2Iyez6SQKt3U2SWAsrw\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 31308,
     "path": "../public/_nuxt/KaTeX_Math-Italic.flOr_0UB.ttf"
+  },
+  "/_nuxt/KaTeX_Math-Italic.DA0__PXp.woff": {
+    "type": "font/woff",
+    "etag": "\"493c-HBtIc54ctL4T3djAvCed3oUb26A\"",
+    "mtime": "2026-08-16T11:48:47.104Z",
+    "size": 18748,
+    "path": "../public/_nuxt/KaTeX_Math-Italic.DA0__PXp.woff"
   },
   "/_nuxt/KaTeX_Math-Italic.t53AETM-.woff2": {
     "type": "font/woff2",
     "etag": "\"4038-20iD0M/5XstcA0EOMoOnN8Ue1gQ\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 16440,
     "path": "../public/_nuxt/KaTeX_Math-Italic.t53AETM-.woff2"
-  },
-  "/_nuxt/KaTeX_SansSerif-Bold.CFMepnvq.ttf": {
-    "type": "font/ttf",
-    "etag": "\"5fb8-ILRfU0a2htUsRFdFOT0XB7uI7B0\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 24504,
-    "path": "../public/_nuxt/KaTeX_SansSerif-Bold.CFMepnvq.ttf"
   },
   "/_nuxt/KaTeX_SansSerif-Bold.D1sUS0GD.woff2": {
     "type": "font/woff2",
     "etag": "\"2fb8-iG5heXpSXUqvzgqvV0FP366huHM\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 12216,
     "path": "../public/_nuxt/KaTeX_SansSerif-Bold.D1sUS0GD.woff2"
+  },
+  "/_nuxt/KaTeX_SansSerif-Bold.CFMepnvq.ttf": {
+    "type": "font/ttf",
+    "etag": "\"5fb8-ILRfU0a2htUsRFdFOT0XB7uI7B0\"",
+    "mtime": "2026-08-16T11:48:47.104Z",
+    "size": 24504,
+    "path": "../public/_nuxt/KaTeX_SansSerif-Bold.CFMepnvq.ttf"
   },
   "/_nuxt/KaTeX_SansSerif-Bold.DbIhKOiC.woff": {
     "type": "font/woff",
     "etag": "\"3848-or7dyKPU0IAo1wd3btvU0k8uwPw\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 14408,
     "path": "../public/_nuxt/KaTeX_SansSerif-Bold.DbIhKOiC.woff"
   },
   "/_nuxt/KaTeX_SansSerif-Italic.C3H0VqGB.woff2": {
     "type": "font/woff2",
     "etag": "\"2efc-PV+jyzCfjYO03L3SdyXycPYPPus\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 12028,
     "path": "../public/_nuxt/KaTeX_SansSerif-Italic.C3H0VqGB.woff2"
   },
   "/_nuxt/KaTeX_SansSerif-Italic.DN2j7dab.woff": {
     "type": "font/woff",
     "etag": "\"3720-dWSjZrdv2DcEHCS+70xVgKWt1A4\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 14112,
     "path": "../public/_nuxt/KaTeX_SansSerif-Italic.DN2j7dab.woff"
-  },
-  "/_nuxt/KaTeX_SansSerif-Italic.YYjJ1zSn.ttf": {
-    "type": "font/ttf",
-    "etag": "\"575c-mR+9wDFouxSkRHz6PlFfCabs/tw\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 22364,
-    "path": "../public/_nuxt/KaTeX_SansSerif-Italic.YYjJ1zSn.ttf"
   },
   "/_nuxt/KaTeX_SansSerif-Regular.BNo7hRIc.ttf": {
     "type": "font/ttf",
     "etag": "\"4bec-So4XoMtYqCKN1EF/vRuJnkHasEU\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 19436,
     "path": "../public/_nuxt/KaTeX_SansSerif-Regular.BNo7hRIc.ttf"
+  },
+  "/_nuxt/KaTeX_SansSerif-Italic.YYjJ1zSn.ttf": {
+    "type": "font/ttf",
+    "etag": "\"575c-mR+9wDFouxSkRHz6PlFfCabs/tw\"",
+    "mtime": "2026-08-16T11:48:47.104Z",
+    "size": 22364,
+    "path": "../public/_nuxt/KaTeX_SansSerif-Italic.YYjJ1zSn.ttf"
   },
   "/_nuxt/KaTeX_SansSerif-Regular.CS6fqUqJ.woff": {
     "type": "font/woff",
     "etag": "\"301c-gEYQ9MsuLq2WlLjaLshOzo0Jw40\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 12316,
     "path": "../public/_nuxt/KaTeX_SansSerif-Regular.CS6fqUqJ.woff"
   },
   "/_nuxt/KaTeX_SansSerif-Regular.DDBCnlJ7.woff2": {
     "type": "font/woff2",
     "etag": "\"2868-5F1fT0p/L/PcqfzMLxSOeB4j8pI\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 10344,
     "path": "../public/_nuxt/KaTeX_SansSerif-Regular.DDBCnlJ7.woff2"
   },
   "/_nuxt/KaTeX_Script-Regular.C5JkGWo-.ttf": {
     "type": "font/ttf",
     "etag": "\"4108-xvZ12oGtKcvySyz3cPeVtNosZI4\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 16648,
     "path": "../public/_nuxt/KaTeX_Script-Regular.C5JkGWo-.ttf"
+  },
+  "/_nuxt/KaTeX_Size1-Regular.C195tn64.woff": {
+    "type": "font/woff",
+    "etag": "\"1960-rv5mdKVlM2J8c5zXiWOY8USH4Bw\"",
+    "mtime": "2026-08-16T11:48:47.104Z",
+    "size": 6496,
+    "path": "../public/_nuxt/KaTeX_Size1-Regular.C195tn64.woff"
   },
   "/_nuxt/KaTeX_Script-Regular.D3wIWfF6.woff2": {
     "type": "font/woff2",
     "etag": "\"25ac-Y7gJWfH8Voma4hugy7zTmmywg5A\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 9644,
     "path": "../public/_nuxt/KaTeX_Script-Regular.D3wIWfF6.woff2"
   },
   "/_nuxt/KaTeX_Script-Regular.D5yQViql.woff": {
     "type": "font/woff",
     "etag": "\"295c-agXNyk8fcIXmB9w4vt71V1P4b9g\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 10588,
     "path": "../public/_nuxt/KaTeX_Script-Regular.D5yQViql.woff"
-  },
-  "/_nuxt/KaTeX_Size1-Regular.C195tn64.woff": {
-    "type": "font/woff",
-    "etag": "\"1960-rv5mdKVlM2J8c5zXiWOY8USH4Bw\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 6496,
-    "path": "../public/_nuxt/KaTeX_Size1-Regular.C195tn64.woff"
-  },
-  "/_nuxt/KaTeX_Size1-Regular.Dbsnue_I.ttf": {
-    "type": "font/ttf",
-    "etag": "\"2fc4-MoC6y8sSRZcf4BAXtHTHbDN8EMk\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 12228,
-    "path": "../public/_nuxt/KaTeX_Size1-Regular.Dbsnue_I.ttf"
   },
   "/_nuxt/KaTeX_Size1-Regular.mCD8mA8B.woff2": {
     "type": "font/woff2",
     "etag": "\"155c-V/pZmXShvAs31fDlzIYCMC8CtXM\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 5468,
     "path": "../public/_nuxt/KaTeX_Size1-Regular.mCD8mA8B.woff2"
+  },
+  "/_nuxt/KaTeX_Size1-Regular.Dbsnue_I.ttf": {
+    "type": "font/ttf",
+    "etag": "\"2fc4-MoC6y8sSRZcf4BAXtHTHbDN8EMk\"",
+    "mtime": "2026-08-16T11:48:47.104Z",
+    "size": 12228,
+    "path": "../public/_nuxt/KaTeX_Size1-Regular.Dbsnue_I.ttf"
   },
   "/_nuxt/KaTeX_Size2-Regular.B7gKUWhC.ttf": {
     "type": "font/ttf",
     "etag": "\"2cf4-+vc/8+eVGE5UMWZv+v64qg4og00\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 11508,
     "path": "../public/_nuxt/KaTeX_Size2-Regular.B7gKUWhC.ttf"
   },
   "/_nuxt/KaTeX_Size2-Regular.Dy4dx90m.woff2": {
     "type": "font/woff2",
     "etag": "\"1458-7hhxNjSjvoyZcnaAhVKrGVpZj0M\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 5208,
     "path": "../public/_nuxt/KaTeX_Size2-Regular.Dy4dx90m.woff2"
   },
   "/_nuxt/KaTeX_Size2-Regular.oD1tc_U0.woff": {
     "type": "font/woff",
     "etag": "\"182c-RmmP8YGb0ngm/V0txLpOH2PKzfQ\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 6188,
     "path": "../public/_nuxt/KaTeX_Size2-Regular.oD1tc_U0.woff"
-  },
-  "/_nuxt/KaTeX_Size3-Regular.CTq5MqoE.woff": {
-    "type": "font/woff",
-    "etag": "\"1144-HaGQWm0dm8q5KwWd9ytSjepwi8s\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 4420,
-    "path": "../public/_nuxt/KaTeX_Size3-Regular.CTq5MqoE.woff"
   },
   "/_nuxt/KaTeX_Size3-Regular.DgpXs0kz.ttf": {
     "type": "font/ttf",
     "etag": "\"1da4-MCphsuzfgtOeZ4D0K9B+5M5nuNU\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 7588,
     "path": "../public/_nuxt/KaTeX_Size3-Regular.DgpXs0kz.ttf"
+  },
+  "/_nuxt/KaTeX_Size3-Regular.CTq5MqoE.woff": {
+    "type": "font/woff",
+    "etag": "\"1144-HaGQWm0dm8q5KwWd9ytSjepwi8s\"",
+    "mtime": "2026-08-16T11:48:47.104Z",
+    "size": 4420,
+    "path": "../public/_nuxt/KaTeX_Size3-Regular.CTq5MqoE.woff"
   },
   "/_nuxt/KaTeX_Size4-Regular.BF-4gkZK.woff": {
     "type": "font/woff",
     "etag": "\"175c-j93bg1E+wiYjHr7gUHnsRfwBNXg\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 5980,
     "path": "../public/_nuxt/KaTeX_Size4-Regular.BF-4gkZK.woff"
   },
   "/_nuxt/KaTeX_Size4-Regular.Dl5lxZxV.woff2": {
     "type": "font/woff2",
     "etag": "\"1340-m+0X+5LyZQUB4imGLEDGQH4cVSg\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 4928,
     "path": "../public/_nuxt/KaTeX_Size4-Regular.Dl5lxZxV.woff2"
   },
   "/_nuxt/KaTeX_Size4-Regular.DWFBv043.ttf": {
     "type": "font/ttf",
     "etag": "\"287c-PY2d1YoDt6RtSX9XYeYNi4RKUZk\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 10364,
     "path": "../public/_nuxt/KaTeX_Size4-Regular.DWFBv043.ttf"
   },
   "/_nuxt/KaTeX_Typewriter-Regular.CO6r4hn1.woff2": {
     "type": "font/woff2",
     "etag": "\"3500-egiIP//GlYxxzAGnWguZzKPktHU\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 13568,
     "path": "../public/_nuxt/KaTeX_Typewriter-Regular.CO6r4hn1.woff2"
-  },
-  "/_nuxt/KaTeX_Typewriter-Regular.D3Ib7_Hf.ttf": {
-    "type": "font/ttf",
-    "etag": "\"6ba4-YpuZ+vGNl1KfIaGxAYCT5gvNBY8\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 27556,
-    "path": "../public/_nuxt/KaTeX_Typewriter-Regular.D3Ib7_Hf.ttf"
   },
   "/_nuxt/KaTeX_Typewriter-Regular.C0xS9mPB.woff": {
     "type": "font/woff",
     "etag": "\"3e9c-9ecp+k/0ZvwH4MerGXmtcMRfpdU\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "mtime": "2026-08-16T11:48:47.104Z",
     "size": 16028,
     "path": "../public/_nuxt/KaTeX_Typewriter-Regular.C0xS9mPB.woff"
   },
+  "/_nuxt/KaTeX_Typewriter-Regular.D3Ib7_Hf.ttf": {
+    "type": "font/ttf",
+    "etag": "\"6ba4-YpuZ+vGNl1KfIaGxAYCT5gvNBY8\"",
+    "mtime": "2026-08-16T11:48:47.112Z",
+    "size": 27556,
+    "path": "../public/_nuxt/KaTeX_Typewriter-Regular.D3Ib7_Hf.ttf"
+  },
   "/_nuxt/builds/latest.json": {
     "type": "application/json",
-    "etag": "\"47-Z6CSDiY/PW/BGRZfpNih0h83OTo\"",
-    "mtime": "2026-08-14T09:03:48.381Z",
+    "etag": "\"47-m4lATbEVa5VvBm/Nn3nSqrrrOX8\"",
+    "mtime": "2026-08-16T11:48:48.703Z",
     "size": 71,
     "path": "../public/_nuxt/builds/latest.json"
   },
-  "/_nuxt/builds/meta/4703a070-0c5b-4a32-9f15-585f4253dda2.json": {
+  "/_nuxt/builds/meta/54fc6c8b-0ce6-43cb-83b2-32a60102692e.json": {
     "type": "application/json",
-    "etag": "\"58-K/djkPGuIo+vzlIY++XRU+9/QTw\"",
-    "mtime": "2026-08-14T09:03:48.382Z",
+    "etag": "\"58-6u0QZGrQejjOkOiCs89r71keHFQ\"",
+    "mtime": "2026-08-16T11:48:48.703Z",
     "size": 88,
-    "path": "../public/_nuxt/builds/meta/4703a070-0c5b-4a32-9f15-585f4253dda2.json"
+    "path": "../public/_nuxt/builds/meta/54fc6c8b-0ce6-43cb-83b2-32a60102692e.json"
   },
-  "/_nuxt/BIx4MXgu.js": {
+  "/_nuxt/CFlxJuvO.js": {
     "type": "text/javascript; charset=utf-8",
-    "etag": "\"3d423-TSlkDffSkkz4OLv8uFtJJ2PRxwo\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
-    "size": 250915,
-    "path": "../public/_nuxt/BIx4MXgu.js"
+    "etag": "\"3db35-I1oi43kRR0QMWOFa6urTm8wxWsM\"",
+    "mtime": "2026-08-16T11:48:47.073Z",
+    "size": 252725,
+    "path": "../public/_nuxt/CFlxJuvO.js"
   },
-  "/_nuxt/DkGwbJvC.js": {
+  "/_nuxt/j-yJo82o.js": {
     "type": "text/javascript; charset=utf-8",
-    "etag": "\"2a9b9-Ow45saN1nUh7p0uXh2dHf6jZAoA\"",
-    "mtime": "2026-08-14T09:03:46.612Z",
+    "etag": "\"2a9b9-arD1JLMhpqb0Zg696rfx6efJ9VM\"",
+    "mtime": "2026-08-16T11:48:47.112Z",
     "size": 174521,
-    "path": "../public/_nuxt/DkGwbJvC.js"
+    "path": "../public/_nuxt/j-yJo82o.js"
   }
 };
 

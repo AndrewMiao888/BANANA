@@ -57,7 +57,7 @@ export async function runAgent1Core(payload: AgentPayload): Promise<ChatResponse
       },
       body: JSON.stringify({
         messages: payload.messages,
-        selectedModelId: payload.model || 'qwen-super', // Default to free local engine
+        selectedModelId: payload.model || 'qwen-super:latest', // Default to free local engine
         summaryContext: payload.existingSummary || ''
       })
     });

@@ -20,11 +20,14 @@ const analyzeVision_post = defineEventHandler(async (event) => {
     }
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
     const executionPrompt = prompt || "Analyze this image context.";
+    const config = useRuntimeConfig();
+    const ollamaUrl = config.homeOllamaUrl || "https://xps9530-haydenk.tailb68230.ts.net";
     try {
-      const ollamaVision = await $fetch("http://127.0.0.1:11434/api/generate", {
+      const ollamaVision = await $fetch(`${ollamaUrl}/api/generate`, {
         method: "POST",
         body: {
           model: "llava",
+          // Ensure model name matches your local list (llava:latest)
           prompt: executionPrompt,
           images: [cleanBase64],
           stream: false
@@ -39,8 +42,8 @@ const analyzeVision_post = defineEventHandler(async (event) => {
       };
     } catch (localError) {
       console.warn("Local visual hardware offline. Moving execution string to Groq Multi-Modal Core...");
-      const config = useRuntimeConfig();
-      const apiKey = config.groqApiKey;
+      const config2 = useRuntimeConfig();
+      const apiKey = config2.groqApiKey;
       if (!apiKey) {
         throw createError({
           statusCode: 503,

@@ -28,11 +28,13 @@ const generate_post = defineEventHandler(async (event) => {
       { role: "system", content: systemPrompts.codeAgent },
       { role: "user", content: prompt }
     ];
+    const config = useRuntimeConfig();
+    const localBaseUrl = config.homeOllamaUrl || process.env.HOME_OLLAMA_URL || "https://xps9530-haydenk.tailb68230.ts.net";
     try {
-      const ollamaGenerate = await $fetch("http://127.0.0.1:11434/api/chat", {
+      const ollamaGenerate = await $fetch(`${localBaseUrl}/api/chat`, {
         method: "POST",
         body: {
-          model: "qwen-super",
+          model: "qwen-super:latest",
           messages: structurePayload,
           stream: false
         },
@@ -46,8 +48,8 @@ const generate_post = defineEventHandler(async (event) => {
       };
     } catch (localError) {
       console.warn("Local syntax engine offline. Routing data stream packet to Groq Cloud Core...");
-      const config = useRuntimeConfig();
-      const apiKey = config.groqApiKey;
+      const config2 = useRuntimeConfig();
+      const apiKey = config2.groqApiKey;
       if (!apiKey) {
         throw createError({
           statusCode: 503,

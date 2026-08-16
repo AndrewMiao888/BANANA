@@ -19,8 +19,8 @@ const memorySync_post = defineEventHandler(async (event) => {
     const latestUserMessage = ((_a = messages[messages.length - 2]) == null ? void 0 : _a.content) || "";
     const latestAssistantMessage = ((_b = messages[messages.length - 1]) == null ? void 0 : _b.content) || "";
     if (!isLocalComputerOn) {
-      const config = useRuntimeConfig();
-      const apiKey = config.groqApiKey;
+      const config2 = useRuntimeConfig();
+      const apiKey = config2.groqApiKey;
       if (!apiKey) {
         return {
           success: true,
@@ -77,12 +77,13 @@ Provide the short text to append:`
         content: JSON.stringify(messages.map((m) => ({ role: m.role, content: m.content })))
       }
     ];
+    const config = useRuntimeConfig();
+    const localBaseUrl = config.homeOllamaUrl || process.env.HOME_OLLAMA_URL || "https://xps9530-haydenk.tailb68230.ts.net";
     try {
-      const ollamaRes = await $fetch("http://127.0.0.1:11434/api/chat", {
+      const ollamaRes = await $fetch(`${localBaseUrl}/api/chat`, {
         method: "POST",
         body: {
-          model: "qwen-super",
-          // 👈 (Or 'qwen2.5:7b' if you didn't create a custom tag name with your Modelfile)
+          model: "qwen-super:latest",
           messages: standardPayload,
           stream: false
         },

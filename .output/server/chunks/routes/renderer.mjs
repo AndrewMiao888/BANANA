@@ -454,5 +454,5 @@ const renderer = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
   default: handler
 }, Symbol.toStringTag, { value: 'Module' }));
 
-export { buildAssetsURL as a, baseURL as b, headSymbol as h, renderer as r, useHead as u };
+export { baseURL as b, headSymbol as h, renderer as r, useHead as u };
 //# sourceMappingURL=renderer.mjs.map

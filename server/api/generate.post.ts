@@ -19,11 +19,14 @@ export default defineEventHandler(async (event) => {
     ]
 
     // 1. TRY LOCAL COMPUTER SYNTAX ENGINE (Qwen Super)
-    try {
-      const ollamaGenerate = await $fetch<any>('http://127.0.0.1:11434/api/chat', {
+    const config = useRuntimeConfig()
+const localBaseUrl = (config as any).homeOllamaUrl || process.env.HOME_OLLAMA_URL || 'https://xps9530-haydenk.tailb68230.ts.net'
+
+try {
+      const ollamaGenerate = await $fetch<any>(`${localBaseUrl}/api/chat`, {
         method: 'POST',
         body: {
-          model: 'qwen-super',
+          model: 'qwen-super:latest',
           messages: structurePayload,
           stream: false
         },
