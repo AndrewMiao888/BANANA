@@ -202,44 +202,21 @@ You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQ
     let activeExecutionSource = ''
 
     // ─── 6. HARD DRIVE LOCAL HARDWARE PROBING (PRIMARY RUNNER) ─────────────
-    let isLocalAvailable = false
+  let isLocalAvailable = false
 
-    try {
-      const localCheck = await fetch(`${localBaseUrl.replace(/\/$/, '')}/api/tags`, { 
-        method: 'GET',
-        signal: AbortSignal.timeout(3500)
-      })
-      isLocalAvailable = localCheck.ok
-    } catch (e) {
-      isLocalAvailable = false
+  try {
+    const localCheck = await fetch(`${localBaseUrl.replace(/\/$/, '')}/api/tags`, { 
+      method: 'GET',
+      signal: AbortSignal.timeout(10000) // Increased to 10 seconds
+    })
+    isLocalAvailable = localCheck.ok
+    if (!isLocalAvailable) {
+      console.warn(`[OLLAMA HEALTH CHECK FAILED]: Status code ${localCheck.status}`)
     }
-
-    if (isLocalAvailable) {
-      try {
-        let resolvedModelId = selectedModelId || 'qwen-super:latest'
-        if (resolvedModelId.toLowerCase().includes('qwen')) {
-          resolvedModelId = 'qwen-super:latest' // Enforce qwen-super:latest for local execution
-        }
-
-        const localResponse = await $fetch<any>(`${localBaseUrl.replace(/\/$/, '')}/api/chat`, {
-          method: 'POST',
-          body: { 
-            model: resolvedModelId, 
-            messages: localContextMessages, 
-            stream: false 
-          },
-          timeout: 14000
-        })
-        
-        finalResponseText = localResponse?.message?.content || ''
-        if (finalResponseText) {
-          activeExecutionSource = 'Hard Drive Local Execution'
-          if (extractedSources.length > 0) activeExecutionSource += ' + Dual-Search RAG Pipeline'
-        }
-      } catch (localErr) {
-        console.warn('Local hard drive execution dropped. Auto-failing over to Groq cloud...')
-      }
-    }
+  } catch (e: any) {
+    console.error(`[OLLAMA HEALTH CHECK ERROR]:`, e?.message || e)
+    isLocalAvailable = false
+  }
 
     // ─── 7. FALLBACK LAYER: GROQ CLOUD OVERDRIVE VIA NATIVE $FETCH ─────────
     if (!finalResponseText) {
