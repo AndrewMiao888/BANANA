@@ -219,9 +219,9 @@ You are BANANA AI, a strictly precise, fact-checked AI assistant created by SynQ
       body: { 
         model: resolvedModelId, 
         messages: localContextMessages, 
-        stream: false 
+        stream: true
       },
-      timeout: 1000000 // Generous 1000s timeout for Tailscale funnel cloud latency
+      timeout: 25000 // Generous 25s timeout for Tailscale funnel cloud latency
     })
     
     finalResponseText = localResponse?.message?.content || ''
